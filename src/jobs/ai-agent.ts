@@ -1,8 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { getOpenAIForCompany } from '@/lib/openai';
 import { sendChannelMessage, sendWhatsAppTypingIndicator } from '@/lib/channel-sender';
-import { Role } from '@prisma/client';
 import { checkCreditBalance, deductCredits, logUsageOnly } from '@/lib/credits';
+import { findLeastBusyAgent } from '@/lib/assign-agent';
 
 interface AiAgentResult {
     handled: boolean;
@@ -203,35 +203,15 @@ function buildSystemPrompt(systemPrompt: string, contextInfo: string | null): st
 }
 
 async function transferToHuman(conversationId: string, companyId: string) {
-    // Find a random active human agent
-    const agents = await prisma.user.findMany({
-        where: {
-            companyId,
-            active: true,
-            role: Role.AGENT,
+    const leastBusyId = await findLeastBusyAgent(companyId);
+
+    await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+            handledByAiAgentId: null,
+            ...(leastBusyId
+                ? { assignedAgents: { connect: { id: leastBusyId } } }
+                : {}),
         },
-        select: { id: true },
     });
-
-    const updateData: Record<string, unknown> = {
-        handledByAiAgentId: null,
-    };
-
-    if (agents.length > 0) {
-        const randomIndex = Math.floor(Math.random() * agents.length);
-        await prisma.conversation.update({
-            where: { id: conversationId },
-            data: {
-                ...updateData,
-                assignedAgents: {
-                    connect: { id: agents[randomIndex].id },
-                },
-            },
-        });
-    } else {
-        await prisma.conversation.update({
-            where: { id: conversationId },
-            data: updateData,
-        });
-    }
 }
