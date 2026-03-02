@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ContactAvatar } from '@/components/contact-avatar';
 import { Badge } from '@/components/ui/badge';
 import {
     AlertDialog,
@@ -275,10 +276,6 @@ function ContactCard({ contact, lang, selectMode, isSelected, onToggle }: {
     isSelected: boolean;
     onToggle: () => void;
 }) {
-    const initials = (contact.name || contact.phone || '?').substring(0, 2).toUpperCase();
-    const colors = ['bg-blue-600', 'bg-emerald-600', 'bg-violet-600', 'bg-fuchsia-600', 'bg-orange-600', 'bg-rose-600'];
-    const colorIndex = contact.name ? contact.name.length % colors.length : 0;
-    const avatarColor = colors[colorIndex];
     const channelType = contact.originChannel || contact.conversations?.[0]?.channel?.type;
 
     return (
@@ -300,9 +297,11 @@ function ContactCard({ contact, lang, selectMode, isSelected, onToggle }: {
                     />
                 )}
 
-                <Avatar className={cn("h-10 w-10 shrink-0 border-none", avatarColor)}>
-                    <AvatarFallback className="text-white font-medium text-xs">{initials}</AvatarFallback>
-                </Avatar>
+                <ContactAvatar
+                    name={contact.name}
+                    phone={contact.phone}
+                    className="h-10 w-10 shrink-0"
+                />
 
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'; // force re-sync after client generation
 
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ContactAvatar } from "@/components/contact-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search, MessageSquareOff, Settings, Users, Tag, Inbox, Instagram, Phone, Globe } from "lucide-react";
@@ -240,9 +241,12 @@ export default async function ConversationsPage({
                         {/* Chat Header */}
                         <div className="h-16 border-b flex items-center px-6 bg-card justify-between sticky top-0 z-10">
                             <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                    <AvatarFallback>{selectedConversation.contact?.name?.[0] || '?'}</AvatarFallback>
-                                </Avatar>
+                                <ContactAvatar
+                                    name={selectedConversation.contact?.name}
+                                    phone={selectedConversation.contact?.phone}
+                                    imageUrl={selectedConversation.contact?.imageUrl}
+                                    className="h-9 w-9"
+                                />
                                 <div>
                                     <h3 className="font-medium text-sm text-foreground">{selectedConversation.contact?.name}</h3>
                                     <div className="flex items-center gap-2">

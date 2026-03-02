@@ -4,6 +4,7 @@ import * as React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ContactAvatar } from "@/components/contact-avatar";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Pin, Trash2, StickyNote, Phone, Building, RefreshCw, Loader2, Sparkles, TriangleAlert, CheckCircle2 } from "lucide-react";
 import { AgentSelector } from "./agent-selector";
@@ -118,12 +119,13 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                 <TabsContent value="contact" className="flex-1 overflow-y-auto p-0 m-0 min-h-0">
                     {/* Profile Header */}
                     <div className="p-6 flex flex-col items-center border-b bg-card">
-                        <Avatar className="h-20 w-20 mb-3 border">
-                            <AvatarImage src={contact.imageUrl} />
-                            <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                                {contact.name?.[0]?.toUpperCase() || '?'}
-                            </AvatarFallback>
-                        </Avatar>
+                        <ContactAvatar
+                            name={contact.name}
+                            phone={contact.phone}
+                            imageUrl={contact.imageUrl}
+                            className="h-20 w-20 mb-3 border"
+                            fallbackClassName="text-xl"
+                        />
                         <h2 className="font-semibold text-lg text-foreground text-center leading-tight mb-1">{contact.name || 'Desconocido'}</h2>
                         <p className="text-sm text-muted-foreground text-center">Cliente</p>
 

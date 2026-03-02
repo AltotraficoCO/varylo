@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ContactAvatar } from '@/components/contact-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Phone, Globe } from 'lucide-react';
 import { UnreadDot } from './unread-dot';
@@ -45,9 +46,10 @@ export function ConversationList({ conversations, selectedId, filter, isAgent }:
                             )}
                         >
                             <UnreadDot conversationId={conv.id} />
-                            <Avatar className="h-10 w-10">
-                                <AvatarFallback className="bg-emerald-100 text-emerald-700">{conv.contact?.name?.[0] || '?'}</AvatarFallback>
-                            </Avatar>
+                            <ContactAvatar
+                                name={conv.contact?.name}
+                                phone={conv.contact?.phone}
+                            />
                             <div className="flex-1 overflow-hidden">
                                 <div className="flex items-center justify-between mb-1">
                                     <span className="font-semibold text-sm truncate text-foreground">{conv.contact?.name || 'Usuario Desconocido'}</span>
