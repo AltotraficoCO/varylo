@@ -19,7 +19,12 @@ function verifyWebhookSignature(rawBody: Buffer, signature: string | null): bool
     const expectedSignature = createHmac('sha256', appSecret)
         .update(rawBody)
         .digest('hex');
-    return `sha256=${expectedSignature}` === signature;
+    const expected = `sha256=${expectedSignature}`;
+    const match = expected === signature;
+    if (!match) {
+        console.error('[WhatsApp] MISMATCH — received:', signature.substring(0, 20), '... expected:', expected.substring(0, 20), '... secret starts with:', appSecret.substring(0, 4));
+    }
+    return match;
 }
 
 export async function GET(req: NextRequest) {
