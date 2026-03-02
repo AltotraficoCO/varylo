@@ -165,14 +165,13 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         // Check if AI wants to transfer
         if (replyContent.includes('[TRANSFER_TO_HUMAN]')) {
             replyContent = replyContent.replace('[TRANSFER_TO_HUMAN]', '').trim();
-            if (replyContent) {
-                await sendChannelMessage({
-                    conversationId,
-                    companyId: conversation.companyId,
-                    content: replyContent,
-                    fromName: aiAgent.name,
-                });
-            }
+            const transferMessage = replyContent || 'Te estoy transfiriendo con un agente humano. Un momento por favor.';
+            await sendChannelMessage({
+                conversationId,
+                companyId: conversation.companyId,
+                content: transferMessage,
+                fromName: aiAgent.name,
+            });
             await transferToHuman(conversationId, conversation.companyId);
             return { handled: true, transferredToHuman: true };
         }
