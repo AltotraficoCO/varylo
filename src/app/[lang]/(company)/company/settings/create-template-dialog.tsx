@@ -244,7 +244,7 @@ export function CreateTemplateDialog({
                             onChange={(e) => setBodyText(e.target.value)}
                         />
                         <p className="text-xs text-muted-foreground">
-                            Usa {'{{1}}'}, {'{{2}}'}, etc. para parámetros dinámicos.
+                            Usa {'{{1}}'}, {'{{2}}'}, etc. para parámetros dinámicos. La numeración se ajusta automáticamente.
                         </p>
                     </div>
 

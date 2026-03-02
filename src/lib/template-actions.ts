@@ -265,25 +265,41 @@ export async function createWhatsAppTemplate(params: {
         };
     }
 
+    // Meta requires variables to be sequential {{1}}, {{2}}, ... per component.
+    // Renumber variables so each component starts at {{1}} independently.
+    function renumberVariables(text: string): { text: string; count: number } {
+        const vars = [...new Set(text.match(/\{\{\d+\}\}/g) || [])].sort();
+        let result = text;
+        vars.forEach((v, i) => {
+            result = result.replaceAll(v, `__VAR${i + 1}__`);
+        });
+        for (let i = 1; i <= vars.length; i++) {
+            result = result.replaceAll(`__VAR${i}__`, `{{${i}}}`);
+        }
+        return { text: result, count: vars.length };
+    }
+
     const components: any[] = [];
 
     if (params.headerText) {
+        const { text: headerTextNorm, count: headerVarCount } = renumberVariables(params.headerText);
         const headerComponent: any = {
             type: 'HEADER',
             format: 'TEXT',
-            text: params.headerText,
+            text: headerTextNorm,
         };
-        if (params.headerExamples && params.headerExamples.length > 0) {
+        if (headerVarCount > 0 && params.headerExamples && params.headerExamples.length > 0) {
             headerComponent.example = { header_text: params.headerExamples };
         }
         components.push(headerComponent);
     }
 
+    const { text: bodyTextNorm, count: bodyVarCount } = renumberVariables(params.bodyText);
     const bodyComponent: any = {
         type: 'BODY',
-        text: params.bodyText,
+        text: bodyTextNorm,
     };
-    if (params.bodyExamples && params.bodyExamples.length > 0) {
+    if (bodyVarCount > 0 && params.bodyExamples && params.bodyExamples.length > 0) {
         bodyComponent.example = { body_text: [params.bodyExamples] };
     }
     components.push(bodyComponent);
