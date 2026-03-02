@@ -61,7 +61,7 @@ export default async function ConversationsPage({
             where: { companyId: session.user.companyId, assignedAgents: { some: { id: userId } }, status: 'OPEN' }
         }),
         !isAgent ? prisma.conversation.count({
-            where: { companyId: session.user.companyId, assignedAgents: { none: {} }, status: 'OPEN' }
+            where: { companyId: session.user.companyId, assignedAgents: { none: {} }, handledByAiAgentId: null, status: 'OPEN' }
         }) : Promise.resolve(0),
         !isAgent ? prisma.conversation.count({
             where: { companyId: session.user.companyId, status: 'OPEN' }
@@ -78,6 +78,7 @@ export default async function ConversationsPage({
         where.assignedAgents = { some: { id: userId } };
     } else if (filter === 'unassigned' && !isAgent) {
         where.assignedAgents = { none: {} };
+        where.handledByAiAgentId = null;
     } else if (isAgent) {
         // Fallback safety: always filter by mine for agents
         where.assignedAgents = { some: { id: userId } };
