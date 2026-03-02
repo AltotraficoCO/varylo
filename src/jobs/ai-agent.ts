@@ -17,6 +17,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                 handledByAiAgent: {
                     include: { channels: true },
                 },
+                assignedAgents: { select: { id: true } },
                 channel: true,
                 contact: true,
                 messages: {
@@ -27,6 +28,11 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         });
 
         if (!conversation) {
+            return { handled: false };
+        }
+
+        // If there are human agents assigned, the conversation was transferred — don't use AI
+        if (conversation.assignedAgents.length > 0 && !conversation.handledByAiAgent) {
             return { handled: false };
         }
 
