@@ -26,7 +26,7 @@ import {
     User,
     Phone,
 } from 'lucide-react';
-import { getWhatsAppTemplates, sendTemplateMessage } from './template-actions';
+import { getWhatsAppTemplates, sendTemplateMessage } from '@/lib/template-actions';
 
 interface Contact {
     id: string;

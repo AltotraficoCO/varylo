@@ -18,12 +18,15 @@ import { UnreadDot } from './unread-dot';
 import { WindowTimer } from './window-timer';
 import { ConversationListActions } from './conversation-list-actions';
 import { ConversationList } from './conversation-list';
+import { NewConversationButton } from './new-conversation-button';
 
 // Server Component receiving searchParams
 export default async function ConversationsPage({
     searchParams,
+    params: routeParams,
 }: {
-    searchParams: Promise<{ conversationId?: string; filter?: string; tag?: string }>
+    searchParams: Promise<{ conversationId?: string; filter?: string; tag?: string }>;
+    params: Promise<{ lang: string }>;
 }) {
     const session = await auth();
     if (!session?.user?.companyId) return null;
@@ -40,6 +43,8 @@ export default async function ConversationsPage({
     if (isAgent && filter !== 'mine') {
         filter = 'mine';
     }
+
+    const { lang } = await routeParams;
 
     // Fetch Tags for Selector
     const companyTags = await prisma.tag.findMany({
@@ -113,6 +118,15 @@ export default async function ConversationsPage({
         select: { id: true, name: true, email: true }
     });
 
+    // Fetch contacts for "New conversation" button (admins only)
+    const contactsForTemplate = !isAgent
+        ? await prisma.contact.findMany({
+              where: { companyId: session.user.companyId },
+              select: { id: true, name: true, phone: true },
+              orderBy: { name: 'asc' },
+              take: 200,
+          })
+        : [];
 
     if (selectedId) {
         // Enforce ownership check for agents
@@ -159,7 +173,9 @@ export default async function ConversationsPage({
                             Conversaciones
                             <Badge variant="secondary" className="bg-gray-100 text-gray-700 font-normal border-none text-[10px] h-5 px-1.5">Abiertas</Badge>
                         </h2>
-                        {/* Filter/Sort icons could go here */}
+                        {!isAgent && (
+                            <NewConversationButton contacts={contactsForTemplate} lang={lang} />
+                        )}
                     </div>
                     {/* Tabs */}
                     <div className="flex px-4 gap-4 text-sm font-medium text-muted-foreground overflow-x-auto">
