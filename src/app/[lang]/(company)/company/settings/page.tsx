@@ -54,7 +54,7 @@ export default async function SettingsPage(props: {
     const userEmail = session?.user?.email || '';
 
     // WhatsApp config
-    const whatsappConfig = whatsappChannel?.configJson as { phoneNumberId?: string; verifyToken?: string; accessToken?: string } | null;
+    const whatsappConfig = whatsappChannel?.configJson as { phoneNumberId?: string; verifyToken?: string; accessToken?: string; appSecret?: string } | null;
 
     // WebChat config
     const webchatActive = webchatChannel?.status === 'CONNECTED';

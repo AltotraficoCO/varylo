@@ -179,6 +179,19 @@ export function WhatsAppConnectionForm({
                         />
                     </div>
                     <div className="space-y-2">
+                        <Label htmlFor="appSecret">App Secret</Label>
+                        <Input
+                            id="appSecret"
+                            name="appSecret"
+                            type="password"
+                            placeholder="Tu App Secret de Meta"
+                            required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Meta for Developers → Tu App → Settings → Basic → App Secret
+                        </p>
+                    </div>
+                    <div className="space-y-2">
                         <Label htmlFor="verifyToken">Verify Token (Webhook)</Label>
                         <Input
                             id="verifyToken"

@@ -18,8 +18,9 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
     const phoneNumberId = formData.get('phoneNumberId') as string;
     const accessToken = formData.get('accessToken') as string;
     const verifyToken = formData.get('verifyToken') as string;
+    const appSecret = formData.get('appSecret') as string;
 
-    if (!phoneNumberId || !accessToken || !verifyToken) {
+    if (!phoneNumberId || !accessToken || !verifyToken || !appSecret) {
         return 'Error: All fields are required.';
     }
 
@@ -39,6 +40,7 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
             phoneNumberId,
             accessToken,
             verifyToken,
+            appSecret,
         };
 
         if (existingChannel) {

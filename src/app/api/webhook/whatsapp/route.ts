@@ -7,24 +7,37 @@ import { findLeastBusyAgent } from '@/lib/assign-agent';
 
 const MAX_MESSAGE_LENGTH = 4096;
 
-/** Verify Meta X-Hub-Signature-256 header */
-function verifyWebhookSignature(rawBody: Buffer, signature: string | null): boolean {
-    const appSecret = process.env.META_APP_SECRET;
-    if (!appSecret) {
-        console.error('[WhatsApp] META_APP_SECRET not configured');
-        return false;
-    }
-    if (!signature || !signature.startsWith('sha256=')) return false;
-
-    const expectedSignature = createHmac('sha256', appSecret)
+/** Verify Meta X-Hub-Signature-256 header using per-channel or global secret */
+function verifySignatureWithSecret(rawBody: Buffer, signature: string, secret: string): boolean {
+    const expectedSignature = createHmac('sha256', secret)
         .update(rawBody)
         .digest('hex');
-    const expected = `sha256=${expectedSignature}`;
-    const match = expected === signature;
-    if (!match) {
-        console.error('[WhatsApp] MISMATCH — received:', signature.substring(0, 20), '... expected:', expected.substring(0, 20), '... secret starts with:', appSecret.substring(0, 4));
+    return `sha256=${expectedSignature}` === signature;
+}
+
+async function verifyWebhookSignature(rawBody: Buffer, signature: string | null): Promise<boolean> {
+    if (!signature || !signature.startsWith('sha256=')) return false;
+
+    // Try all WhatsApp channel secrets from the database
+    const channels = await prisma.channel.findMany({
+        where: { type: ChannelType.WHATSAPP },
+        select: { configJson: true },
+    });
+
+    for (const ch of channels) {
+        const config = ch.configJson as { appSecret?: string } | null;
+        if (config?.appSecret && verifySignatureWithSecret(rawBody, signature, config.appSecret)) {
+            return true;
+        }
     }
-    return match;
+
+    // Fallback to global META_APP_SECRET
+    const globalSecret = process.env.META_APP_SECRET;
+    if (globalSecret && verifySignatureWithSecret(rawBody, signature, globalSecret)) {
+        return true;
+    }
+
+    return false;
 }
 
 export async function GET(req: NextRequest) {
@@ -66,18 +79,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    console.log('[WhatsApp POST] Request received');
     try {
         const rawBuffer = Buffer.from(await req.arrayBuffer());
 
         // Verify webhook signature from Meta
         const signature = req.headers.get('x-hub-signature-256');
-        console.log('[WhatsApp POST] Signature present:', !!signature, 'Body length:', rawBuffer.length);
-        if (!verifyWebhookSignature(rawBuffer, signature)) {
-            console.error('[WhatsApp POST] Signature verification FAILED');
+        if (!(await verifyWebhookSignature(rawBuffer, signature))) {
             return new NextResponse('Forbidden', { status: 403 });
         }
-        console.log('[WhatsApp POST] Signature OK');
 
         const body = JSON.parse(rawBuffer.toString('utf-8'));
 
