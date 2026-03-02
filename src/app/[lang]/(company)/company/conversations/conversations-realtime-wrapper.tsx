@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { RealtimeProvider, type RealtimeConversation } from './realtime-context';
 
@@ -53,6 +53,17 @@ export function ConversationsRealtimeWrapper({ children }: { children: React.Rea
         }
     }, [selectedId]);
 
+    // Expose markAsRead so child components can mark conversations as read
+    const markAsRead = useCallback((conversationId: string) => {
+        setReadTimestamp(conversationId);
+        setUnreadMap(prev => {
+            if (!prev[conversationId]) return prev;
+            const next = { ...prev };
+            delete next[conversationId];
+            return next;
+        });
+    }, []);
+
     const poll = useCallback(async () => {
         try {
             const res = await fetch('/api/conversations/updates');
@@ -61,6 +72,11 @@ export function ConversationsRealtimeWrapper({ children }: { children: React.Rea
 
             const newFingerprint: string = data.fingerprint;
             const newConversations: RealtimeConversation[] = data.conversations;
+
+            // If the selected conversation got a new message, auto-mark it as read
+            if (selectedId) {
+                setReadTimestamp(selectedId);
+            }
 
             // Compute unread map
             const readMap = getReadTimestamps();
@@ -78,10 +94,15 @@ export function ConversationsRealtimeWrapper({ children }: { children: React.Rea
             // If fingerprint changed, refresh server components and play sound
             if (fingerprintRef.current !== null && fingerprintRef.current !== newFingerprint) {
                 router.refresh();
-                // Play notification sound
-                try {
-                    audioRef.current?.play().catch(() => { /* browser may block autoplay */ });
-                } catch { /* ignore */ }
+                // Only play sound if the change is NOT from the selected conversation
+                const selectedConv = newConversations.find(c => c.id === selectedId);
+                const wasSelectedUpdated = selectedConv && fingerprintRef.current !== null;
+                const otherConvsChanged = Object.keys(newUnreadMap).length > 0;
+                if (otherConvsChanged) {
+                    try {
+                        audioRef.current?.play().catch(() => { /* browser may block autoplay */ });
+                    } catch { /* ignore */ }
+                }
             }
 
             fingerprintRef.current = newFingerprint;
@@ -99,8 +120,12 @@ export function ConversationsRealtimeWrapper({ children }: { children: React.Rea
 
     const totalUnread = Object.keys(unreadMap).length;
 
+    const value = useMemo(() => ({
+        unreadMap, conversations, totalUnread, markAsRead,
+    }), [unreadMap, conversations, totalUnread, markAsRead]);
+
     return (
-        <RealtimeProvider value={{ unreadMap, conversations, totalUnread }}>
+        <RealtimeProvider value={value}>
             {children}
         </RealtimeProvider>
     );

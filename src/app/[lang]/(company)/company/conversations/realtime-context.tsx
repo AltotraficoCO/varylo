@@ -12,12 +12,14 @@ interface RealtimeData {
     unreadMap: Record<string, boolean>;
     conversations: RealtimeConversation[];
     totalUnread: number;
+    markAsRead: (conversationId: string) => void;
 }
 
 const RealtimeContext = createContext<RealtimeData>({
     unreadMap: {},
     conversations: [],
     totalUnread: 0,
+    markAsRead: () => {},
 });
 
 export const RealtimeProvider = RealtimeContext.Provider;
