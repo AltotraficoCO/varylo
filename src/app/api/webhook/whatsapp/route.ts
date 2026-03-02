@@ -4,6 +4,7 @@ import { ChannelType, MessageDirection } from '@prisma/client';
 import { runAutomationPipeline } from '@/jobs/pipeline';
 import { createHmac } from 'crypto';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
+import { markWhatsAppMessageAsRead } from '@/lib/channel-sender';
 
 const MAX_MESSAGE_LENGTH = 4096;
 
@@ -120,6 +121,12 @@ export async function POST(req: NextRequest) {
 
             if (channel) {
                 const companyId = channel.companyId;
+                const config = channel.configJson as { phoneNumberId?: string; accessToken?: string } | null;
+
+                // Mark message as read immediately (blue checkmarks)
+                if (config?.accessToken && config?.phoneNumberId && messageId) {
+                    markWhatsAppMessageAsRead(config.phoneNumberId, config.accessToken, messageId);
+                }
 
                 // Find or create Contact
                 let contact = await prisma.contact.findFirst({

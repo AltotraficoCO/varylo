@@ -10,6 +10,32 @@ interface SendMessageOptions {
 }
 
 /**
+ * Mark a WhatsApp message as read (blue checkmarks).
+ */
+export async function markWhatsAppMessageAsRead(
+    phoneNumberId: string,
+    accessToken: string,
+    inboundMessageId: string,
+) {
+    try {
+        await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                messaging_product: 'whatsapp',
+                status: 'read',
+                message_id: inboundMessageId,
+            }),
+        });
+    } catch {
+        // Non-critical
+    }
+}
+
+/**
  * Send a typing indicator + mark-as-read to WhatsApp.
  * The typing bubble appears for up to 25 seconds or until the reply is sent.
  */
