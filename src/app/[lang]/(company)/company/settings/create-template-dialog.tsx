@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -47,6 +47,12 @@ function sanitizeName(input: string): string {
         .replace(/[^a-z0-9_]/g, '');
 }
 
+function extractParams(text: string): string[] {
+    const matches = text.match(/\{\{(\d+)\}\}/g);
+    if (!matches) return [];
+    return [...new Set(matches)].sort();
+}
+
 export function CreateTemplateDialog({
     open,
     onOpenChange,
@@ -63,13 +69,50 @@ export function CreateTemplateDialog({
     const [bodyText, setBodyText] = useState('');
     const [footerText, setFooterText] = useState('');
     const [saving, setSaving] = useState(false);
+    const [bodyExamples, setBodyExamples] = useState<Record<string, string>>({});
+    const [headerExamples, setHeaderExamples] = useState<Record<string, string>>({});
 
     const sanitizedName = sanitizeName(name);
 
-    const previewBody = bodyText || 'Escribe el cuerpo del mensaje...';
+    const bodyParams = useMemo(() => extractParams(bodyText), [bodyText]);
+    const headerParams = useMemo(() => extractParams(headerText), [headerText]);
+
+    const previewBody = useMemo(() => {
+        let text = bodyText || 'Escribe el cuerpo del mensaje...';
+        bodyParams.forEach((p) => {
+            const idx = p.replace(/[{}]/g, '');
+            const val = bodyExamples[idx];
+            if (val) text = text.replace(p, val);
+        });
+        return text;
+    }, [bodyText, bodyParams, bodyExamples]);
+
+    const previewHeader = useMemo(() => {
+        let text = headerText;
+        headerParams.forEach((p) => {
+            const idx = p.replace(/[{}]/g, '');
+            const val = headerExamples[idx];
+            if (val) text = text.replace(p, val);
+        });
+        return text;
+    }, [headerText, headerParams, headerExamples]);
+
+    // Check that all examples are filled when there are params
+    const allBodyExamplesFilled = bodyParams.length === 0 || bodyParams.every((p) => {
+        const idx = p.replace(/[{}]/g, '');
+        return bodyExamples[idx]?.trim();
+    });
+    const allHeaderExamplesFilled = headerParams.length === 0 || headerParams.every((p) => {
+        const idx = p.replace(/[{}]/g, '');
+        return headerExamples[idx]?.trim();
+    });
 
     const handleCreate = async () => {
         if (!sanitizedName || !bodyText.trim()) return;
+
+        // Build ordered example arrays
+        const bodyExArr = bodyParams.map((p) => bodyExamples[p.replace(/[{}]/g, '')] || '');
+        const headerExArr = headerParams.map((p) => headerExamples[p.replace(/[{}]/g, '')] || '');
 
         setSaving(true);
         const result = await createWhatsAppTemplate({
@@ -79,6 +122,8 @@ export function CreateTemplateDialog({
             bodyText: bodyText.trim(),
             headerText: headerText.trim() || undefined,
             footerText: footerText.trim() || undefined,
+            bodyExamples: bodyExArr.length > 0 ? bodyExArr : undefined,
+            headerExamples: headerExArr.length > 0 ? headerExArr : undefined,
         });
         setSaving(false);
 
@@ -90,6 +135,8 @@ export function CreateTemplateDialog({
             setHeaderText('');
             setBodyText('');
             setFooterText('');
+            setBodyExamples({});
+            setHeaderExamples({});
             onOpenChange(false);
             onCreated();
         } else {
@@ -167,6 +214,26 @@ export function CreateTemplateDialog({
                         />
                     </div>
 
+                    {/* Header examples */}
+                    {headerParams.length > 0 && (
+                        <div className="space-y-2 pl-3 border-l-2 border-muted">
+                            <Label className="text-xs text-muted-foreground">Ejemplos para encabezado (requerido por Meta)</Label>
+                            {headerParams.map((p) => {
+                                const idx = p.replace(/[{}]/g, '');
+                                return (
+                                    <Input
+                                        key={`h-${idx}`}
+                                        placeholder={`Ejemplo para ${p}`}
+                                        value={headerExamples[idx] || ''}
+                                        onChange={(e) =>
+                                            setHeaderExamples((prev) => ({ ...prev, [idx]: e.target.value }))
+                                        }
+                                    />
+                                );
+                            })}
+                        </div>
+                    )}
+
                     {/* Body */}
                     <div className="space-y-1.5">
                         <Label>Cuerpo</Label>
@@ -180,6 +247,26 @@ export function CreateTemplateDialog({
                             Usa {'{{1}}'}, {'{{2}}'}, etc. para parámetros dinámicos.
                         </p>
                     </div>
+
+                    {/* Body examples */}
+                    {bodyParams.length > 0 && (
+                        <div className="space-y-2 pl-3 border-l-2 border-muted">
+                            <Label className="text-xs text-muted-foreground">Ejemplos para el cuerpo (requerido por Meta)</Label>
+                            {bodyParams.map((p) => {
+                                const idx = p.replace(/[{}]/g, '');
+                                return (
+                                    <Input
+                                        key={`b-${idx}`}
+                                        placeholder={`Ejemplo para ${p}, ej: "Juan", "12345"`}
+                                        value={bodyExamples[idx] || ''}
+                                        onChange={(e) =>
+                                            setBodyExamples((prev) => ({ ...prev, [idx]: e.target.value }))
+                                        }
+                                    />
+                                );
+                            })}
+                        </div>
+                    )}
 
                     {/* Footer */}
                     <div className="space-y-1.5">
@@ -195,8 +282,8 @@ export function CreateTemplateDialog({
                     <div className="border rounded-md p-3 bg-muted/50 space-y-1">
                         <Label className="text-xs text-muted-foreground">Vista previa</Label>
                         <div className="bg-white rounded-lg border p-3 space-y-1 text-sm">
-                            {headerText && (
-                                <p className="font-semibold">{headerText}</p>
+                            {previewHeader && (
+                                <p className="font-semibold">{previewHeader}</p>
                             )}
                             <p className="whitespace-pre-wrap">{previewBody}</p>
                             {footerText && (
@@ -212,7 +299,7 @@ export function CreateTemplateDialog({
                     </Button>
                     <Button
                         onClick={handleCreate}
-                        disabled={!sanitizedName || !bodyText.trim() || saving}
+                        disabled={!sanitizedName || !bodyText.trim() || !allBodyExamplesFilled || !allHeaderExamplesFilled || saving}
                     >
                         {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
                         {saving ? 'Creando...' : 'Crear plantilla'}

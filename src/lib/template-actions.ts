@@ -243,6 +243,8 @@ export async function createWhatsAppTemplate(params: {
     bodyText: string;
     headerText?: string;
     footerText?: string;
+    bodyExamples?: string[];
+    headerExamples?: string[];
 }): Promise<{ success: boolean; error?: string }> {
     const session = await auth();
     if (!session?.user?.companyId) {
@@ -266,17 +268,25 @@ export async function createWhatsAppTemplate(params: {
     const components: any[] = [];
 
     if (params.headerText) {
-        components.push({
+        const headerComponent: any = {
             type: 'HEADER',
             format: 'TEXT',
             text: params.headerText,
-        });
+        };
+        if (params.headerExamples && params.headerExamples.length > 0) {
+            headerComponent.example = { header_text: params.headerExamples };
+        }
+        components.push(headerComponent);
     }
 
-    components.push({
+    const bodyComponent: any = {
         type: 'BODY',
         text: params.bodyText,
-    });
+    };
+    if (params.bodyExamples && params.bodyExamples.length > 0) {
+        bodyComponent.example = { body_text: [params.bodyExamples] };
+    }
+    components.push(bodyComponent);
 
     if (params.footerText) {
         components.push({
@@ -298,6 +308,7 @@ export async function createWhatsAppTemplate(params: {
                     name: params.name,
                     category: params.category,
                     language: params.language,
+                    allow_category_change: true,
                     components,
                 }),
             }
