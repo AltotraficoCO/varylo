@@ -19,10 +19,11 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Mail, MapPin } from 'lucide-react';
+import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Mail, MapPin, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { deleteContacts } from './actions';
 import { toast } from 'sonner';
+import { SendTemplateDialog } from './send-template-dialog';
 
 const CHANNEL_OPTIONS = [
     { value: '', label: 'Todos', icon: null },
@@ -57,6 +58,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [showTemplateDialog, setShowTemplateDialog] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const router = useRouter();
 
@@ -121,6 +123,15 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                 <div className="h-14 flex items-center justify-between px-6">
                     <h1 className="text-xl font-semibold tracking-tight text-foreground">Contactos</h1>
                     <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowTemplateDialog(true)}
+                            className="h-8 px-3 text-xs"
+                        >
+                            <Send className="h-3.5 w-3.5 mr-1.5" />
+                            Enviar plantilla
+                        </Button>
                         <form onSubmit={handleSearch} className="relative w-56">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -223,6 +234,14 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                     </div>
                 )}
             </main>
+
+            {/* Template dialog */}
+            <SendTemplateDialog
+                open={showTemplateDialog}
+                onOpenChange={setShowTemplateDialog}
+                contacts={contacts.map(c => ({ id: c.id, name: c.name, phone: c.phone }))}
+                lang={lang}
+            />
 
             {/* Delete dialog */}
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

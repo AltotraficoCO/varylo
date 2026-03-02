@@ -11,12 +11,14 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 export function WhatsAppConnectionForm({
     initialPhoneNumberId,
     initialVerifyToken,
+    initialWabaId,
     hasAccessToken,
     channelId,
     automationPriority,
 }: {
     initialPhoneNumberId?: string,
     initialVerifyToken?: string,
+    initialWabaId?: string,
     hasAccessToken?: boolean,
     channelId?: string | null,
     automationPriority?: string,
@@ -200,6 +202,18 @@ export function WhatsAppConnectionForm({
                             defaultValue={initialVerifyToken}
                             required
                         />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="wabaId">WhatsApp Business Account ID (opcional)</Label>
+                        <Input
+                            id="wabaId"
+                            name="wabaId"
+                            placeholder="Ej. 10234..."
+                            defaultValue={initialWabaId}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Necesario para enviar plantillas. Meta Business Suite → WhatsApp → Configuración → WABA ID
+                        </p>
                     </div>
 
                     {isError && (
