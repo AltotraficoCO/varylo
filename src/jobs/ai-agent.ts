@@ -187,7 +187,14 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
 }
 
 function buildSystemPrompt(systemPrompt: string, contextInfo: string | null): string {
+    const now = new Date();
+    const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const dateStr = `${days[now.getDay()]} ${now.getDate()} de ${months[now.getMonth()]} de ${now.getFullYear()}`;
+    const timeStr = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+
     let prompt = systemPrompt;
+    prompt += `\n\nFecha y hora actual: ${dateStr}, ${timeStr}.`;
     if (contextInfo) {
         prompt += `\n\nInformación de contexto adicional:\n${contextInfo}`;
     }
