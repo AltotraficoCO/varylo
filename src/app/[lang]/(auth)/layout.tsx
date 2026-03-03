@@ -2,7 +2,6 @@ export default function AuthLayout({
     children,
 }: {
     children: React.ReactNode;
-    params: Promise<{ lang: string }>;
 }) {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background">

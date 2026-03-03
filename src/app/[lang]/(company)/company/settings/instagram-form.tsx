@@ -53,7 +53,7 @@ export function InstagramConnectionForm({
 
         window.fbAsyncInit = function () {
             window.FB.init({
-                appId: '1995848854645546', // Hardcoded
+                appId: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID,
                 cookie: true,
                 xfbml: true,
                 version: 'v20.0' // Upgrade to latest version
@@ -77,11 +77,8 @@ export function InstagramConnectionForm({
         // 3. Managing messages (instagram_basic, instagram_manage_messages, pages_manage_metadata)
         window.FB.login((response: any) => {
             if (response.authResponse) {
-                console.log('FB Login Success', response);
                 setUserAccessToken(response.authResponse.accessToken);
                 fetchPages(response.authResponse.userID, response.authResponse.accessToken);
-            } else {
-                console.log('User cancelled login or did not fully authorize.');
             }
         }, {
             scope: 'pages_show_list,pages_manage_metadata,instagram_basic,instagram_manage_messages'
@@ -90,7 +87,6 @@ export function InstagramConnectionForm({
 
     const fetchPages = (userId: string, token: string) => {
         setIsLoadingPages(true);
-        console.log('Fetching pages with token:', token.substring(0, 10) + '...');
 
         // Pass access_token explicitly as parameter
         window.FB.api('/me/accounts', 'get', {
@@ -99,12 +95,9 @@ export function InstagramConnectionForm({
         }, (response: any) => {
             setIsLoadingPages(false);
             if (response && response.data) {
-                console.log('Pages fetched:', response.data.length);
-                // Only keep pages that have an Instagram Business account connected
                 const pagesWithInstagram = response.data.filter(
                     (p: any) => p.instagram_business_account?.id
                 );
-                console.log('Pages with Instagram:', pagesWithInstagram.length);
                 setPages(pagesWithInstagram);
             } else {
                 console.error('Error fetching pages:', response);
