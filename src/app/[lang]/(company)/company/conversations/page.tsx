@@ -22,6 +22,7 @@ import { ConversationListActions } from './conversation-list-actions';
 import { ConversationList } from './conversation-list';
 import { NewConversationButton } from './new-conversation-button';
 import { ReopenBanner } from './reopen-banner';
+import { ScrollableTabs } from './scrollable-tabs';
 
 // Server Component receiving searchParams
 export default async function ConversationsPage({
@@ -193,7 +194,7 @@ export default async function ConversationsPage({
                         <NewConversationButton contacts={contactsForTemplate} lang={lang} />
                     </div>
                     {/* Tabs */}
-                    <div className="flex px-4 gap-4 text-sm font-medium text-muted-foreground overflow-x-auto">
+                    <ScrollableTabs>
                         <Link
                             href={`?filter=mine`}
                             className={cn(
@@ -235,7 +236,7 @@ export default async function ConversationsPage({
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             Finalizadas <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-gray-100 text-gray-600 text-[10px]">{resolvedCount}</Badge>
                         </Link>
-                    </div>
+                    </ScrollableTabs>
                 </div>
 
                 {/* Search */}
