@@ -122,15 +122,13 @@ export default async function ConversationsPage({
         select: { id: true, name: true, email: true }
     });
 
-    // Fetch contacts for "New conversation" button (admins only)
-    const contactsForTemplate = !isAgent
-        ? await prisma.contact.findMany({
-              where: { companyId: session.user.companyId },
-              select: { id: true, name: true, phone: true },
-              orderBy: { name: 'asc' },
-              take: 200,
-          })
-        : [];
+    // Fetch contacts for "New conversation" button
+    const contactsForTemplate = await prisma.contact.findMany({
+        where: { companyId: session.user.companyId },
+        select: { id: true, name: true, phone: true },
+        orderBy: { name: 'asc' },
+        take: 200,
+    });
 
     if (selectedId) {
         // Enforce ownership check for agents
@@ -178,9 +176,7 @@ export default async function ConversationsPage({
                             Conversaciones
                             <Badge variant="secondary" className="bg-gray-100 text-gray-700 font-normal border-none text-[10px] h-5 px-1.5">Abiertas</Badge>
                         </h2>
-                        {!isAgent && (
-                            <NewConversationButton contacts={contactsForTemplate} lang={lang} />
-                        )}
+                        <NewConversationButton contacts={contactsForTemplate} lang={lang} />
                     </div>
                     {/* Tabs */}
                     <div className="flex px-4 gap-4 text-sm font-medium text-muted-foreground overflow-x-auto">

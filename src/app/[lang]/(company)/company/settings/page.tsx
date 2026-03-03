@@ -17,6 +17,8 @@ import { WebChatForm } from "./webchat-form";
 import { TagsSection } from "./tags-section";
 import { TemplatesSection } from "./templates-section";
 import { GuidesSection } from "./guides-section";
+import { AssignmentForm } from "./assignment-form";
+import { Role } from '@prisma/client';
 
 const TABS = [
     { key: 'general', label: 'General', icon: Building2 },
@@ -38,7 +40,7 @@ export default async function SettingsPage(props: {
     if (!companyId) return null;
 
     // Fetch all data in parallel
-    const [company, whatsappChannel, webchatChannel, tags] = await Promise.all([
+    const [company, whatsappChannel, webchatChannel, tags, companyAgents] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -49,6 +51,8 @@ export default async function SettingsPage(props: {
                 googleCalendarEmail: true,
                 googleCalendarConnectedAt: true,
                 googleCalendarRefreshToken: true,
+                assignmentStrategy: true,
+                specificAgentId: true,
             },
         }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WHATSAPP } }),
@@ -57,6 +61,11 @@ export default async function SettingsPage(props: {
             where: { companyId },
             orderBy: { createdAt: 'desc' },
             include: { _count: { select: { conversations: true } } }
+        }),
+        prisma.user.findMany({
+            where: { companyId, active: true, role: { in: [Role.AGENT, Role.COMPANY_ADMIN] } },
+            select: { id: true, name: true, email: true },
+            orderBy: { name: 'asc' },
         }),
     ]);
 
@@ -133,6 +142,12 @@ export default async function SettingsPage(props: {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        <AssignmentForm
+                            currentStrategy={company?.assignmentStrategy || 'LEAST_BUSY'}
+                            currentAgentId={company?.specificAgentId || null}
+                            agents={companyAgents}
+                        />
 
                         <Card>
                             <CardHeader>

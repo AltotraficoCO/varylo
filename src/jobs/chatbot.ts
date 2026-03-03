@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { sendChannelMessage } from '@/lib/channel-sender';
-import { Role } from '@prisma/client';
+import { assignAgent } from '@/lib/assign-agent';
 import type { ChatbotFlow } from '@/types/chatbot';
 
 interface ChatbotResult {
@@ -208,27 +208,17 @@ async function handleAction(
 }
 
 async function transferToHuman(conversationId: string, companyId: string) {
-    const agents = await prisma.user.findMany({
-        where: {
-            companyId,
-            active: true,
-            role: Role.AGENT,
-        },
-        select: { id: true },
-    });
+    const agentId = await assignAgent(companyId);
 
-    if (agents.length > 0) {
-        const randomIndex = Math.floor(Math.random() * agents.length);
-        await prisma.conversation.update({
-            where: { id: conversationId },
-            data: {
-                handledByAiAgentId: null,
-                assignedAgents: {
-                    connect: { id: agents[randomIndex].id },
-                },
-            },
-        });
+    const data: any = { handledByAiAgentId: null };
+    if (agentId) {
+        data.assignedAgents = { connect: { id: agentId } };
     }
+
+    await prisma.conversation.update({
+        where: { id: conversationId },
+        data,
+    });
 }
 
 function formatNodeMessage(message: string, options?: { label: string }[]): string {

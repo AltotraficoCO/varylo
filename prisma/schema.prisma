@@ -65,6 +65,13 @@ enum UserStatus {
   OFFLINE
 }
 
+enum AssignmentStrategy {
+  LEAST_BUSY
+  ROUND_ROBIN
+  SPECIFIC_AGENT
+  MANUAL_ONLY
+}
+
 enum CreditTransactionType {
   RECHARGE
   AI_USAGE
@@ -103,6 +110,10 @@ model Company {
   openaiApiKey          String?
   openaiApiKeyUpdatedAt DateTime?
   creditBalance         Int           @default(0)
+
+  assignmentStrategy    AssignmentStrategy @default(LEAST_BUSY)
+  specificAgentId       String?
+  roundRobinLastUserId  String?
 
   googleCalendarRefreshToken String?
   googleCalendarEmail        String?

@@ -2,7 +2,7 @@
 
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { ChannelType, ChannelStatus, AutomationPriority } from '@prisma/client';
+import { ChannelType, ChannelStatus, AutomationPriority, AssignmentStrategy } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { encrypt } from '@/lib/encryption';
 import { getGoogleAuthUrl } from '@/lib/google-calendar';
@@ -546,6 +546,46 @@ export async function disconnectGoogleCalendar() {
 }
 
 // AUTOMATION PRIORITY
+
+// ASSIGNMENT STRATEGY
+
+export async function updateAssignmentStrategy(strategy: AssignmentStrategy, specificAgentId?: string) {
+    const session = await auth();
+    if (!session?.user?.companyId) {
+        return { success: false, message: 'No authorized session.' };
+    }
+
+    const companyId = session.user.companyId;
+
+    // Validate specificAgentId belongs to this company if SPECIFIC_AGENT
+    if (strategy === 'SPECIFIC_AGENT') {
+        if (!specificAgentId) {
+            return { success: false, message: 'Debes seleccionar un agente.' };
+        }
+        const agent = await prisma.user.findFirst({
+            where: { id: specificAgentId, companyId, active: true },
+        });
+        if (!agent) {
+            return { success: false, message: 'El agente seleccionado no existe o no está activo.' };
+        }
+    }
+
+    try {
+        await prisma.company.update({
+            where: { id: companyId },
+            data: {
+                assignmentStrategy: strategy,
+                specificAgentId: strategy === 'SPECIFIC_AGENT' ? specificAgentId : null,
+            },
+        });
+
+        revalidatePath('/[lang]/company/settings', 'page');
+        return { success: true, message: 'Estrategia de asignación actualizada.' };
+    } catch (error) {
+        console.error('Failed to update assignment strategy:', error);
+        return { success: false, message: 'Error al actualizar la estrategia.' };
+    }
+}
 
 export async function updateChannelPriority(channelId: string, priority: AutomationPriority) {
     const session = await auth();
