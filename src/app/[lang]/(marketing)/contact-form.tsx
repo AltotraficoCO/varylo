@@ -20,7 +20,7 @@ export function ContactForm({ dict }: { dict: any }) {
     const [state, formAction] = useActionState(submitContact, null);
 
     if (state?.success) {
-        return <div className="text-center p-6 bg-green-50 text-green-600 rounded-lg">{dict.success}</div>;
+        return <div className="text-center p-6 bg-green-50 text-green-800 rounded-lg font-medium">{dict.success}</div>;
     }
 
     return (

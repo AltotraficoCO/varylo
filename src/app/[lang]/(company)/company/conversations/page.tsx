@@ -374,7 +374,7 @@ export default async function ConversationsPage({
                                         <div className="flex flex-col gap-4 h-full justify-between">
                                             <div className="flex justify-center py-4">
                                                 <div className="flex -space-x-3">
-                                                    <Avatar className="border-2 border-white ring-2 ring-muted"><AvatarFallback className="bg-blue-100 text-primary">A</AvatarFallback></Avatar>
+                                                    <Avatar className="border-2 border-white ring-2 ring-muted"><AvatarFallback className="bg-emerald-100 text-emerald-700">A</AvatarFallback></Avatar>
                                                     <Avatar className="border-2 border-white ring-2 ring-muted"><AvatarFallback className="bg-green-100 text-green-600">B</AvatarFallback></Avatar>
                                                     <Avatar className="border-2 border-white ring-2 ring-muted"><AvatarFallback className="bg-purple-100 text-purple-600">C</AvatarFallback></Avatar>
                                                 </div>
