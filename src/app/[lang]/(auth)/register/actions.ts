@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { redirect } from 'next/navigation';
 import { Plan, Role } from '@prisma/client';
 import { z } from 'zod';
+import { sendWelcomeEmail } from '@/lib/email';
 
 const registerSchema = z.object({
     companyName: z.string().min(1).max(200).trim(),
@@ -67,6 +68,9 @@ export async function register(prevState: string | undefined, formData: FormData
         console.error(err);
         return 'Failed to create account.';
     }
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(email, name, companyName).catch(() => {});
 
     redirect('/login');
 }
