@@ -48,7 +48,7 @@ export default async function RegisterPage({
     return (
         <div className="flex min-h-screen">
             {/* Left panel — dark emerald gradient */}
-            <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] relative flex-col justify-between bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 p-12 text-white overflow-hidden shrink-0">
+            <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 p-12 text-white overflow-hidden">
                 {/* Grid overlay */}
                 <div
                     className="pointer-events-none absolute inset-0 opacity-[0.04]"
