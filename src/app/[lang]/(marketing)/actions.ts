@@ -20,12 +20,16 @@ export async function submitContact(prevState: unknown, formData: FormData) {
                 message
             }
         });
-
-        await sendContactNotificationEmail(name, email, message);
-
-        return { success: true, message: 'Message sent!' };
     } catch (error) {
-        console.error(error);
+        console.error('Error saving contact lead:', error);
         return { success: false, message: 'Failed to send message.' };
     }
+
+    try {
+        await sendContactNotificationEmail(name, email, message);
+    } catch (error) {
+        console.error('Error sending contact notification email:', error);
+    }
+
+    return { success: true, message: 'Message sent!' };
 }
