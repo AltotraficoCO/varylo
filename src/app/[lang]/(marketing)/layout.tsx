@@ -1,6 +1,7 @@
 import { MarketingHeader } from '@/components/marketing-header';
 import { getDictionary, Locale } from '@/lib/dictionary';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default async function MarketingLayout({
     children,
@@ -22,9 +23,8 @@ export default async function MarketingLayout({
                 <div className="container mx-auto px-4 py-16">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                         <div className="col-span-2 md:col-span-1">
-                            <div className="flex items-center gap-2.5 mb-4">
-                                <div className="h-7 w-7 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">V</div>
-                                <span className="font-bold text-lg text-white tracking-tight">VARYLO</span>
+                            <div className="mb-4">
+                                <Image src="/logo.png" alt="Varylo" width={140} height={79} className="brightness-0 invert" />
                             </div>
                             <p className="text-sm text-gray-400 leading-relaxed">
                                 {lang === 'es'
