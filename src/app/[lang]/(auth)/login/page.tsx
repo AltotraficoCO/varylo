@@ -8,17 +8,17 @@ export default async function LoginPage({ params }: { params: Promise<{ lang: Lo
   const d = dict.auth.login;
 
   return (
-    <div className="w-full max-w-md space-y-8 rounded-xl border bg-card p-6 shadow-sm">
+    <div className="w-full max-w-md space-y-6 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 backdrop-blur-sm">
       <div className="text-center">
-        <h2 className="text-3xl font-bold tracking-tight">{d.title}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <h2 className="text-2xl font-semibold tracking-tight text-white">{d.title}</h2>
+        <p className="mt-2 text-sm text-zinc-400">
           {d.subtitle}
         </p>
       </div>
       <LoginForm dict={d} lang={lang} />
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-sm text-zinc-500">
         {d.noAccount}{' '}
-        <Link href={`/${lang}/register`} className="font-medium text-primary hover:underline">
+        <Link href={`/${lang}/register`} className="font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
           {d.register}
         </Link>
       </p>
