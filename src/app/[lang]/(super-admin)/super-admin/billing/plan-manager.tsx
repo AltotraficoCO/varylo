@@ -11,9 +11,20 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Check, DatabaseZap } from "lucide-react";
+import { Check, DatabaseZap, Trash2 } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { EditPlanDialog } from "./edit-plan-dialog";
-import { seedLandingPlans, getLandingPlansWithPricing } from "./actions";
+import { seedLandingPlans, getLandingPlansWithPricing, deleteLandingPlan } from "./actions";
 
 type PlanPricing = {
     id: string;
@@ -137,11 +148,59 @@ export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
                             ))}
                         </ul>
                     </CardContent>
-                    <CardFooter>
+                    <CardFooter className="flex gap-2">
                         <EditPlanDialog plan={plan} onUpdated={refresh} />
+                        <DeletePlanButton plan={plan} onDeleted={refresh} />
                     </CardFooter>
                 </Card>
             ))}
         </div>
+    );
+}
+
+function DeletePlanButton({ plan, onDeleted }: { plan: Plan; onDeleted: () => void }) {
+    const [deleting, setDeleting] = useState(false);
+    const [error, setError] = useState('');
+
+    async function handleDelete() {
+        setDeleting(true);
+        setError('');
+        const result = await deleteLandingPlan(plan.id);
+        setDeleting(false);
+        if (result.success) {
+            onDeleted();
+        } else {
+            setError(result.error || 'Error al eliminar');
+        }
+    }
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="outline" size="icon" className="shrink-0 text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200">
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Eliminar plan &quot;{plan.name}&quot;</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción eliminará permanentemente el plan y su configuración de precios.
+                        {plan.planPricing && ' Las suscripciones activas asociadas no se verán afectadas, pero no se podrán crear nuevas.'}
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                    >
+                        {deleting ? 'Eliminando...' : 'Eliminar'}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 }

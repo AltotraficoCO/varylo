@@ -390,6 +390,44 @@ const planPricingSchema = z.object({
     useAutoTrm: z.boolean().default(false),
 });
 
+export async function deleteLandingPlan(planId: string) {
+    await requireSuperAdmin();
+    if (!planId) return { success: false, error: 'ID de plan requerido' };
+
+    try {
+        // Check if any active subscriptions reference this plan's pricing
+        const pricing = await prisma.planPricing.findUnique({
+            where: { landingPlanId: planId },
+        }).catch(() => null);
+
+        if (pricing) {
+            const activeSubscriptions = await prisma.subscription.count({
+                where: {
+                    planPricingId: pricing.id,
+                    status: { in: ['ACTIVE', 'TRIAL'] },
+                },
+            }).catch(() => 0);
+
+            if (activeSubscriptions > 0) {
+                return {
+                    success: false,
+                    error: `No se puede eliminar: ${activeSubscriptions} suscripción(es) activa(s) usan este plan`,
+                };
+            }
+        }
+
+        // Delete plan (PlanPricing cascades via ON DELETE CASCADE)
+        await prisma.landingPlan.delete({ where: { id: planId } });
+
+        revalidatePath('/super-admin/billing');
+        revalidatePath('/');
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting plan:', error);
+        return { success: false, error: 'Error al eliminar el plan' };
+    }
+}
+
 export async function upsertPlanPricing(data: z.infer<typeof planPricingSchema>) {
     await requireSuperAdmin();
     const result = planPricingSchema.safeParse(data);
