@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Instagram, Building2, Bell, Plug, Brain, Tag, FileText, BookOpen } from "lucide-react";
+import { Instagram, Building2, Bell, Plug, Brain, Tag, FileText, BookOpen, CreditCard } from "lucide-react";
 import { WhatsAppConnectionForm } from "./whatsapp-form";
 import { OpenAIKeyForm } from "./openai-form";
 import { CreditBalanceCard } from "./credit-balance-card";
@@ -18,12 +18,17 @@ import { TagsSection } from "./tags-section";
 import { TemplatesSection } from "./templates-section";
 import { GuidesSection } from "./guides-section";
 import { AssignmentForm } from "./assignment-form";
+import { SubscriptionCard } from "./subscription-card";
+import { PaymentMethodsCard } from "./payment-methods-card";
+import { BillingHistoryCard } from "./billing-history-card";
+import { getActiveSubscription, getPaymentSources, getBillingHistory, getAvailablePlans } from "./billing-actions";
 import { Role } from '@prisma/client';
 
 const TABS = [
     { key: 'general', label: 'General', icon: Building2 },
     { key: 'channels', label: 'Canales', icon: Plug },
     { key: 'ai', label: 'IA y Créditos', icon: Brain },
+    { key: 'billing', label: 'Facturación', icon: CreditCard },
     { key: 'tags', label: 'Etiquetas', icon: Tag },
     { key: 'templates', label: 'Plantillas', icon: FileText },
     { key: 'guides', label: 'Guías', icon: BookOpen },
@@ -232,6 +237,10 @@ export default async function SettingsPage(props: {
                     </>
                 )}
 
+                {activeTab === 'billing' && (
+                    <BillingTabContent companyId={companyId} companyEmail={userEmail} />
+                )}
+
                 {activeTab === 'tags' && (
                     <TagsSection tags={tags} />
                 )}
@@ -245,5 +254,54 @@ export default async function SettingsPage(props: {
                 )}
             </div>
         </div>
+    );
+}
+
+async function BillingTabContent({ companyId, companyEmail }: { companyId: string; companyEmail: string }) {
+    const [subscription, paymentSources, billingHistory, availablePlans] = await Promise.all([
+        getActiveSubscription(),
+        getPaymentSources(),
+        getBillingHistory(),
+        getAvailablePlans(),
+    ]);
+
+    const serializedSub = subscription ? {
+        ...subscription,
+        currentPeriodStart: subscription.currentPeriodStart.toISOString(),
+        currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
+    } : null;
+
+    const serializedSources = paymentSources.map((s) => ({
+        ...s,
+        expiresAt: s.expiresAt?.toISOString() || null,
+        createdAt: s.createdAt.toISOString(),
+    }));
+
+    const serializedHistory = billingHistory.map((a) => ({
+        ...a,
+        createdAt: a.createdAt.toISOString(),
+    }));
+
+    const serializedPlans = availablePlans.map((p) => ({
+        ...p,
+        createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt.toISOString(),
+        landingPlan: {
+            ...p.landingPlan,
+            createdAt: p.landingPlan.createdAt.toISOString(),
+            updatedAt: p.landingPlan.updatedAt.toISOString(),
+        },
+    }));
+
+    return (
+        <>
+            <SubscriptionCard
+                subscription={serializedSub}
+                availablePlans={serializedPlans}
+                hasPaymentSource={paymentSources.length > 0}
+            />
+            <PaymentMethodsCard sources={serializedSources} companyEmail={companyEmail} />
+            <BillingHistoryCard attempts={serializedHistory} />
+        </>
     );
 }

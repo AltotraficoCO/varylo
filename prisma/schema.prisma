@@ -79,6 +79,21 @@ enum CreditTransactionType {
   REFUND
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIAL
+}
+
+enum BillingAttemptStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  ERROR
+  VOIDED
+}
+
 // Models
 
 model User {
@@ -130,6 +145,8 @@ model Company {
   chatbots           Chatbot[]
   creditTransactions CreditTransaction[]
   aiUsageLogs        AiUsageLog[]
+  paymentSources     PaymentSource[]
+  subscriptions      Subscription[]
 }
 
 model Channel {
@@ -349,4 +366,78 @@ model LandingPlan {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  planPricing PlanPricing?
+}
+
+model WompiConfig {
+  id              String   @id @default(cuid())
+  publicKey       String
+  privateKey      String   // encrypted
+  eventsSecret    String   // encrypted
+  integritySecret String   // encrypted
+  isSandbox       Boolean  @default(true)
+  webhookUrl      String?
+  updatedAt       DateTime @updatedAt
+}
+
+model PlanPricing {
+  id                String   @id @default(cuid())
+  landingPlanId     String   @unique
+  priceInCents      Int      // COP cents
+  billingPeriodDays Int      @default(30)
+  trialDays         Int      @default(0)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  landingPlan   LandingPlan    @relation(fields: [landingPlanId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+}
+
+model PaymentSource {
+  id                  String    @id @default(cuid())
+  companyId           String
+  wompiSourceId       String    @unique
+  wompiCustomerEmail  String
+  brand               String?
+  lastFour            String?
+  expiresAt           DateTime?
+  isDefault           Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  companyId          String
+  planPricingId      String
+  paymentSourceId    String
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  planPricing    PlanPricing      @relation(fields: [planPricingId], references: [id])
+  paymentSource  PaymentSource    @relation(fields: [paymentSourceId], references: [id])
+  billingAttempts BillingAttempt[]
+}
+
+model BillingAttempt {
+  id                 String               @id @default(cuid())
+  subscriptionId     String
+  amountInCents      Int
+  currency           String               @default("COP")
+  wompiTransactionId String?
+  status             BillingAttemptStatus  @default(PENDING)
+  errorReason        String?
+  attemptNumber      Int                  @default(1)
+  createdAt          DateTime             @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }

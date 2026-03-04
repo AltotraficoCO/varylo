@@ -15,8 +15,17 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { updateLandingPlan } from './actions';
+import { updateLandingPlan, upsertPlanPricing } from './actions';
 import { Pencil, Plus, X } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+
+type PlanPricing = {
+    id: string;
+    priceInCents: number;
+    billingPeriodDays: number;
+    trialDays: number;
+    active: boolean;
+} | null;
 
 type PlanData = {
     id: string;
@@ -29,6 +38,7 @@ type PlanData = {
     ctaText: string;
     ctaLink: string | null;
     sortOrder: number;
+    planPricing: PlanPricing;
 };
 
 export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated: () => void }) {
@@ -41,6 +51,12 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
     const [isFeatured, setIsFeatured] = useState(plan.isFeatured);
     const [ctaText, setCtaText] = useState(plan.ctaText);
     const [newFeature, setNewFeature] = useState('');
+
+    // Pricing fields
+    const [priceCop, setPriceCop] = useState(plan.planPricing?.priceInCents ? plan.planPricing.priceInCents / 100 : 0);
+    const [billingPeriodDays, setBillingPeriodDays] = useState(plan.planPricing?.billingPeriodDays ?? 30);
+    const [trialDays, setTrialDays] = useState(plan.planPricing?.trialDays ?? 0);
+    const [pricingActive, setPricingActive] = useState(plan.planPricing?.active ?? true);
 
     function addFeature() {
         const trimmed = newFeature.trim();
@@ -67,6 +83,18 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
             ctaLink: plan.ctaLink,
             sortOrder: plan.sortOrder,
         });
+
+        // Save pricing if COP price is set
+        if (priceCop > 0) {
+            await upsertPlanPricing({
+                landingPlanId: plan.id,
+                priceInCents: Math.round(priceCop * 100),
+                billingPeriodDays,
+                trialDays,
+                active: pricingActive,
+            });
+        }
+
         setLoading(false);
         if (result.success) {
             setOpen(false);
@@ -108,6 +136,32 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
                         <Switch checked={isFeatured} onCheckedChange={setIsFeatured} />
                         <Label>Destacado (badge &quot;Popular&quot;)</Label>
                     </div>
+                    <Separator />
+                    <p className="text-sm font-medium text-muted-foreground">Suscripción recurrente (COP)</p>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label>Precio COP</Label>
+                            <Input type="number" min={0} value={priceCop} onChange={(e) => setPriceCop(Number(e.target.value))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Período (días)</Label>
+                            <Input type="number" min={1} value={billingPeriodDays} onChange={(e) => setBillingPeriodDays(Number(e.target.value))} />
+                        </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label>Días de prueba</Label>
+                            <Input type="number" min={0} value={trialDays} onChange={(e) => setTrialDays(Number(e.target.value))} />
+                        </div>
+                        <div className="flex items-center gap-3 pt-6">
+                            <Switch checked={pricingActive} onCheckedChange={setPricingActive} />
+                            <Label>Suscripción activa</Label>
+                        </div>
+                    </div>
+
+                    <Separator />
+
                     <div className="space-y-2">
                         <Label>Features</Label>
                         <div className="space-y-2">
