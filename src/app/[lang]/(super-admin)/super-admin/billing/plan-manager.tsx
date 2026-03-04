@@ -31,6 +31,7 @@ type Plan = {
 export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
     const [plans, setPlans] = useState<Plan[]>(initialPlans);
     const [seeding, setSeeding] = useState(false);
+    const [error, setError] = useState('');
 
     async function refresh() {
         const updated = await getLandingPlans();
@@ -39,9 +40,16 @@ export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
 
     async function handleSeed() {
         setSeeding(true);
-        const result = await seedLandingPlans();
-        if (result.success) {
-            await refresh();
+        setError('');
+        try {
+            const result = await seedLandingPlans();
+            if (result.success) {
+                await refresh();
+            } else {
+                setError(result.error || 'Error desconocido');
+            }
+        } catch (e: any) {
+            setError(e.message || 'Error al crear los planes');
         }
         setSeeding(false);
     }
@@ -56,6 +64,9 @@ export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
                 <p className="text-sm text-muted-foreground mb-6">
                     Crea los planes por defecto (Starter, Pro, Scale) para empezar a gestionar los precios de la landing.
                 </p>
+                {error && (
+                    <p className="text-sm text-red-500 mb-4">{error}</p>
+                )}
                 <Button onClick={handleSeed} disabled={seeding}>
                     {seeding ? 'Creando...' : 'Crear planes por defecto'}
                 </Button>
