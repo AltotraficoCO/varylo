@@ -148,7 +148,7 @@ export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
                             ))}
                         </ul>
                     </CardContent>
-                    <CardFooter className="flex gap-2">
+                    <CardFooter className="grid grid-cols-[1fr_auto] gap-2">
                         <EditPlanDialog plan={plan} onUpdated={refresh} />
                         <DeletePlanButton plan={plan} onDeleted={refresh} />
                     </CardFooter>
