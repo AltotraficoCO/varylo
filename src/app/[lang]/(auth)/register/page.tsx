@@ -23,28 +23,26 @@ export default async function RegisterPage({
     // Fetch Wompi config
     const wompiConfig = await getWompiConfig();
 
-    // Fetch PlanPricing for selected plan
-    let planPricingId: string | undefined;
-    let planName: string | undefined;
-    let planPrice: number | undefined;
+    // Fetch ALL active PlanPricing records
+    let availablePlans: { id: string; slug: string; name: string; priceInCents: number }[] = [];
 
     try {
-        const pricing = await prisma.planPricing.findFirst({
-            where: {
-                active: true,
-                landingPlan: { slug: selectedPlanSlug },
-            },
-            include: { landingPlan: { select: { name: true } } },
+        const pricings = await prisma.planPricing.findMany({
+            where: { active: true },
+            include: { landingPlan: { select: { name: true, slug: true, sortOrder: true } } },
+            orderBy: { landingPlan: { sortOrder: 'asc' } },
         });
-        if (pricing) {
-            planPricingId = pricing.id;
-            planName = pricing.landingPlan.name;
-            planPrice = pricing.priceInCents;
-        }
+        availablePlans = pricings.map((p) => ({
+            id: p.id,
+            slug: p.landingPlan.slug,
+            name: p.landingPlan.name,
+            priceInCents: p.priceInCents,
+        }));
     } catch {
         // PlanPricing may not exist yet
     }
 
+    const defaultPlan = availablePlans.find((p) => p.slug === selectedPlanSlug) || availablePlans[0];
     const panel = d.panel;
 
     return (
@@ -71,24 +69,11 @@ export default async function RegisterPage({
                 <div className="relative z-10 space-y-6">
                     <h1 className="text-3xl font-bold leading-tight">{panel.headline}</h1>
 
-                    {/* Plan card */}
-                    {planName && (
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-sm p-6 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <span className="text-lg font-semibold">Plan {planName}</span>
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-medium text-emerald-300">
-                                    <Sparkles className="h-3.5 w-3.5" />
-                                    {panel.trialBadge}
-                                </span>
-                            </div>
-                            {planPrice != null && (
-                                <p className="text-2xl font-bold">
-                                    ${(planPrice / 100).toLocaleString('es-CO')}{' '}
-                                    <span className="text-sm font-normal text-emerald-200/60">COP/mes</span>
-                                </p>
-                            )}
-                        </div>
-                    )}
+                    {/* Trial badge */}
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-4 py-1.5 text-sm font-medium text-emerald-300">
+                        <Sparkles className="h-4 w-4" />
+                        {panel.trialBadge}
+                    </div>
 
                     {/* Features */}
                     <div className="space-y-3">
@@ -120,10 +105,8 @@ export default async function RegisterPage({
                         lang={lang}
                         wompiPublicKey={wompiConfig?.publicKey}
                         wompiIsSandbox={wompiConfig?.isSandbox}
-                        planPricingId={planPricingId}
-                        planName={planName}
-                        planPrice={planPrice}
-                        selectedPlan={selectedPlanSlug}
+                        availablePlans={availablePlans}
+                        defaultPlanId={defaultPlan?.id}
                     />
                 </div>
             </div>

@@ -10,15 +10,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CheckCircle2, CreditCard, Loader2, Shield } from 'lucide-react';
 
+type AvailablePlan = {
+    id: string;
+    slug: string;
+    name: string;
+    priceInCents: number;
+};
+
 type Props = {
     dict: any;
     lang: string;
     wompiPublicKey?: string;
     wompiIsSandbox?: boolean;
-    planPricingId?: string;
-    planName?: string;
-    planPrice?: number;
-    selectedPlan?: string;
+    availablePlans: AvailablePlan[];
+    defaultPlanId?: string;
 };
 
 export function RegisterWizard({
@@ -26,12 +31,10 @@ export function RegisterWizard({
     lang,
     wompiPublicKey,
     wompiIsSandbox,
-    planPricingId,
-    planName,
-    planPrice,
-    selectedPlan = 'STARTER',
+    availablePlans,
+    defaultPlanId,
 }: Props) {
-    const hasPaymentStep = !!(wompiPublicKey && planPricingId);
+    const hasPaymentStep = !!(wompiPublicKey && availablePlans.length > 0);
     const totalSteps = hasPaymentStep ? 3 : 2;
 
     const [step, setStep] = useState(1);
@@ -40,7 +43,7 @@ export function RegisterWizard({
 
     // Step 1 state
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [selectedPlanId, setSelectedPlanId] = useState(defaultPlanId || availablePlans[0]?.id || '');
 
     // Step 2 state
     const [cardHolder, setCardHolder] = useState('');
@@ -48,6 +51,8 @@ export function RegisterWizard({
     const [cardExpMonth, setCardExpMonth] = useState('');
     const [cardExpYear, setCardExpYear] = useState('');
     const [cardCvc, setCardCvc] = useState('');
+
+    const selectedPlan = availablePlans.find((p) => p.id === selectedPlanId);
 
     const stepLabels = [
         dict.steps.account,
@@ -62,7 +67,7 @@ export function RegisterWizard({
         setError('');
 
         const formData = new FormData(e.currentTarget);
-        formData.set('plan', selectedPlan);
+        formData.set('plan', selectedPlan?.slug || 'STARTER');
 
         const result = await register(undefined, formData);
 
@@ -76,7 +81,6 @@ export function RegisterWizard({
         const emailVal = formData.get('email') as string;
         const passwordVal = formData.get('password') as string;
         setEmail(emailVal);
-        setPassword(passwordVal);
 
         const signInResult = await signIn('credentials', {
             email: emailVal,
@@ -142,7 +146,7 @@ export function RegisterWizard({
             }
 
             // Subscribe to plan (trial)
-            const subResult = await subscribeToPlan(planPricingId!);
+            const subResult = await subscribeToPlan(selectedPlanId);
 
             if (!subResult.success) {
                 throw new Error(subResult.error || 'Error al activar suscripción');
@@ -275,6 +279,40 @@ export function RegisterWizard({
                         </div>
                     </div>
 
+                    {/* Plan selector */}
+                    {availablePlans.length > 0 && (
+                        <div className="space-y-2">
+                            <Label className="text-gray-700 text-sm">{dict.planLabel}</Label>
+                            <div className="grid grid-cols-1 gap-2">
+                                {availablePlans.map((p) => (
+                                    <label
+                                        key={p.id}
+                                        className={`flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-all ${
+                                            selectedPlanId === p.id
+                                                ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500'
+                                                : 'border-gray-200 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="radio"
+                                                name="planRadio"
+                                                value={p.id}
+                                                checked={selectedPlanId === p.id}
+                                                onChange={() => setSelectedPlanId(p.id)}
+                                                className="accent-emerald-600"
+                                            />
+                                            <span className="text-sm font-medium text-gray-900">{p.name}</span>
+                                        </div>
+                                        <span className="text-sm text-gray-600">
+                                            ${(p.priceInCents / 100).toLocaleString('es-CO')} <span className="text-gray-400">COP/mes</span>
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {error && <p className="text-sm text-red-500">{error}</p>}
 
                     <Button
@@ -319,9 +357,9 @@ export function RegisterWizard({
                     <div>
                         <p className="text-sm font-medium text-emerald-800">{dict.step2.trialInfo}</p>
                         <p className="text-xs text-emerald-600 mt-0.5">{dict.step2.trialDescription}</p>
-                        {planName && planPrice != null && (
+                        {selectedPlan && (
                             <p className="text-xs text-emerald-600 mt-1">
-                                Plan {planName} — ${(planPrice / 100).toLocaleString('es-CO')} COP/mes
+                                Plan {selectedPlan.name} — ${(selectedPlan.priceInCents / 100).toLocaleString('es-CO')} COP/mes
                             </p>
                         )}
                     </div>

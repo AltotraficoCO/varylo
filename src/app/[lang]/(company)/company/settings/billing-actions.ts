@@ -25,7 +25,12 @@ const addPaymentSourceSchema = z.object({
 });
 
 export async function addPaymentSourceAction(data: z.infer<typeof addPaymentSourceSchema>) {
-    const session = await requireCompanyAdmin();
+    let session;
+    try {
+        session = await requireCompanyAdmin();
+    } catch {
+        return { success: false, error: 'No autorizado. Inicia sesión de nuevo.' };
+    }
     const companyId = session.user.companyId!;
     const result = addPaymentSourceSchema.safeParse(data);
     if (!result.success) return { success: false, error: 'Datos inválidos' };
@@ -122,7 +127,12 @@ export async function removePaymentSource(sourceId: string) {
 // ============ Subscriptions ============
 
 export async function subscribeToPlan(planPricingId: string) {
-    const session = await requireCompanyAdmin();
+    let session;
+    try {
+        session = await requireCompanyAdmin();
+    } catch {
+        return { success: false, error: 'No autorizado. Inicia sesión de nuevo.' };
+    }
     const companyId = session.user.companyId!;
 
     // Get default payment source
