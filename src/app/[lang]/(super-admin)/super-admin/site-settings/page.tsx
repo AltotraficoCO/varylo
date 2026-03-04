@@ -10,7 +10,7 @@ export default async function SiteSettingsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold">Sitio Web</h1>
+                <h2 className="text-2xl font-bold tracking-tight">Sitio Web</h2>
                 <p className="text-muted-foreground">
                     Configura el favicon y los enlaces del footer de la landing page.
                 </p>

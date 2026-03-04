@@ -361,7 +361,16 @@ export async function getLandingPlansWithPricing() {
             include: { planPricing: true },
         });
     } catch {
-        return [];
+        // PlanPricing table may not exist — try without it
+        try {
+            const plans = await prisma.landingPlan.findMany({
+                where: { active: true },
+                orderBy: { sortOrder: 'asc' },
+            });
+            return plans.map(p => ({ ...p, planPricing: null }));
+        } catch {
+            return [];
+        }
     }
 }
 
