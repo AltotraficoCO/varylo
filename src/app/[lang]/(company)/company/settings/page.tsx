@@ -3,16 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Building2, Plug, Brain, Tag, FileText, BookOpen, CreditCard } from "lucide-react";
 import { TagsSection } from "./tags-section";
 import { TemplatesSection } from "./templates-section";
 import { GuidesSection } from "./guides-section";
-import { AssignmentForm } from "./assignment-form";
+import { GeneralSection } from "./general-section";
 import { ChannelsSection } from "./channels-section";
 import { IntegrationsSection } from "./integrations-section";
 import { BillingSection } from "./billing-section";
@@ -87,7 +82,7 @@ export default async function SettingsPage(props: {
     const webchatConfig = webchatChannel?.configJson as { apiKey?: string } | null;
 
     return (
-        <div className="max-w-4xl mx-auto w-full">
+        <div className="w-full">
             {/* Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
@@ -96,9 +91,9 @@ export default async function SettingsPage(props: {
                 </p>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="border-b mb-8">
-                <nav className="flex gap-6 -mb-px">
+            <div className="flex gap-8">
+                {/* Sidebar Navigation — sticky */}
+                <nav className="hidden md:flex flex-col gap-1 w-48 shrink-0 sticky top-20 self-start">
                     {TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.key;
@@ -107,133 +102,111 @@ export default async function SettingsPage(props: {
                                 key={tab.key}
                                 href={`?tab=${tab.key}`}
                                 className={cn(
-                                    "flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors",
+                                    "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                                     isActive
-                                        ? "border-primary text-primary"
-                                        : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                 )}
                             >
-                                <Icon className="h-4 w-4" />
+                                <Icon className="h-4 w-4 shrink-0" />
                                 {tab.label}
                             </Link>
                         );
                     })}
                 </nav>
-            </div>
 
-            {/* Tab Content */}
-            <div className="space-y-6">
-                {activeTab === 'general' && (
-                    <>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Perfil de Empresa</CardTitle>
-                                <CardDescription>Información básica de tu empresa.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="companyName">Nombre de Empresa</Label>
-                                        <Input id="companyName" defaultValue={companyName} disabled className="bg-muted/50" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="email">Email</Label>
-                                        <Input id="email" defaultValue={userEmail} disabled className="bg-muted/50" />
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                {/* Mobile: horizontal scroll tabs */}
+                <div className="md:hidden border-b mb-6 -mt-2 w-full">
+                    <nav className="flex gap-4 -mb-px overflow-x-auto pb-px">
+                        {TABS.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.key;
+                            return (
+                                <Link
+                                    key={tab.key}
+                                    href={`?tab=${tab.key}`}
+                                    className={cn(
+                                        "flex items-center gap-1.5 pb-2.5 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0",
+                                        isActive
+                                            ? "border-primary text-primary"
+                                            : "border-transparent text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    <Icon className="h-3.5 w-3.5" />
+                                    {tab.label}
+                                </Link>
+                            );
+                        })}
+                    </nav>
+                </div>
 
-                        <AssignmentForm
-                            currentStrategy={company?.assignmentStrategy || 'LEAST_BUSY'}
-                            currentAgentId={company?.specificAgentId || null}
+                {/* Tab Content */}
+                <div className="flex-1 min-w-0 space-y-6">
+                    {activeTab === 'general' && (
+                        <GeneralSection
+                            companyName={companyName}
+                            userEmail={userEmail}
+                            assignmentStrategy={company?.assignmentStrategy || 'LEAST_BUSY'}
+                            specificAgentId={company?.specificAgentId || null}
                             agents={companyAgents}
                         />
+                    )}
 
-                        <Card>
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-lg">Notificaciones</CardTitle>
-                                        <CardDescription>Configura cómo quieres recibir alertas.</CardDescription>
-                                    </div>
-                                    <Badge variant="secondary" className="text-xs">Próximamente</Badge>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4 opacity-50 pointer-events-none">
-                                <div className="flex items-center justify-between">
-                                    <Label htmlFor="email-notif" className="flex flex-col gap-1">
-                                        <span>Notificaciones por Email</span>
-                                        <span className="font-normal text-xs text-muted-foreground">Resúmenes semanales de actividad.</span>
-                                    </Label>
-                                    <Switch id="email-notif" defaultChecked />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label htmlFor="desktop-notif" className="flex flex-col gap-1">
-                                        <span>Notificaciones de Escritorio</span>
-                                        <span className="font-normal text-xs text-muted-foreground">Alertas en tiempo real.</span>
-                                    </Label>
-                                    <Switch id="desktop-notif" />
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </>
-                )}
+                    {activeTab === 'channels' && (
+                        <ChannelsSection
+                            whatsappConfig={{
+                                phoneNumberId: whatsappConfig?.phoneNumberId,
+                                verifyToken: whatsappConfig?.verifyToken,
+                                wabaId: whatsappConfig?.wabaId,
+                                hasAccessToken: !!whatsappConfig?.accessToken,
+                                channelId: whatsappChannel?.id || null,
+                                automationPriority: whatsappChannel?.automationPriority || 'CHATBOT_FIRST',
+                            }}
+                            webchatConfig={{
+                                isActive: webchatActive,
+                                apiKey: webchatConfig?.apiKey || null,
+                                channelId: webchatChannel?.id || null,
+                                automationPriority: webchatChannel?.automationPriority || 'CHATBOT_FIRST',
+                            }}
+                        />
+                    )}
 
-                {activeTab === 'channels' && (
-                    <ChannelsSection
-                        whatsappConfig={{
-                            phoneNumberId: whatsappConfig?.phoneNumberId,
-                            verifyToken: whatsappConfig?.verifyToken,
-                            wabaId: whatsappConfig?.wabaId,
-                            hasAccessToken: !!whatsappConfig?.accessToken,
-                            channelId: whatsappChannel?.id || null,
-                            automationPriority: whatsappChannel?.automationPriority || 'CHATBOT_FIRST',
-                        }}
-                        webchatConfig={{
-                            isActive: webchatActive,
-                            apiKey: webchatConfig?.apiKey || null,
-                            channelId: webchatChannel?.id || null,
-                            automationPriority: webchatChannel?.automationPriority || 'CHATBOT_FIRST',
-                        }}
-                    />
-                )}
+                    {activeTab === 'ai' && (
+                        <IntegrationsSection
+                            openai={{
+                                hasApiKey: hasOpenAIKey,
+                                updatedAt: openaiKeyUpdatedAt,
+                            }}
+                            credits={{
+                                balance: creditBalance,
+                                hasOwnKey: hasOpenAIKey,
+                                companyId,
+                                companyEmail: userEmail,
+                            }}
+                            googleCalendar={{
+                                isConnected: hasGoogleCalendar,
+                                email: googleCalendarEmail,
+                                connectedAt: googleCalendarConnectedAt,
+                            }}
+                        />
+                    )}
 
-                {activeTab === 'ai' && (
-                    <IntegrationsSection
-                        openai={{
-                            hasApiKey: hasOpenAIKey,
-                            updatedAt: openaiKeyUpdatedAt,
-                        }}
-                        credits={{
-                            balance: creditBalance,
-                            hasOwnKey: hasOpenAIKey,
-                            companyId,
-                            companyEmail: userEmail,
-                        }}
-                        googleCalendar={{
-                            isConnected: hasGoogleCalendar,
-                            email: googleCalendarEmail,
-                            connectedAt: googleCalendarConnectedAt,
-                        }}
-                    />
-                )}
+                    {activeTab === 'billing' && (
+                        <BillingTabContent companyId={companyId} companyEmail={userEmail} />
+                    )}
 
-                {activeTab === 'billing' && (
-                    <BillingTabContent companyId={companyId} companyEmail={userEmail} />
-                )}
+                    {activeTab === 'tags' && (
+                        <TagsSection tags={tags} />
+                    )}
 
-                {activeTab === 'tags' && (
-                    <TagsSection tags={tags} />
-                )}
+                    {activeTab === 'templates' && (
+                        <TemplatesSection />
+                    )}
 
-                {activeTab === 'templates' && (
-                    <TemplatesSection />
-                )}
-
-                {activeTab === 'guides' && (
-                    <GuidesSection />
-                )}
+                    {activeTab === 'guides' && (
+                        <GuidesSection />
+                    )}
+                </div>
             </div>
         </div>
     );
