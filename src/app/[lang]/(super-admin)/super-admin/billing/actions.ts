@@ -68,13 +68,38 @@ export async function updateLandingPlan(data: z.infer<typeof updatePlanSchema>) 
     }
 }
 
-/** Seed default plans if none exist */
+/** Ensure the LandingPlan table exists, then seed default plans */
 export async function seedLandingPlans() {
     await requireSuperAdmin();
-    const count = await prisma.landingPlan.count();
-    if (count > 0) return { success: false, error: 'Los planes ya existen' };
 
     try {
+        // Create the table if it doesn't exist
+        await prisma.$executeRawUnsafe(`
+            CREATE TABLE IF NOT EXISTS "LandingPlan" (
+                "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+                "slug" TEXT NOT NULL,
+                "name" TEXT NOT NULL,
+                "description" TEXT NOT NULL,
+                "price" INTEGER NOT NULL,
+                "currency" TEXT NOT NULL DEFAULT 'USD',
+                "features" TEXT[] DEFAULT ARRAY[]::TEXT[],
+                "isFeatured" BOOLEAN NOT NULL DEFAULT false,
+                "ctaText" TEXT NOT NULL DEFAULT 'Empezar ahora',
+                "ctaLink" TEXT,
+                "sortOrder" INTEGER NOT NULL DEFAULT 0,
+                "active" BOOLEAN NOT NULL DEFAULT true,
+                "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT "LandingPlan_pkey" PRIMARY KEY ("id")
+            )
+        `);
+        await prisma.$executeRawUnsafe(`
+            CREATE UNIQUE INDEX IF NOT EXISTS "LandingPlan_slug_key" ON "LandingPlan"("slug")
+        `);
+
+        const count = await prisma.landingPlan.count();
+        if (count > 0) return { success: false, error: 'Los planes ya existen' };
+
         await prisma.landingPlan.createMany({
             data: [
                 {
@@ -111,9 +136,10 @@ export async function seedLandingPlans() {
             ],
         });
         revalidatePath('/super-admin/billing');
+        revalidatePath('/');
         return { success: true };
     } catch (error) {
         console.error('Error seeding plans:', error);
-        return { success: false, error: 'Error al crear los planes' };
+        return { success: false, error: 'Error al crear los planes. Revisa los logs.' };
     }
 }
