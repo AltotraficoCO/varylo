@@ -388,6 +388,7 @@ model PlanPricing {
   priceInCents      Int      // COP cents
   billingPeriodDays Int      @default(30)
   trialDays         Int      @default(0)
+  useAutoTrm        Boolean  @default(false)
   active            Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

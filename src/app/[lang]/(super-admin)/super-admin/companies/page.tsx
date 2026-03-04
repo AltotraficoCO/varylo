@@ -46,11 +46,11 @@ export default async function CompaniesPage() {
             include: {
                 users: true,
                 subscriptions: {
-                    where: { status: { in: ['ACTIVE', 'PAST_DUE', 'TRIAL'] } },
                     take: 1,
+                    orderBy: { createdAt: 'desc' },
                     include: {
                         planPricing: {
-                            include: { landingPlan: { select: { name: true } } },
+                            include: { landingPlan: { select: { name: true, slug: true } } },
                         },
                     },
                 },
@@ -165,14 +165,24 @@ export default async function CompaniesPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="hidden md:table-cell">
-                                                {subStatus ? (
+                                                {sub ? (
                                                     <div className="flex flex-col gap-0.5">
-                                                        <Badge variant={subStatus.variant} className="text-xs w-fit">
-                                                            {subStatus.label}
+                                                        <Badge variant={subStatus?.variant || 'outline'} className="text-xs w-fit">
+                                                            {subStatus?.label || sub.status}
                                                         </Badge>
                                                         <span className="text-xs text-muted-foreground">
                                                             {sub.planPricing?.landingPlan?.name || '-'}
                                                         </span>
+                                                        {sub.currentPeriodEnd && (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {(() => {
+                                                                    const daysLeft = Math.ceil((new Date(sub.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                                                                    return daysLeft > 0
+                                                                        ? `${daysLeft} días restantes`
+                                                                        : 'Vencida';
+                                                                })()}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">Sin suscripción</span>

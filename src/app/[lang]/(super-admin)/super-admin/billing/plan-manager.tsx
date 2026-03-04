@@ -20,6 +20,7 @@ type PlanPricing = {
     priceInCents: number;
     billingPeriodDays: number;
     trialDays: number;
+    useAutoTrm: boolean;
     active: boolean;
 } | null;
 
@@ -118,6 +119,13 @@ export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
                             <div className="mt-1 text-sm text-muted-foreground">
                                 Suscripción: {formatCOP(plan.planPricing.priceInCents)} COP / {plan.planPricing.billingPeriodDays} días
                                 {plan.planPricing.trialDays > 0 && ` (${plan.planPricing.trialDays} días de prueba)`}
+                                <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                    plan.planPricing.useAutoTrm
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'bg-gray-100 text-gray-600'
+                                }`}>
+                                    {plan.planPricing.useAutoTrm ? 'TRM auto' : 'Precio manual'}
+                                </span>
                             </div>
                         )}
                         <ul className="mt-4 space-y-2">

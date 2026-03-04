@@ -1,12 +1,12 @@
 'use strict';
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Loader2, Settings } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -35,14 +35,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { updateCompany, adjustCompanyCredits } from './actions';
+import { updateCompany, adjustCompanyCredits, toggleSubscriptionStatus, createManualSubscription, getAvailablePlanPricings } from './actions';
 import { Company } from '@prisma/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
+import { CalendarDays, Clock, CreditCard } from "lucide-react"
 
 interface CompanyWithUsers extends Company {
     users: any[];
+    subscriptions?: any[];
 }
 
 const formSchema = z.object({
@@ -70,7 +73,24 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
     const [creditAmount, setCreditAmount] = useState('');
     const [creditDescription, setCreditDescription] = useState('');
     const [creditLoading, setCreditLoading] = useState(false);
+    const [subLoading, setSubLoading] = useState(false);
+    const [subStatus, setSubStatus] = useState<string | null>(null);
+    const [createSubLoading, setCreateSubLoading] = useState(false);
+    const [planPricings, setPlanPricings] = useState<any[]>([]);
+    const [selectedPricingId, setSelectedPricingId] = useState('');
     const router = useRouter();
+
+    const sub = company.subscriptions?.[0] || null;
+
+    // Initialize subStatus from subscription data
+    const currentSubStatus = subStatus ?? sub?.status ?? null;
+
+    // Load plan pricings when dialog opens (for creating manual subscriptions)
+    useEffect(() => {
+        if (open && !sub) {
+            getAvailablePlanPricings().then(setPlanPricings);
+        }
+    }, [open, sub]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -144,8 +164,9 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                     </DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="details">Detalles</TabsTrigger>
+                        <TabsTrigger value="subscription">Suscripción</TabsTrigger>
                         <TabsTrigger value="users">Usuarios</TabsTrigger>
                         <TabsTrigger value="credits">Créditos</TabsTrigger>
                     </TabsList>
@@ -218,6 +239,182 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                 </DialogFooter>
                             </form>
                         </Form>
+                    </TabsContent>
+                    <TabsContent value="subscription">
+                        <div className="py-4 space-y-4">
+                            {sub ? (
+                                <>
+                                    {/* Subscription info card */}
+                                    <div className="rounded-lg border p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-sm">Plan suscrito</h4>
+                                            <Badge variant={
+                                                currentSubStatus === 'ACTIVE' ? 'default' :
+                                                currentSubStatus === 'TRIAL' ? 'secondary' :
+                                                currentSubStatus === 'PAST_DUE' ? 'destructive' : 'outline'
+                                            }>
+                                                {currentSubStatus === 'ACTIVE' ? 'Activa' :
+                                                 currentSubStatus === 'TRIAL' ? 'Prueba' :
+                                                 currentSubStatus === 'PAST_DUE' ? 'Pago pendiente' :
+                                                 currentSubStatus === 'CANCELLED' ? 'Cancelada' : currentSubStatus}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-lg font-bold">
+                                            {sub.planPricing?.landingPlan?.name || 'Plan desconocido'}
+                                        </p>
+                                        {sub.planPricing && (
+                                            <p className="text-sm text-muted-foreground">
+                                                {formatCOP(sub.planPricing.priceInCents / 100)} COP / {sub.planPricing.billingPeriodDays} días
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Dates */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="rounded-lg border p-3">
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                                                <CalendarDays className="h-3.5 w-3.5" />
+                                                Inicio del período
+                                            </div>
+                                            <p className="text-sm font-medium">
+                                                {new Date(sub.currentPeriodStart).toLocaleDateString('es-CO', {
+                                                    year: 'numeric', month: 'long', day: 'numeric'
+                                                })}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border p-3">
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                                                <CalendarDays className="h-3.5 w-3.5" />
+                                                Fin del período
+                                            </div>
+                                            <p className="text-sm font-medium">
+                                                {new Date(sub.currentPeriodEnd).toLocaleDateString('es-CO', {
+                                                    year: 'numeric', month: 'long', day: 'numeric'
+                                                })}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Days remaining */}
+                                    <div className="rounded-lg border p-3">
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                                            <Clock className="h-3.5 w-3.5" />
+                                            Días restantes
+                                        </div>
+                                        {(() => {
+                                            const daysLeft = Math.ceil(
+                                                (new Date(sub.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                                            );
+                                            return (
+                                                <p className={`text-xl font-bold ${daysLeft <= 0 ? 'text-red-500' : daysLeft <= 5 ? 'text-amber-500' : 'text-emerald-600'}`}>
+                                                    {daysLeft > 0 ? `${daysLeft} días` : 'Vencida'}
+                                                </p>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Toggle active/inactive */}
+                                    <div className="rounded-lg border p-4">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium">Suscripción activa</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Activar o desactivar manualmente la suscripción
+                                                </p>
+                                            </div>
+                                            <Switch
+                                                checked={currentSubStatus === 'ACTIVE' || currentSubStatus === 'TRIAL'}
+                                                disabled={subLoading}
+                                                onCheckedChange={async (checked) => {
+                                                    setSubLoading(true);
+                                                    const newStatus = checked ? 'ACTIVE' : 'CANCELLED';
+                                                    const result = await toggleSubscriptionStatus({
+                                                        subscriptionId: sub.id,
+                                                        newStatus,
+                                                    });
+                                                    if (result.success) {
+                                                        setSubStatus(newStatus);
+                                                        toast.success(checked ? 'Suscripción activada' : 'Suscripción desactivada');
+                                                        router.refresh();
+                                                    } else {
+                                                        toast.error(result.error || 'Error al cambiar estado');
+                                                    }
+                                                    setSubLoading(false);
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {sub.cancelledAt && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Cancelada el {new Date(sub.cancelledAt).toLocaleDateString('es-CO', {
+                                                year: 'numeric', month: 'long', day: 'numeric'
+                                            })}
+                                        </p>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="text-center py-8 space-y-4">
+                                    <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                                        <CreditCard className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">Sin suscripción</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Esta empresa no tiene una suscripción activa.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3 max-w-xs mx-auto">
+                                        <Select
+                                            value={selectedPricingId}
+                                            onValueChange={setSelectedPricingId}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Seleccionar plan..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {planPricings.map((pp: any) => (
+                                                    <SelectItem key={pp.id} value={pp.id}>
+                                                        {pp.landingPlan.name} - {formatCOP(pp.priceInCents / 100)} COP
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            onClick={async () => {
+                                                if (!selectedPricingId) {
+                                                    toast.error('Selecciona un plan primero');
+                                                    return;
+                                                }
+                                                const pp = planPricings.find((p: any) => p.id === selectedPricingId);
+                                                setCreateSubLoading(true);
+                                                const result = await createManualSubscription({
+                                                    companyId: company.id,
+                                                    planPricingId: selectedPricingId,
+                                                    periodDays: pp?.billingPeriodDays || 30,
+                                                    status: 'ACTIVE',
+                                                });
+                                                if (result.success) {
+                                                    toast.success('Suscripción creada correctamente');
+                                                    setOpen(false);
+                                                    router.refresh();
+                                                } else {
+                                                    toast.error(result.error || 'Error al crear suscripción');
+                                                }
+                                                setCreateSubLoading(false);
+                                            }}
+                                            disabled={createSubLoading || !selectedPricingId}
+                                            className="w-full"
+                                        >
+                                            {createSubLoading ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : null}
+                                            Crear suscripción manual
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </TabsContent>
                     <TabsContent value="users">
                         <div className="py-4">

@@ -118,6 +118,9 @@ export async function ensureSubscriptionTables() {
         await prisma.$executeRawUnsafe(`
             CREATE UNIQUE INDEX IF NOT EXISTS "PlanPricing_landingPlanId_key" ON "PlanPricing"("landingPlanId")
         `);
+        await prisma.$executeRawUnsafe(`
+            ALTER TABLE "PlanPricing" ADD COLUMN IF NOT EXISTS "useAutoTrm" BOOLEAN NOT NULL DEFAULT false
+        `);
 
         await prisma.$executeRawUnsafe(`
             CREATE TABLE IF NOT EXISTS "PaymentSource" (
@@ -382,6 +385,7 @@ const planPricingSchema = z.object({
     billingPeriodDays: z.number().int().min(1).default(30),
     trialDays: z.number().int().min(0).default(0),
     active: z.boolean().default(true),
+    useAutoTrm: z.boolean().default(false),
 });
 
 export async function upsertPlanPricing(data: z.infer<typeof planPricingSchema>) {
@@ -402,6 +406,7 @@ export async function upsertPlanPricing(data: z.infer<typeof planPricingSchema>)
                     billingPeriodDays: result.data.billingPeriodDays,
                     trialDays: result.data.trialDays,
                     active: result.data.active,
+                    useAutoTrm: result.data.useAutoTrm,
                 },
             });
         } else {

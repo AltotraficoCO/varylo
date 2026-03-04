@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { getDictionary, Locale } from '@/lib/dictionary';
 import { prisma } from '@/lib/prisma';
+import { fetchUsdToCop } from '@/lib/exchange-rate';
 import { CheckCircle2, Sparkles } from 'lucide-react';
 import { RegisterWizard } from './register-wizard';
 
@@ -25,14 +26,21 @@ export default async function RegisterPage({
     try {
         const pricings = await prisma.planPricing.findMany({
             where: { active: true },
-            include: { landingPlan: { select: { name: true, slug: true, sortOrder: true, showTrialOnRegister: true } } },
+            include: { landingPlan: { select: { name: true, slug: true, sortOrder: true, showTrialOnRegister: true, price: true } } },
             orderBy: { landingPlan: { sortOrder: 'asc' } },
         });
+
+        // If any plan uses auto TRM, fetch exchange rate server-side
+        const needsTrm = pricings.some((p) => p.useAutoTrm);
+        const trm = needsTrm ? await fetchUsdToCop() : 0;
+
         availablePlans = pricings.map((p) => ({
             id: p.id,
             slug: p.landingPlan.slug,
             name: p.landingPlan.name,
-            priceInCents: p.priceInCents,
+            priceInCents: p.useAutoTrm
+                ? Math.round(p.landingPlan.price * trm * 100)
+                : p.priceInCents,
             trialDays: p.landingPlan.showTrialOnRegister ? p.trialDays : 0,
         }));
     } catch {

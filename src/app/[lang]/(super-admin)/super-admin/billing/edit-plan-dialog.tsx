@@ -18,12 +18,14 @@ import {
 import { updateLandingPlan, upsertPlanPricing } from './actions';
 import { Pencil, Plus, X, RefreshCw, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { fetchUsdToCop, FALLBACK_RATE } from '@/lib/exchange-rate';
 
 type PlanPricing = {
     id: string;
     priceInCents: number;
     billingPeriodDays: number;
     trialDays: number;
+    useAutoTrm: boolean;
     active: boolean;
 } | null;
 
@@ -41,27 +43,6 @@ type PlanData = {
     showTrialOnRegister: boolean;
     planPricing: PlanPricing;
 };
-
-const FALLBACK_RATE = 4200;
-
-async function fetchUsdToCop(): Promise<number> {
-    try {
-        const res = await fetch('https://latest.currency-api.pages.dev/v1/currencies/usd.json');
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        return Math.round(data.usd?.cop || FALLBACK_RATE);
-    } catch {
-        try {
-            // Fallback API
-            const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
-            if (!res.ok) throw new Error();
-            const data = await res.json();
-            return Math.round(data.usd?.cop || FALLBACK_RATE);
-        } catch {
-            return FALLBACK_RATE;
-        }
-    }
-}
 
 export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated: () => void }) {
     const [open, setOpen] = useState(false);
@@ -83,6 +64,7 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
     const [billingPeriodDays, setBillingPeriodDays] = useState(plan.planPricing?.billingPeriodDays ?? 30);
     const [trialDays, setTrialDays] = useState(plan.planPricing?.trialDays ?? 0);
     const [pricingActive, setPricingActive] = useState(plan.planPricing?.active ?? true);
+    const [useAutoTrm, setUseAutoTrm] = useState(plan.planPricing?.useAutoTrm ?? false);
 
     // Fetch real exchange rate when dialog opens
     useEffect(() => {
@@ -95,8 +77,8 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
         setRateLoading(true);
         const rate = await fetchUsdToCop();
         setExchangeRate(rate);
-        // Auto-calculate COP if there's no existing pricing
-        if (!plan.planPricing) {
+        // Auto-calculate COP if there's no existing pricing or auto TRM is on
+        if (!plan.planPricing || useAutoTrm) {
             setPriceCop(Math.round(price * rate));
         }
         setRateLoading(false);
@@ -104,7 +86,16 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
 
     function handlePriceUsdChange(usd: number) {
         setPrice(usd);
-        setPriceCop(Math.round(usd * exchangeRate));
+        if (useAutoTrm) {
+            setPriceCop(Math.round(usd * exchangeRate));
+        }
+    }
+
+    function handleAutoTrmToggle(checked: boolean) {
+        setUseAutoTrm(checked);
+        if (checked) {
+            setPriceCop(Math.round(price * exchangeRate));
+        }
     }
 
     function addFeature() {
@@ -142,6 +133,7 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
                 billingPeriodDays,
                 trialDays,
                 active: pricingActive,
+                useAutoTrm,
             });
         }
 
@@ -210,10 +202,22 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
                         </p>
                     </div>
 
+                    <div className="flex items-center gap-3">
+                        <Switch checked={useAutoTrm} onCheckedChange={handleAutoTrmToggle} />
+                        <Label>Usar TRM automática en registro</Label>
+                    </div>
+
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label>Precio COP (ajustable)</Label>
-                            <Input type="number" min={0} value={priceCop} onChange={(e) => setPriceCop(Number(e.target.value))} />
+                            <Label>Precio COP {useAutoTrm ? '(automático)' : '(ajustable)'}</Label>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={priceCop}
+                                onChange={(e) => setPriceCop(Number(e.target.value))}
+                                readOnly={useAutoTrm}
+                                className={useAutoTrm ? 'bg-muted cursor-not-allowed' : ''}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label>Período (días)</Label>
