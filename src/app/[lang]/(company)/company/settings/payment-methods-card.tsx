@@ -30,9 +30,13 @@ type PaymentSource = {
 export function PaymentMethodsCard({
     sources: initialSources,
     companyEmail,
+    wompiPublicKey,
+    wompiIsSandbox,
 }: {
     sources: PaymentSource[];
     companyEmail: string;
+    wompiPublicKey?: string;
+    wompiIsSandbox?: boolean;
 }) {
     const [sources, setSources] = useState(initialSources);
     const [addOpen, setAddOpen] = useState(false);
@@ -51,13 +55,12 @@ export function PaymentMethodsCard({
         setError('');
 
         try {
-            // Tokenize via Wompi widget (client-side)
-            // For server-side tokenization, we'd need the public key on client
-            // Instead, we'll use the token directly if provided by Wompi widget
-            const wompiPublicKey = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
+            if (!wompiPublicKey) {
+                throw new Error('Wompi no está configurado. Contacta al administrador.');
+            }
 
-            // Call Wompi tokenization endpoint directly from client
-            const tokenRes = await fetch('https://sandbox.wompi.co/v1/tokens/cards', {
+            const wompiBaseUrl = wompiIsSandbox ? 'https://sandbox.wompi.co' : 'https://production.wompi.co';
+            const tokenRes = await fetch(`${wompiBaseUrl}/v1/tokens/cards`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

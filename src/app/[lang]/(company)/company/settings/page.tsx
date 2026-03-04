@@ -22,6 +22,7 @@ import { SubscriptionCard } from "./subscription-card";
 import { PaymentMethodsCard } from "./payment-methods-card";
 import { BillingHistoryCard } from "./billing-history-card";
 import { getActiveSubscription, getPaymentSources, getBillingHistory, getAvailablePlans } from "./billing-actions";
+import { getWompiConfig } from "@/lib/wompi-config";
 import { Role } from '@prisma/client';
 
 const TABS = [
@@ -258,11 +259,12 @@ export default async function SettingsPage(props: {
 }
 
 async function BillingTabContent({ companyId, companyEmail }: { companyId: string; companyEmail: string }) {
-    const [subscription, paymentSources, billingHistory, availablePlans] = await Promise.all([
+    const [subscription, paymentSources, billingHistory, availablePlans, wompiConfig] = await Promise.all([
         getActiveSubscription(),
         getPaymentSources(),
         getBillingHistory(),
         getAvailablePlans(),
+        getWompiConfig(),
     ]);
 
     const serializedSub = subscription ? {
@@ -300,7 +302,12 @@ async function BillingTabContent({ companyId, companyEmail }: { companyId: strin
                 availablePlans={serializedPlans}
                 hasPaymentSource={paymentSources.length > 0}
             />
-            <PaymentMethodsCard sources={serializedSources} companyEmail={companyEmail} />
+            <PaymentMethodsCard
+                sources={serializedSources}
+                companyEmail={companyEmail}
+                wompiPublicKey={wompiConfig?.publicKey}
+                wompiIsSandbox={wompiConfig?.isSandbox}
+            />
             <BillingHistoryCard attempts={serializedHistory} />
         </>
     );
