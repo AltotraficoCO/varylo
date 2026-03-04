@@ -9,7 +9,12 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
     const { lang } = await params;
     const dict = await getDictionary(lang);
     const d = dict.landing;
-    const dbPlans = await prisma.landingPlan.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } });
+    let dbPlans: Awaited<ReturnType<typeof prisma.landingPlan.findMany>> = [];
+    try {
+        dbPlans = await prisma.landingPlan.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } });
+    } catch {
+        // Table may not exist yet — fall back to dictionary
+    }
 
     return (
         <div className="flex flex-col">

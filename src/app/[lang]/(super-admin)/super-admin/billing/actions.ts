@@ -18,10 +18,14 @@ async function requireSuperAdmin() {
 }
 
 export async function getLandingPlans() {
-    return prisma.landingPlan.findMany({
-        where: { active: true },
-        orderBy: { sortOrder: 'asc' },
-    });
+    try {
+        return await prisma.landingPlan.findMany({
+            where: { active: true },
+            orderBy: { sortOrder: 'asc' },
+        });
+    } catch {
+        return [];
+    }
 }
 
 const updatePlanSchema = z.object({
