@@ -49,8 +49,8 @@ export default async function MarketingLayout({
                         <div>
                             <h4 className="font-semibold text-sm text-gray-300 mb-4">{footer.legal}</h4>
                             <ul className="space-y-2.5 text-sm text-gray-400">
-                                <li><Link href="#" className="hover:text-emerald-400 transition-colors">{footer.privacy}</Link></li>
-                                <li><Link href="#" className="hover:text-emerald-400 transition-colors">{footer.terms}</Link></li>
+                                <li><Link href={`/${lang}/terms`} className="hover:text-emerald-400 transition-colors">{footer.privacy}</Link></li>
+                                <li><Link href={`/${lang}/terms`} className="hover:text-emerald-400 transition-colors">{footer.terms}</Link></li>
                             </ul>
                         </div>
                     </div>
