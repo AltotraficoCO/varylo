@@ -148,7 +148,8 @@ export async function toggleSubscriptionStatus(data: z.infer<typeof toggleSubSch
 
 const createManualSubSchema = z.object({
     companyId: z.string(),
-    planPricingId: z.string(),
+    planPricingId: z.string().optional(),
+    planSlug: z.nativeEnum(Plan).optional(),
     periodDays: z.number().int().min(1),
     status: z.nativeEnum(SubscriptionStatus).default('ACTIVE'),
 });
@@ -163,7 +164,39 @@ export async function createManualSubscription(data: z.infer<typeof createManual
         const end = new Date(now);
         end.setDate(end.getDate() + result.data.periodDays);
 
-        // Check for existing payment source or create a placeholder
+        // Resolve planPricingId: use provided or find/create from planSlug
+        let planPricingId = result.data.planPricingId;
+
+        if (!planPricingId && result.data.planSlug) {
+            // Find or create a PlanPricing for this plan
+            const landingPlan = await prisma.landingPlan.findUnique({
+                where: { slug: result.data.planSlug },
+            });
+
+            if (landingPlan) {
+                let pricing = await prisma.planPricing.findUnique({
+                    where: { landingPlanId: landingPlan.id },
+                });
+                if (!pricing) {
+                    pricing = await prisma.planPricing.create({
+                        data: {
+                            landingPlanId: landingPlan.id,
+                            priceInCents: 0, // cortesía
+                            billingPeriodDays: result.data.periodDays,
+                            trialDays: 0,
+                            active: true,
+                        },
+                    });
+                }
+                planPricingId = pricing.id;
+            }
+        }
+
+        if (!planPricingId) {
+            return { success: false, error: 'No se pudo determinar el plan de pricing' };
+        }
+
+        // Create placeholder payment source if needed
         let paymentSource = await prisma.paymentSource.findFirst({
             where: { companyId: result.data.companyId },
         });
@@ -174,22 +207,36 @@ export async function createManualSubscription(data: z.infer<typeof createManual
                     companyId: result.data.companyId,
                     wompiSourceId: `manual_${result.data.companyId}_${Date.now()}`,
                     wompiCustomerEmail: 'manual@admin.local',
-                    brand: 'MANUAL',
+                    brand: 'CORTESIA',
                     lastFour: '0000',
                 },
             });
         }
 
+        // Cancel any existing subscriptions for this company
+        await prisma.subscription.updateMany({
+            where: { companyId: result.data.companyId, status: { in: ['ACTIVE', 'TRIAL', 'PAST_DUE'] } },
+            data: { status: 'CANCELLED', cancelledAt: now },
+        });
+
         const sub = await prisma.subscription.create({
             data: {
                 companyId: result.data.companyId,
-                planPricingId: result.data.planPricingId,
+                planPricingId,
                 paymentSourceId: paymentSource.id,
                 status: result.data.status,
                 currentPeriodStart: now,
                 currentPeriodEnd: end,
             },
         });
+
+        // Sync company.plan if planSlug provided
+        if (result.data.planSlug) {
+            await prisma.company.update({
+                where: { id: result.data.companyId },
+                data: { plan: result.data.planSlug },
+            });
+        }
 
         revalidatePath('/super-admin/companies');
         return { success: true, data: sub };

@@ -78,6 +78,8 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
     const [createSubLoading, setCreateSubLoading] = useState(false);
     const [planPricings, setPlanPricings] = useState<any[]>([]);
     const [selectedPricingId, setSelectedPricingId] = useState('');
+    const [selectedPlanSlug, setSelectedPlanSlug] = useState<string>(company.plan);
+    const [manualDays, setManualDays] = useState(30);
     const router = useRouter();
 
     const sub = company.subscriptions?.[0] || null;
@@ -354,48 +356,83 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                     )}
                                 </>
                             ) : (
-                                <div className="text-center py-8 space-y-4">
-                                    <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                                        <CreditCard className="h-6 w-6 text-muted-foreground" />
-                                    </div>
-                                    <div>
+                                <div className="space-y-4">
+                                    <div className="text-center py-4">
+                                        <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                                            <CreditCard className="h-6 w-6 text-muted-foreground" />
+                                        </div>
                                         <p className="font-medium">Sin suscripción</p>
                                         <p className="text-sm text-muted-foreground">
-                                            Esta empresa no tiene una suscripción activa.
+                                            Crea una suscripción de cortesía o manual para esta empresa.
                                         </p>
                                     </div>
-                                    <div className="space-y-3 max-w-xs mx-auto">
-                                        <Select
-                                            value={selectedPricingId}
-                                            onValueChange={setSelectedPricingId}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Seleccionar plan..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {planPricings.map((pp: any) => (
-                                                    <SelectItem key={pp.id} value={pp.id}>
-                                                        {pp.landingPlan.name} - {formatCOP(pp.priceInCents / 100)} COP
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+
+                                    <div className="space-y-3">
+                                        {/* Plan selector - always works */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-sm font-medium">Plan</label>
+                                            <Select value={selectedPlanSlug} onValueChange={setSelectedPlanSlug}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Seleccionar plan..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="STARTER">Starter</SelectItem>
+                                                    <SelectItem value="PRO">Pro</SelectItem>
+                                                    <SelectItem value="SCALE">Scale</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* If PlanPricings exist, optionally select one */}
+                                        {planPricings.length > 0 && (
+                                            <div className="space-y-1.5">
+                                                <label className="text-sm font-medium">Pricing (opcional)</label>
+                                                <Select value={selectedPricingId} onValueChange={setSelectedPricingId}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Usar plan sin precio específico" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {planPricings.map((pp: any) => (
+                                                            <SelectItem key={pp.id} value={pp.id}>
+                                                                {pp.landingPlan.name} - {formatCOP(pp.priceInCents / 100)} COP
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+
+                                        {/* Period days */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-sm font-medium">Días de suscripción</label>
+                                            <Input
+                                                type="number"
+                                                min={1}
+                                                value={manualDays}
+                                                onChange={(e) => setManualDays(Number(e.target.value))}
+                                                placeholder="30"
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                Vence el {new Date(Date.now() + manualDays * 86400000).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                            </p>
+                                        </div>
+
                                         <Button
                                             onClick={async () => {
-                                                if (!selectedPricingId) {
-                                                    toast.error('Selecciona un plan primero');
+                                                if (!selectedPlanSlug && !selectedPricingId) {
+                                                    toast.error('Selecciona un plan');
                                                     return;
                                                 }
-                                                const pp = planPricings.find((p: any) => p.id === selectedPricingId);
                                                 setCreateSubLoading(true);
                                                 const result = await createManualSubscription({
                                                     companyId: company.id,
-                                                    planPricingId: selectedPricingId,
-                                                    periodDays: pp?.billingPeriodDays || 30,
+                                                    ...(selectedPricingId ? { planPricingId: selectedPricingId } : {}),
+                                                    planSlug: selectedPlanSlug as any,
+                                                    periodDays: manualDays || 30,
                                                     status: 'ACTIVE',
                                                 });
                                                 if (result.success) {
-                                                    toast.success('Suscripción creada correctamente');
+                                                    toast.success('Suscripción activada correctamente');
                                                     setOpen(false);
                                                     router.refresh();
                                                 } else {
@@ -403,13 +440,13 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                                 }
                                                 setCreateSubLoading(false);
                                             }}
-                                            disabled={createSubLoading || !selectedPricingId}
+                                            disabled={createSubLoading}
                                             className="w-full"
                                         >
                                             {createSubLoading ? (
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                             ) : null}
-                                            Crear suscripción manual
+                                            Activar suscripción
                                         </Button>
                                     </div>
                                 </div>
