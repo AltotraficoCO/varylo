@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { updateLandingPlan, upsertPlanPricing } from './actions';
-import { Pencil, Plus, X } from 'lucide-react';
+import { Pencil, Plus, X, RefreshCw, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 type PlanPricing = {
@@ -41,7 +41,26 @@ type PlanData = {
     planPricing: PlanPricing;
 };
 
-const DEFAULT_USD_TO_COP = 4200;
+const FALLBACK_RATE = 4200;
+
+async function fetchUsdToCop(): Promise<number> {
+    try {
+        const res = await fetch('https://latest.currency-api.pages.dev/v1/currencies/usd.json');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        return Math.round(data.usd?.cop || FALLBACK_RATE);
+    } catch {
+        try {
+            // Fallback API
+            const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            return Math.round(data.usd?.cop || FALLBACK_RATE);
+        } catch {
+            return FALLBACK_RATE;
+        }
+    }
+}
 
 export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated: () => void }) {
     const [open, setOpen] = useState(false);
@@ -53,7 +72,9 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
     const [isFeatured, setIsFeatured] = useState(plan.isFeatured);
     const [ctaText, setCtaText] = useState(plan.ctaText);
     const [newFeature, setNewFeature] = useState('');
-    const [exchangeRate, setExchangeRate] = useState(DEFAULT_USD_TO_COP);
+
+    const [exchangeRate, setExchangeRate] = useState(FALLBACK_RATE);
+    const [rateLoading, setRateLoading] = useState(false);
 
     // Pricing fields
     const [priceCop, setPriceCop] = useState(plan.planPricing?.priceInCents ? plan.planPricing.priceInCents / 100 : 0);
@@ -61,14 +82,27 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
     const [trialDays, setTrialDays] = useState(plan.planPricing?.trialDays ?? 0);
     const [pricingActive, setPricingActive] = useState(plan.planPricing?.active ?? true);
 
+    // Fetch real exchange rate when dialog opens
+    useEffect(() => {
+        if (open) {
+            loadRate();
+        }
+    }, [open]);
+
+    async function loadRate() {
+        setRateLoading(true);
+        const rate = await fetchUsdToCop();
+        setExchangeRate(rate);
+        // Auto-calculate COP if there's no existing pricing
+        if (!plan.planPricing) {
+            setPriceCop(Math.round(price * rate));
+        }
+        setRateLoading(false);
+    }
+
     function handlePriceUsdChange(usd: number) {
         setPrice(usd);
         setPriceCop(Math.round(usd * exchangeRate));
-    }
-
-    function handleExchangeRateChange(rate: number) {
-        setExchangeRate(rate);
-        setPriceCop(Math.round(price * rate));
     }
 
     function addFeature() {
@@ -152,11 +186,20 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
                     <Separator />
                     <p className="text-sm font-medium text-muted-foreground">Suscripción recurrente (COP)</p>
 
-                    <div className="space-y-2">
-                        <Label>Tasa de cambio (USD → COP)</Label>
-                        <Input type="number" min={1} value={exchangeRate} onChange={(e) => handleExchangeRateChange(Number(e.target.value))} />
+                    {/* Exchange rate info */}
+                    <div className="rounded-lg border bg-muted/50 p-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Tasa de cambio (USD → COP)</span>
+                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={loadRate} disabled={rateLoading}>
+                                {rateLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                                Actualizar
+                            </Button>
+                        </div>
+                        <p className="text-lg font-semibold">
+                            1 USD = ${exchangeRate.toLocaleString('es-CO')} COP
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                            ${price} USD × {exchangeRate.toLocaleString('es-CO')} = ${(price * exchangeRate).toLocaleString('es-CO')} COP
+                            ${price} USD = <span className="font-medium text-foreground">${(price * exchangeRate).toLocaleString('es-CO')} COP</span>
                         </p>
                     </div>
 
