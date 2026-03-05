@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { getSiteConfig } from "@/lib/site-config";
+import { PwaRegister } from "@/components/pwa-register";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,14 +15,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: '#0f172a',
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const { faviconUrl } = await getSiteConfig();
   return {
     title: "Varylo — Atención al cliente con IA | WhatsApp, Instagram y más",
     description: "Centraliza WhatsApp, Instagram y más canales en una sola bandeja. Agentes IA que responden 24/7, chatbots inteligentes y analíticas avanzadas. Empieza gratis.",
+    manifest: '/manifest.webmanifest',
     icons: {
       icon: faviconUrl,
-      apple: faviconUrl,
+      apple: [{ url: '/icons/icon-192.png', sizes: '192x192' }],
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'default',
+      title: 'Varylo',
     },
   };
 }
@@ -39,6 +50,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <PwaRegister />
         {children}
         <Toaster />
       </body>

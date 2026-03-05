@@ -14,6 +14,7 @@ const cspDirectives = [
   "font-src 'self' data:",
   "connect-src 'self' https://api.openai.com https://production.wompi.co https://sandbox.wompi.co https://graph.facebook.com https://www.googleapis.com",
   "frame-src 'self' https://checkout.wompi.co",
+  "worker-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
