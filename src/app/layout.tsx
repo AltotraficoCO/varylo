@@ -23,8 +23,8 @@ export const metadata: Metadata = {
   description: "Centraliza WhatsApp, Instagram y más canales en una sola bandeja. Agentes IA que responden 24/7, chatbots inteligentes y analíticas avanzadas. Empieza gratis.",
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: '/favicon.png',
-    apple: '/favicon.png',
+    icon: '/favicon.png?v=2',
+    apple: '/favicon.png?v=2',
   },
   appleWebApp: {
     capable: true,
