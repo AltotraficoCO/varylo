@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     manifest: '/manifest.webmanifest',
     icons: {
       icon: faviconUrl,
-      apple: [{ url: '/icons/icon-192.png', sizes: '192x192' }],
+      apple: faviconUrl,
     },
     appleWebApp: {
       capable: true,
