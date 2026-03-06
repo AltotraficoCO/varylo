@@ -272,15 +272,37 @@ function FlowCanvas({
         const id = generateId();
         const newNode = template.create(id);
 
-        // Position at center of current viewport
-        const canvasEl = canvasRef.current;
-        let centerPos = { x: 400, y: 300 };
-        if (canvasEl) {
-            const rect = canvasEl.getBoundingClientRect();
-            centerPos = screenToFlowPosition({
-                x: rect.left + rect.width / 2 - 140,
-                y: rect.top + rect.height / 2 - 80,
-            });
+        const NODE_W = 280;
+        const NODE_H = 200;
+        const GAP_X = 40;
+        const GAP_Y = 60;
+
+        // Collect all existing node positions
+        const occupied = nodes.map(n => ({
+            x: n.position.x,
+            y: n.position.y,
+        }));
+
+        let newPos: { x: number; y: number };
+
+        if (occupied.length === 0) {
+            newPos = { x: 400, y: 0 };
+        } else {
+            // Find the lowest node
+            const lowestNode = occupied.reduce((a, b) => a.y > b.y ? a : b);
+            // Try placing below the lowest node
+            newPos = { x: lowestNode.x, y: lowestNode.y + NODE_H + GAP_Y };
+
+            // If that spot overlaps with another node, shift right until clear
+            const overlaps = (pos: { x: number; y: number }) =>
+                occupied.some(o =>
+                    Math.abs(o.x - pos.x) < NODE_W + GAP_X &&
+                    Math.abs(o.y - pos.y) < NODE_H + GAP_Y
+                );
+
+            while (overlaps(newPos)) {
+                newPos.x += NODE_W + GAP_X;
+            }
         }
 
         setFlow(prev => ({
@@ -288,11 +310,13 @@ function FlowCanvas({
             nodes: { ...prev.nodes, [id]: newNode },
         }));
         setNodeLabels(prev => ({ ...prev, [id]: template.defaultLabel }));
-        setNodePositions(prev => ({ ...prev, [id]: centerPos }));
+        setNodePositions(prev => ({ ...prev, [id]: newPos }));
         setShowAddMenu(false);
-        // Auto-select the new node
-        setTimeout(() => setSelectedNodeId(id), 50);
-    }, [screenToFlowPosition]);
+        setTimeout(() => {
+            setSelectedNodeId(id);
+            fitView({ padding: 0.3, duration: 300 });
+        }, 50);
+    }, [nodes, fitView]);
 
     const autoLayout = useCallback(() => {
         const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
