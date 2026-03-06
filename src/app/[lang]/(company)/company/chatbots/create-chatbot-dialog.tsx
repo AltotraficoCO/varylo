@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { createChatbot } from './actions';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,13 +27,17 @@ export function CreateChatbotDialog({ channels }: { channels: Channel[] }) {
     const [state, action, isPending] = useActionState(createChatbot, undefined);
     const [open, setOpen] = useState(false);
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+    const router = useRouter();
+    const { lang } = useParams();
 
     useEffect(() => {
-        if (state?.startsWith('Success')) {
+        if (state?.startsWith('Success:')) {
+            const chatbotId = state.replace('Success:', '');
             setOpen(false);
             setSelectedChannels([]);
+            router.push(`/${lang}/company/chatbots/${chatbotId}`);
         }
-    }, [state]);
+    }, [state, router, lang]);
 
     const toggleChannel = (channelId: string) => {
         setSelectedChannels(prev =>
@@ -54,7 +59,7 @@ export function CreateChatbotDialog({ channels }: { channels: Channel[] }) {
                 <DialogHeader>
                     <DialogTitle>Nuevo Chatbot</DialogTitle>
                     <DialogDescription>
-                        Crea un chatbot con un flujo de opciones tipo menú. Después podrás editar el flujo.
+                        Dale un nombre y selecciona los canales. Seras redirigido al editor visual para disenar el flujo.
                     </DialogDescription>
                 </DialogHeader>
                 <form action={action} className="grid gap-4 py-4">

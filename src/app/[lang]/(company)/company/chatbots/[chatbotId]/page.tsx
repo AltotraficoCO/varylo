@@ -20,13 +20,7 @@ export default async function ChatbotFlowPage({ params }: { params: Promise<{ ch
     const flow = chatbot.flowJson as unknown as ChatbotFlow;
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h3 className="text-lg font-medium">Editor de Flujo: {chatbot.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                    Define los mensajes, opciones y acciones del chatbot.
-                </p>
-            </div>
+        <div className="-m-6">
             <FlowEditor chatbotId={chatbot.id} initialFlow={flow} backHref={`/${lang}/company/chatbots`} />
         </div>
     );

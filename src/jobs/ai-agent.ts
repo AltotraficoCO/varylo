@@ -139,7 +139,33 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         }
 
         // Build tools array
-        const tools: ChatCompletionTool[] | undefined = calendarEnabled ? CALENDAR_TOOLS : undefined;
+        const dataCaptureTools: ChatCompletionTool[] = [
+            {
+                type: 'function',
+                function: {
+                    name: 'save_captured_data',
+                    description: 'Guarda un dato capturado del cliente durante la conversacion. Usa esta herramienta cada vez que el cliente te proporcione informacion personal o relevante como nombre, email, telefono, cedula, empresa, direccion, etc.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            field_name: {
+                                type: 'string',
+                                description: 'Nombre del campo en snake_case. Ejemplos: nombre, email, telefono, cedula, empresa, direccion, ciudad, producto_interes',
+                            },
+                            field_value: {
+                                type: 'string',
+                                description: 'El valor que proporciono el cliente',
+                            },
+                        },
+                        required: ['field_name', 'field_value'],
+                    },
+                },
+            },
+        ];
+        const tools: ChatCompletionTool[] = [
+            ...dataCaptureTools,
+            ...(calendarEnabled ? CALENDAR_TOOLS : []),
+        ];
 
         // Function calling loop
         let totalPromptTokens = 0;
@@ -152,7 +178,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                 model: aiAgent.model,
                 temperature: aiAgent.temperature,
                 messages,
-                ...(tools ? { tools } : {}),
+                ...(tools.length > 0 ? { tools } : {}),
             });
 
             // Accumulate token usage
@@ -176,12 +202,32 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                 for (const toolCall of assistantMessage.tool_calls) {
                     if (toolCall.type !== 'function') continue;
                     const args = JSON.parse(toolCall.function.arguments);
-                    const result = await executeCalendarTool(
-                        toolCall.function.name,
-                        args,
-                        conversation.companyId,
-                        aiAgent.calendarId,
-                    );
+                    let result: string;
+
+                    if (toolCall.function.name === 'save_captured_data') {
+                        try {
+                            await prisma.capturedData.create({
+                                data: {
+                                    companyId: conversation.companyId,
+                                    conversationId: conversation.id,
+                                    contactId: conversation.contactId,
+                                    fieldName: args.field_name,
+                                    fieldValue: args.field_value,
+                                    source: 'ai_agent',
+                                },
+                            });
+                            result = JSON.stringify({ success: true, message: `Dato "${args.field_name}" guardado correctamente.` });
+                        } catch (err) {
+                            result = JSON.stringify({ success: false, message: 'Error al guardar el dato.' });
+                        }
+                    } else {
+                        result = await executeCalendarTool(
+                            toolCall.function.name,
+                            args,
+                            conversation.companyId,
+                            aiAgent.calendarId,
+                        );
+                    }
 
                     messages.push({
                         role: 'tool',
@@ -275,6 +321,8 @@ function buildSystemPrompt(systemPrompt: string, contextInfo: string | null, cal
         prompt += '\n3. Confirma al cliente con los detalles de la reunión.';
         prompt += '\nSi el horario no está disponible, sugiere alternativas. Usa formato 24h para las horas internamente pero comunica en formato 12h al cliente.';
     }
+
+    prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
 
     prompt += '\n\nSi el usuario insiste en hablar con un humano o si no puedes resolver su consulta, responde con [TRANSFER_TO_HUMAN] al inicio de tu mensaje seguido de un mensaje de despedida amable.';
     return prompt;

@@ -17,15 +17,17 @@ export async function updateChatbotFlow(chatbotId: string, flowJson: ChatbotFlow
         return 'Error: El flujo debe tener un nodo inicial válido.';
     }
 
-    // Validate all node references
+    // Clean up and validate all node references
     for (const [nodeId, node] of Object.entries(flowJson.nodes)) {
         if (node.id !== nodeId) {
             return `Error: El nodo "${nodeId}" tiene un id inconsistente.`;
         }
         if (node.options) {
+            // Filter out unconnected options (empty nextNodeId)
+            node.options = node.options.filter(opt => opt.nextNodeId);
             for (const option of node.options) {
                 if (!flowJson.nodes[option.nextNodeId]) {
-                    return `Error: La opción "${option.label}" en el nodo "${nodeId}" apunta a un nodo inexistente "${option.nextNodeId}".`;
+                    return `Error: La opcion "${option.label}" en el nodo "${nodeId}" apunta a un nodo inexistente.`;
                 }
             }
         }
