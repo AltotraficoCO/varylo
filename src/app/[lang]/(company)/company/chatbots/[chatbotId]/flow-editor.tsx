@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useCallback, useTransition, useMemo } from 'react';
+import { useState, useCallback, useTransition, useMemo, useRef } from 'react';
 import {
     ReactFlow,
+    ReactFlowProvider,
     Background,
     Controls,
     MiniMap,
     useNodesState,
     useEdgesState,
+    useReactFlow,
     type Node,
     type Edge,
     type Connection,
@@ -18,14 +20,12 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
-import { Save, ArrowLeft, AlertCircle, CheckCircle2, Plus } from 'lucide-react';
+import { Save, ArrowLeft, AlertCircle, CheckCircle2, Plus, MessageCircle, User, Bot, XCircle } from 'lucide-react';
 import { updateChatbotFlow } from './actions';
 import Link from 'next/link';
 import type { ChatbotFlow, ChatbotFlowNode, ChatbotFlowOption } from '@/types/chatbot';
 import { ChatbotNode } from './chatbot-node';
 import { NodeEditPanel } from './node-edit-panel';
-
-// --- Conversion helpers: ChatbotFlow <-> ReactFlow ---
 
 function generateId() {
     return `paso_${Math.random().toString(36).substring(2, 8)}`;
@@ -57,7 +57,6 @@ function chatbotFlowToReactFlow(
             x: 250 + (index % 3) * 350,
             y: Math.floor(index / 3) * 300,
         };
-        // Put start node at top center if no existing position
         if (nodeId === flow.startNodeId && !existingPositions?.[nodeId]) {
             pos.x = 400;
             pos.y = 0;
@@ -113,9 +112,46 @@ function reactFlowToChatbotFlow(
     return { startNodeId, nodes: flowNodes };
 }
 
-// --- Main component ---
+const NODE_TEMPLATES: {
+    type: string;
+    label: string;
+    icon: typeof MessageCircle;
+    defaultLabel: string;
+    create: (id: string) => ChatbotFlowNode;
+}[] = [
+    {
+        type: 'message',
+        label: 'Mensaje con opciones',
+        icon: MessageCircle,
+        defaultLabel: 'Nuevo paso',
+        create: (id) => ({ id, message: '', options: [] }),
+    },
+    {
+        type: 'transfer_human',
+        label: 'Transferir a agente',
+        icon: User,
+        defaultLabel: 'Transferir a agente',
+        create: (id) => ({ id, message: '', action: { type: 'transfer_to_human' } }),
+    },
+    {
+        type: 'transfer_ai',
+        label: 'Transferir a IA',
+        icon: Bot,
+        defaultLabel: 'Transferir a IA',
+        create: (id) => ({ id, message: '', action: { type: 'transfer_to_ai_agent' } }),
+    },
+    {
+        type: 'end',
+        label: 'Finalizar conversacion',
+        icon: XCircle,
+        defaultLabel: 'Fin conversacion',
+        create: (id) => ({ id, message: '', action: { type: 'end_conversation' } }),
+    },
+];
 
-export function FlowEditor({
+// --- Inner canvas component (has access to useReactFlow) ---
+
+function FlowCanvas({
     chatbotId,
     initialFlow,
     backHref,
@@ -124,9 +160,12 @@ export function FlowEditor({
     initialFlow: ChatbotFlow;
     backHref: string;
 }) {
+    const { screenToFlowPosition } = useReactFlow();
+    const canvasRef = useRef<HTMLDivElement>(null);
     const [isPending, startTransition] = useTransition();
     const [saveResult, setSaveResult] = useState<string | null>(null);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [showAddMenu, setShowAddMenu] = useState(false);
     const [flow, setFlow] = useState<ChatbotFlow>(initialFlow);
     const [nodeLabels, setNodeLabels] = useState<Record<string, string>>(() => {
         const labels: Record<string, string> = {};
@@ -187,7 +226,6 @@ export function FlowEditor({
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-    // Sync ReactFlow nodes/edges when flow or labels change
     useMemo(() => {
         setNodes(initialNodes);
         setEdges(initialEdges);
@@ -199,8 +237,6 @@ export function FlowEditor({
             const sourceNode = flow.nodes[connection.source];
             if (!sourceNode || sourceNode.action) return;
 
-            // If dragging from an existing option handle (option-0, option-1, etc.)
-            // update that option's nextNodeId instead of creating a new one
             if (connection.sourceHandle?.startsWith('option-')) {
                 const optIndex = parseInt(connection.sourceHandle.replace('option-', ''), 10);
                 const options = [...(sourceNode.options || [])];
@@ -211,7 +247,6 @@ export function FlowEditor({
                 }
             }
 
-            // Dragging from the bottom handle creates a new option
             const newOption: ChatbotFlowOption = {
                 label: `Opcion ${(sourceNode.options?.length || 0) + 1}`,
                 match: [String((sourceNode.options?.length || 0) + 1)],
@@ -231,24 +266,35 @@ export function FlowEditor({
         }));
     }, []);
 
-    const addNode = useCallback(() => {
+    const addNode = useCallback((templateIndex: number) => {
+        const template = NODE_TEMPLATES[templateIndex];
         const id = generateId();
-        const newNode: ChatbotFlowNode = { id, message: '', options: [] };
+        const newNode = template.create(id);
+
+        // Position at center of current viewport
+        const canvasEl = canvasRef.current;
+        let centerPos = { x: 400, y: 300 };
+        if (canvasEl) {
+            const rect = canvasEl.getBoundingClientRect();
+            centerPos = screenToFlowPosition({
+                x: rect.left + rect.width / 2 - 140,
+                y: rect.top + rect.height / 2 - 80,
+            });
+        }
+
         setFlow(prev => ({
             ...prev,
             nodes: { ...prev.nodes, [id]: newNode },
         }));
-        const count = Object.keys(flow.nodes).length;
-        setNodeLabels(prev => ({ ...prev, [id]: `Paso ${count + 1}` }));
-        setNodePositions(prev => ({
-            ...prev,
-            [id]: { x: 250 + Math.random() * 200, y: 100 + count * 180 },
-        }));
-    }, [flow.nodes]);
+        setNodeLabels(prev => ({ ...prev, [id]: template.defaultLabel }));
+        setNodePositions(prev => ({ ...prev, [id]: centerPos }));
+        setShowAddMenu(false);
+        // Auto-select the new node
+        setTimeout(() => setSelectedNodeId(id), 50);
+    }, [screenToFlowPosition]);
 
     const handleSave = () => {
         setSaveResult(null);
-        // Capture current positions from ReactFlow nodes
         const currentFlow = reactFlowToChatbotFlow(nodes, initialFlow.startNodeId);
         startTransition(async () => {
             const result = await updateChatbotFlow(chatbotId, currentFlow);
@@ -288,7 +334,7 @@ export function FlowEditor({
 
             {/* Canvas + Edit panel */}
             <div className="flex-1 flex relative">
-                <div className={`flex-1 transition-all ${selectedNode ? 'mr-[380px]' : ''}`}>
+                <div ref={canvasRef} className={`flex-1 transition-all ${selectedNode ? 'mr-[380px]' : ''}`}>
                     <ReactFlow
                         nodes={nodes}
                         edges={edges}
@@ -297,7 +343,7 @@ export function FlowEditor({
                         onConnect={onConnect}
                         onNodeDragStop={onNodeDragStop}
                         onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-                        onPaneClick={() => setSelectedNodeId(null)}
+                        onPaneClick={() => { setSelectedNodeId(null); setShowAddMenu(false); }}
                         nodeTypes={nodeTypes}
                         fitView
                         fitViewOptions={{ padding: 0.3 }}
@@ -315,15 +361,34 @@ export function FlowEditor({
                             className="!bg-muted/50 !border-border"
                         />
                         <Panel position="bottom-center">
-                            <Button onClick={addNode} className="shadow-lg">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Agregar paso
-                            </Button>
+                            <div className="relative">
+                                {showAddMenu && (
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-background border rounded-xl shadow-xl p-2 w-[220px] space-y-1">
+                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium px-2 py-1">Tipo de paso</p>
+                                        {NODE_TEMPLATES.map((tpl, i) => {
+                                            const Icon = tpl.icon;
+                                            return (
+                                                <button
+                                                    key={tpl.type}
+                                                    onClick={() => addNode(i)}
+                                                    className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors text-left"
+                                                >
+                                                    <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                    <span>{tpl.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                <Button onClick={() => setShowAddMenu(prev => !prev)} className="shadow-lg">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Agregar paso
+                                </Button>
+                            </div>
                         </Panel>
                     </ReactFlow>
                 </div>
 
-                {/* Side edit panel */}
                 {selectedNode && selectedNodeId && (
                     <NodeEditPanel
                         nodeId={selectedNodeId}
@@ -339,5 +404,19 @@ export function FlowEditor({
                 )}
             </div>
         </div>
+    );
+}
+
+// --- Wrapper with provider ---
+
+export function FlowEditor(props: {
+    chatbotId: string;
+    initialFlow: ChatbotFlow;
+    backHref: string;
+}) {
+    return (
+        <ReactFlowProvider>
+            <FlowCanvas {...props} />
+        </ReactFlowProvider>
     );
 }
