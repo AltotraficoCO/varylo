@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { MessageCircle, User, Bot, XCircle, GripVertical } from 'lucide-react';
+import { MessageCircle, User, Bot, XCircle, GripVertical, FileInput } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { ChatbotFlowNode } from '@/types/chatbot';
 
@@ -12,8 +12,11 @@ interface ChatbotNodeData extends Record<string, unknown> {
     label: string;
 }
 
-function getActionConfig(type?: string) {
-    switch (type) {
+function getNodeConfig(node: ChatbotFlowNode) {
+    if (node.dataCapture) {
+        return { icon: FileInput, label: 'Captura de dato', color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/40' };
+    }
+    switch (node.action?.type) {
         case 'transfer_to_human':
             return { icon: User, label: 'Agente humano', color: 'border-blue-400 bg-blue-50 dark:bg-blue-950/40' };
         case 'transfer_to_ai_agent':
@@ -28,9 +31,11 @@ function getActionConfig(type?: string) {
 export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodeProps) {
     const nodeData = data as unknown as ChatbotNodeData;
     const { flowNode, isStart, label } = nodeData;
-    const config = getActionConfig(flowNode.action?.type);
+    const config = getNodeConfig(flowNode);
     const Icon = config.icon;
-    const hasOptions = !flowNode.action && (flowNode.options?.length || 0) > 0;
+    const hasOptions = !flowNode.action && !flowNode.dataCapture && (flowNode.options?.length || 0) > 0;
+    const isDataCapture = !!flowNode.dataCapture;
+    const dataCaptureConnected = isDataCapture && !!flowNode.dataCapture?.nextNodeId;
 
     return (
         <div
@@ -51,7 +56,7 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/50">
                 <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 cursor-grab" />
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isStart ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isStart ? 'bg-primary text-primary-foreground' : isDataCapture ? 'bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300' : 'bg-muted text-muted-foreground'}`}>
                     <Icon className="h-3.5 w-3.5" />
                 </div>
                 <span className="font-semibold text-sm truncate flex-1">{label}</span>
@@ -68,6 +73,20 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
                     <p className="text-xs text-muted-foreground/50 italic">Sin mensaje...</p>
                 )}
             </div>
+
+            {/* Data capture info */}
+            {isDataCapture && flowNode.dataCapture && (
+                <div className="px-3 pb-2.5 space-y-1">
+                    <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-600">
+                        {flowNode.dataCapture.fieldLabel || flowNode.dataCapture.fieldName || 'Sin campo'}
+                    </Badge>
+                    {flowNode.dataCapture.validation && flowNode.dataCapture.validation !== 'text' && (
+                        <Badge variant="outline" className="text-[10px] ml-1">
+                            {flowNode.dataCapture.validation}
+                        </Badge>
+                    )}
+                </div>
+            )}
 
             {/* Action badge */}
             {flowNode.action && (
@@ -105,8 +124,27 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
                 </div>
             )}
 
-            {/* Default source handle if no options and no action */}
-            {!hasOptions && !flowNode.action && (
+            {/* Data capture output handle */}
+            {isDataCapture && (
+                <div className="border-t border-border/50">
+                    <div className="relative flex items-center px-3 py-1.5 text-xs">
+                        <span className="text-muted-foreground">Siguiente paso</span>
+                        {!dataCaptureConnected && (
+                            <span className="ml-auto mr-3 text-[9px] text-orange-500 font-medium">sin conectar</span>
+                        )}
+                        <Handle
+                            type="source"
+                            position={Position.Right}
+                            id="data-capture-out"
+                            className={`!w-2.5 !h-2.5 !border-2 !border-background !right-[-5px] ${dataCaptureConnected ? '!bg-primary' : '!bg-orange-400'}`}
+                            style={{ top: 'auto' }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Default source handle if no options, no action, no data capture */}
+            {!hasOptions && !flowNode.action && !isDataCapture && (
                 <Handle
                     type="source"
                     position={Position.Bottom}

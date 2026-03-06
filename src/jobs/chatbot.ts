@@ -81,7 +81,7 @@ export async function handleChatbotResponse(conversationId: string, inboundMessa
         await sendChannelMessage({
             conversationId,
             companyId: conversation.companyId,
-            content: formatNodeMessage(startNode.message, startNode.options),
+            content: formatNodeMessage(startNode.message, startNode.options, startNode.dataCapture),
             fromName: chatbot.name,
         });
 
@@ -114,6 +114,74 @@ async function processNode(
         return { handled: false };
     }
 
+    // If this is a data capture node, save the user's response and move on
+    if (currentNode.dataCapture) {
+        const capture = currentNode.dataCapture;
+
+        // Validate if needed
+        if (capture.validation) {
+            const isValid = validateCapture(userMessage, capture.validation);
+            if (!isValid) {
+                const hints: Record<string, string> = {
+                    email: 'un correo valido (ej: nombre@correo.com)',
+                    phone: 'un numero de telefono valido',
+                    number: 'un numero valido',
+                    text: 'una respuesta valida',
+                };
+                await sendChannelMessage({
+                    conversationId,
+                    companyId,
+                    content: `Por favor ingresa ${hints[capture.validation] || 'una respuesta valida'}.`,
+                    fromName: session.chatbot.name,
+                });
+                return { handled: true };
+            }
+        }
+
+        // Save captured data
+        const conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            select: { contactId: true },
+        });
+        await prisma.capturedData.create({
+            data: {
+                companyId,
+                conversationId,
+                contactId: conversation?.contactId || null,
+                fieldName: capture.fieldName,
+                fieldValue: userMessage.trim(),
+                source: 'chatbot',
+            },
+        });
+
+        // Navigate to next node
+        const nextNode = flow.nodes[capture.nextNodeId];
+        if (!nextNode) {
+            await prisma.chatbotSession.update({
+                where: { id: session.id },
+                data: { completed: true },
+            });
+            return { handled: false };
+        }
+
+        await prisma.chatbotSession.update({
+            where: { id: session.id },
+            data: { currentNodeId: capture.nextNodeId },
+        });
+
+        await sendChannelMessage({
+            conversationId,
+            companyId,
+            content: formatNodeMessage(nextNode.message, nextNode.options, nextNode.dataCapture),
+            fromName: session.chatbot.name,
+        });
+
+        if (nextNode.action) {
+            return await handleAction(nextNode.action.type, session.id, conversationId, companyId);
+        }
+        return { handled: true };
+    }
+
     // If node has no options, it's a terminal node
     if (!currentNode.options || currentNode.options.length === 0) {
         await prisma.chatbotSession.update({
@@ -128,21 +196,18 @@ async function processNode(
     const matchedOption = currentNode.options.find(opt =>
         opt.match.some(m => {
             const lowerMatch = m.toLowerCase();
-            // Exact comparison for pure numbers (e.g. "1", "2")
             if (/^\d+$/.test(lowerMatch)) {
                 return lowerMessage === lowerMatch;
             }
-            // For text keywords, exact match first, then includes as fallback
             return lowerMessage === lowerMatch || lowerMessage.includes(lowerMatch);
         })
     );
 
     if (!matchedOption) {
-        // Send "didn't understand" message with options again
         await sendChannelMessage({
             conversationId,
             companyId,
-            content: `No entendí tu respuesta. Por favor elige una opción:\n\n${formatOptions(currentNode.options)}`,
+            content: `No entendi tu respuesta. Por favor elige una opcion:\n\n${formatOptions(currentNode.options)}`,
             fromName: session.chatbot.name,
         });
         return { handled: true };
@@ -168,7 +233,7 @@ async function processNode(
     await sendChannelMessage({
         conversationId,
         companyId,
-        content: formatNodeMessage(nextNode.message, nextNode.options),
+        content: formatNodeMessage(nextNode.message, nextNode.options, nextNode.dataCapture),
         fromName: session.chatbot.name,
     });
 
@@ -221,11 +286,29 @@ async function transferToHuman(conversationId: string, companyId: string) {
     });
 }
 
-function formatNodeMessage(message: string, options?: { label: string }[]): string {
+function formatNodeMessage(message: string, options?: { label: string }[], dataCapture?: { fieldLabel: string } | null): string {
+    if (dataCapture) {
+        return message || `Por favor ingresa tu ${dataCapture.fieldLabel}:`;
+    }
     if (!options || options.length === 0) return message;
     return `${message}\n\n${formatOptions(options)}`;
 }
 
 function formatOptions(options: { label: string }[]): string {
     return options.map((opt, i) => `${i + 1}. ${opt.label}`).join('\n');
+}
+
+function validateCapture(value: string, type: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    switch (type) {
+        case 'email':
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+        case 'phone':
+            return /^[\d\s\+\-\(\)]{7,20}$/.test(trimmed);
+        case 'number':
+            return /^\d+$/.test(trimmed);
+        default:
+            return trimmed.length > 0;
+    }
 }

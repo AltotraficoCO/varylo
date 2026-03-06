@@ -20,7 +20,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
-import { Save, ArrowLeft, AlertCircle, CheckCircle2, Plus, MessageCircle, User, Bot, XCircle, LayoutGrid } from 'lucide-react';
+import { Save, ArrowLeft, AlertCircle, CheckCircle2, Plus, MessageCircle, User, Bot, XCircle, LayoutGrid, FileInput } from 'lucide-react';
 import { updateChatbotFlow } from './actions';
 import Link from 'next/link';
 import Dagre from '@dagrejs/dagre';
@@ -97,6 +97,18 @@ function chatbotFlowToReactFlow(
                 });
             });
         }
+        if (node.dataCapture?.nextNodeId && flow.nodes[node.dataCapture.nextNodeId]) {
+            edges.push({
+                id: `${nodeId}-capture-${node.dataCapture.nextNodeId}`,
+                source: nodeId,
+                sourceHandle: 'data-capture-out',
+                target: node.dataCapture.nextNodeId,
+                type: 'smoothstep',
+                animated: true,
+                style: { stroke: '#d97706', strokeWidth: 2 },
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#d97706' },
+            });
+        }
     });
 
     return { nodes, edges };
@@ -126,6 +138,13 @@ const NODE_TEMPLATES: {
         icon: MessageCircle,
         defaultLabel: 'Nuevo paso',
         create: (id) => ({ id, message: '', options: [] }),
+    },
+    {
+        type: 'data_capture',
+        label: 'Captura de dato',
+        icon: FileInput,
+        defaultLabel: 'Captura de dato',
+        create: (id) => ({ id, message: '', dataCapture: { fieldName: '', fieldLabel: '', nextNodeId: '', validation: 'text' as const } }),
     },
     {
         type: 'transfer_human',
@@ -236,7 +255,17 @@ function FlowCanvas({
         (connection: Connection) => {
             if (!connection.source || !connection.target) return;
             const sourceNode = flow.nodes[connection.source];
-            if (!sourceNode || sourceNode.action) return;
+            if (!sourceNode) return;
+
+            // Data capture node connection
+            if (connection.sourceHandle === 'data-capture-out' && sourceNode.dataCapture) {
+                handleUpdateNode(connection.source, {
+                    dataCapture: { ...sourceNode.dataCapture, nextNodeId: connection.target },
+                });
+                return;
+            }
+
+            if (sourceNode.action) return;
 
             if (connection.sourceHandle?.startsWith('option-')) {
                 const optIndex = parseInt(connection.sourceHandle.replace('option-', ''), 10);
