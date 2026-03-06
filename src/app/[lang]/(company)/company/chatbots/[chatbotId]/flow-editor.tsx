@@ -6,7 +6,6 @@ import {
     Background,
     Controls,
     MiniMap,
-    addEdge,
     useNodesState,
     useEdgesState,
     type Node,
@@ -85,20 +84,16 @@ function chatbotFlowToReactFlow(
         const node = flow.nodes[nodeId];
         if (node.options) {
             node.options.forEach((option, i) => {
+                if (!option.nextNodeId || !flow.nodes[option.nextNodeId]) return;
                 edges.push({
                     id: `${nodeId}-opt${i}-${option.nextNodeId}`,
                     source: nodeId,
                     sourceHandle: `option-${i}`,
                     target: option.nextNodeId,
-                    label: option.label,
                     type: 'smoothstep',
                     animated: true,
-                    style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
-                    labelStyle: { fontSize: 11, fontWeight: 500, fill: 'hsl(var(--foreground))' },
-                    labelBgStyle: { fill: 'hsl(var(--background))', fillOpacity: 0.85 },
-                    labelBgPadding: [6, 3] as [number, number],
-                    labelBgBorderRadius: 4,
-                    markerEnd: { type: MarkerType.ArrowClosed, color: 'hsl(var(--primary))' },
+                    style: { stroke: '#16a34a', strokeWidth: 2 },
+                    markerEnd: { type: MarkerType.ArrowClosed, color: '#16a34a' },
                 });
             });
         }
@@ -201,9 +196,22 @@ export function FlowEditor({
     const onConnect: OnConnect = useCallback(
         (connection: Connection) => {
             if (!connection.source || !connection.target) return;
-            // When user draws an edge, add as an option on the source node
             const sourceNode = flow.nodes[connection.source];
             if (!sourceNode || sourceNode.action) return;
+
+            // If dragging from an existing option handle (option-0, option-1, etc.)
+            // update that option's nextNodeId instead of creating a new one
+            if (connection.sourceHandle?.startsWith('option-')) {
+                const optIndex = parseInt(connection.sourceHandle.replace('option-', ''), 10);
+                const options = [...(sourceNode.options || [])];
+                if (options[optIndex]) {
+                    options[optIndex] = { ...options[optIndex], nextNodeId: connection.target };
+                    handleUpdateNode(connection.source, { options });
+                    return;
+                }
+            }
+
+            // Dragging from the bottom handle creates a new option
             const newOption: ChatbotFlowOption = {
                 label: `Opcion ${(sourceNode.options?.length || 0) + 1}`,
                 match: [String((sourceNode.options?.length || 0) + 1)],

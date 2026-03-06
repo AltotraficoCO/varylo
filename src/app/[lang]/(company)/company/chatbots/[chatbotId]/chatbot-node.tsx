@@ -83,21 +83,27 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
             {/* Options as handles */}
             {hasOptions && (
                 <div className="border-t border-border/50">
-                    {flowNode.options!.map((option, i) => (
-                        <div key={i} className="relative flex items-center px-3 py-1.5 text-xs group">
-                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 mr-2">
-                                {i + 1}
-                            </span>
-                            <span className="truncate text-muted-foreground">{option.label}</span>
-                            <Handle
-                                type="source"
-                                position={Position.Right}
-                                id={`option-${i}`}
-                                className="!w-2.5 !h-2.5 !bg-primary !border-2 !border-background !right-[-5px]"
-                                style={{ top: 'auto' }}
-                            />
-                        </div>
-                    ))}
+                    {flowNode.options!.map((option, i) => {
+                        const isConnected = !!option.nextNodeId;
+                        return (
+                            <div key={i} className="relative flex items-center px-3 py-1.5 text-xs group">
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mr-2 ${isConnected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                                    {i + 1}
+                                </span>
+                                <span className={`truncate ${isConnected ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>{option.label}</span>
+                                {!isConnected && (
+                                    <span className="ml-auto mr-3 text-[9px] text-orange-500 font-medium">sin conectar</span>
+                                )}
+                                <Handle
+                                    type="source"
+                                    position={Position.Right}
+                                    id={`option-${i}`}
+                                    className={`!w-2.5 !h-2.5 !border-2 !border-background !right-[-5px] ${isConnected ? '!bg-primary' : '!bg-orange-400'}`}
+                                    style={{ top: 'auto' }}
+                                />
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 

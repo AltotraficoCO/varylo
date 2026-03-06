@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { X, Trash2, Plus, MessageCircle, User, Bot, XCircle } from 'lucide-react';
+import { X, Trash2, Plus, MessageCircle, User, Bot, XCircle, Link2, Unlink } from 'lucide-react';
 import type { ChatbotFlowNode, ChatbotFlowOption } from '@/types/chatbot';
 
 interface NodeEditPanelProps {
@@ -36,11 +36,17 @@ export function NodeEditPanel({
         const newOption: ChatbotFlowOption = {
             label: `Opcion ${optionNumber}`,
             match: [String(optionNumber)],
-            nextNodeId: allNodes.find(n => n.id !== nodeId)?.id || nodeId,
+            nextNodeId: '',
         };
         onUpdateNode(nodeId, {
             options: [...(node.options || []), newOption],
         });
+    };
+
+    const getConnectedLabel = (nextNodeId: string) => {
+        if (!nextNodeId) return null;
+        const target = allNodes.find(n => n.id === nextNodeId);
+        return target?.label || null;
     };
 
     const updateOption = (optIndex: number, updates: Partial<ChatbotFlowOption>) => {
@@ -173,17 +179,17 @@ export function NodeEditPanel({
                                     placeholder="Texto de la opcion"
                                     className="h-8 text-sm"
                                 />
-                                <select
-                                    value={option.nextNodeId}
-                                    onChange={(e) => updateOption(optIndex, { nextNodeId: e.target.value })}
-                                    className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                >
-                                    {allNodes.filter(n => n.id !== nodeId).map(n => (
-                                        <option key={n.id} value={n.id}>
-                                            &rarr; {n.label}
-                                        </option>
-                                    ))}
-                                </select>
+                                {option.nextNodeId && getConnectedLabel(option.nextNodeId) ? (
+                                    <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+                                        <Link2 className="h-3 w-3" />
+                                        <span>Conectado a: <strong>{getConnectedLabel(option.nextNodeId)}</strong></span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <Unlink className="h-3 w-3" />
+                                        <span>Arrastra la linea en el canvas para conectar</span>
+                                    </div>
+                                )}
                             </div>
                         ))}
 

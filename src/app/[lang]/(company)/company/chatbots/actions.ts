@@ -11,24 +11,8 @@ const DEFAULT_FLOW: ChatbotFlow = {
     nodes: {
         welcome: {
             id: 'welcome',
-            message: '¡Hola! ¿En qué puedo ayudarte?',
-            options: [
-                { label: 'Información general', match: ['1', 'información', 'info'], nextNodeId: 'info' },
-                { label: 'Hablar con un agente', match: ['2', 'agente', 'humano'], nextNodeId: 'transfer' },
-            ],
-        },
-        info: {
-            id: 'info',
-            message: 'Aquí tienes información general. ¿Necesitas algo más?',
-            options: [
-                { label: 'Volver al inicio', match: ['1', 'inicio', 'volver'], nextNodeId: 'welcome' },
-                { label: 'Hablar con un agente', match: ['2', 'agente', 'humano'], nextNodeId: 'transfer' },
-            ],
-        },
-        transfer: {
-            id: 'transfer',
-            message: 'Te conecto con un agente humano. Un momento por favor.',
-            action: { type: 'transfer_to_human' },
+            message: '',
+            options: [],
         },
     },
 };
@@ -64,7 +48,7 @@ export async function createChatbot(prevState: string | undefined, formData: For
             connectIds = validChannels.map(c => c.id);
         }
 
-        await prisma.chatbot.create({
+        const chatbot = await prisma.chatbot.create({
             data: {
                 companyId: session.user.companyId,
                 name,
@@ -76,7 +60,7 @@ export async function createChatbot(prevState: string | undefined, formData: For
         });
 
         revalidatePath('/[lang]/company/chatbots', 'page');
-        return 'Success: Chatbot creado correctamente.';
+        return `Success:${chatbot.id}`;
     } catch (error) {
         console.error('Failed to create chatbot:', error);
         return 'Error: No se pudo crear el chatbot.';
