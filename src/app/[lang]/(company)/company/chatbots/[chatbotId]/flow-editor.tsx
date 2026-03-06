@@ -1,20 +1,124 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Save, ArrowLeft, AlertCircle, CheckCircle2, MessageCircle, User, Bot, XCircle, Pencil } from "lucide-react";
+import { useState, useCallback, useTransition, useMemo } from 'react';
+import {
+    ReactFlow,
+    Background,
+    Controls,
+    MiniMap,
+    addEdge,
+    useNodesState,
+    useEdgesState,
+    type Node,
+    type Edge,
+    type Connection,
+    type NodeTypes,
+    type OnConnect,
+    MarkerType,
+    Panel,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { Button } from '@/components/ui/button';
+import { Save, ArrowLeft, AlertCircle, CheckCircle2, Plus } from 'lucide-react';
 import { updateChatbotFlow } from './actions';
 import Link from 'next/link';
 import type { ChatbotFlow, ChatbotFlowNode, ChatbotFlowOption } from '@/types/chatbot';
+import { ChatbotNode } from './chatbot-node';
+import { NodeEditPanel } from './node-edit-panel';
+
+// --- Conversion helpers: ChatbotFlow <-> ReactFlow ---
 
 function generateId() {
     return `paso_${Math.random().toString(36).substring(2, 8)}`;
 }
+
+interface FlowNodeData extends Record<string, unknown> {
+    flowNode: ChatbotFlowNode;
+    isStart: boolean;
+    label: string;
+    allNodes: { id: string; label: string }[];
+    onUpdate: (nodeId: string, updates: Partial<ChatbotFlowNode>) => void;
+    onDelete: (nodeId: string) => void;
+    onSelect: (nodeId: string) => void;
+}
+
+function chatbotFlowToReactFlow(
+    flow: ChatbotFlow,
+    nodeLabels: Record<string, string>,
+    onUpdate: (nodeId: string, updates: Partial<ChatbotFlowNode>) => void,
+    onDelete: (nodeId: string) => void,
+    onSelect: (nodeId: string) => void,
+    existingPositions?: Record<string, { x: number; y: number }>,
+): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
+    const nodeIds = Object.keys(flow.nodes);
+    const allNodes = nodeIds.map(id => ({ id, label: nodeLabels[id] || id }));
+
+    const nodes: Node<FlowNodeData>[] = nodeIds.map((nodeId, index) => {
+        const pos = existingPositions?.[nodeId] || {
+            x: 250 + (index % 3) * 350,
+            y: Math.floor(index / 3) * 300,
+        };
+        // Put start node at top center if no existing position
+        if (nodeId === flow.startNodeId && !existingPositions?.[nodeId]) {
+            pos.x = 400;
+            pos.y = 0;
+        }
+
+        return {
+            id: nodeId,
+            type: 'chatbotNode',
+            position: pos,
+            data: {
+                flowNode: flow.nodes[nodeId],
+                isStart: nodeId === flow.startNodeId,
+                label: nodeLabels[nodeId] || nodeId,
+                allNodes,
+                onUpdate,
+                onDelete,
+                onSelect,
+            },
+        };
+    });
+
+    const edges: Edge[] = [];
+    nodeIds.forEach(nodeId => {
+        const node = flow.nodes[nodeId];
+        if (node.options) {
+            node.options.forEach((option, i) => {
+                edges.push({
+                    id: `${nodeId}-opt${i}-${option.nextNodeId}`,
+                    source: nodeId,
+                    sourceHandle: `option-${i}`,
+                    target: option.nextNodeId,
+                    label: option.label,
+                    type: 'smoothstep',
+                    animated: true,
+                    style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
+                    labelStyle: { fontSize: 11, fontWeight: 500, fill: 'hsl(var(--foreground))' },
+                    labelBgStyle: { fill: 'hsl(var(--background))', fillOpacity: 0.85 },
+                    labelBgPadding: [6, 3] as [number, number],
+                    labelBgBorderRadius: 4,
+                    markerEnd: { type: MarkerType.ArrowClosed, color: 'hsl(var(--primary))' },
+                });
+            });
+        }
+    });
+
+    return { nodes, edges };
+}
+
+function reactFlowToChatbotFlow(
+    nodes: Node<FlowNodeData>[],
+    startNodeId: string,
+): ChatbotFlow {
+    const flowNodes: Record<string, ChatbotFlowNode> = {};
+    nodes.forEach(node => {
+        flowNodes[node.id] = node.data.flowNode;
+    });
+    return { startNodeId, nodes: flowNodes };
+}
+
+// --- Main component ---
 
 export function FlowEditor({
     chatbotId,
@@ -25,73 +129,28 @@ export function FlowEditor({
     initialFlow: ChatbotFlow;
     backHref: string;
 }) {
-    const [flow, setFlow] = useState<ChatbotFlow>(initialFlow);
     const [isPending, startTransition] = useTransition();
     const [saveResult, setSaveResult] = useState<string | null>(null);
-    const [editingName, setEditingName] = useState<string | null>(null);
-    const [nodeNames, setNodeNames] = useState<Record<string, string>>(() => {
-        const names: Record<string, string> = {};
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [flow, setFlow] = useState<ChatbotFlow>(initialFlow);
+    const [nodeLabels, setNodeLabels] = useState<Record<string, string>>(() => {
+        const labels: Record<string, string> = {};
         Object.keys(initialFlow.nodes).forEach((id, i) => {
             if (id === initialFlow.startNodeId) {
-                names[id] = 'Bienvenida';
+                labels[id] = 'Bienvenida';
             } else {
                 const node = initialFlow.nodes[id];
-                if (node.action?.type === 'transfer_to_human') names[id] = 'Transferir a agente';
-                else if (node.action?.type === 'transfer_to_ai_agent') names[id] = 'Transferir a IA';
-                else if (node.action?.type === 'end_conversation') names[id] = 'Fin conversación';
-                else names[id] = node.message?.substring(0, 30) || `Paso ${i + 1}`;
+                if (node.action?.type === 'transfer_to_human') labels[id] = 'Transferir a agente';
+                else if (node.action?.type === 'transfer_to_ai_agent') labels[id] = 'Transferir a IA';
+                else if (node.action?.type === 'end_conversation') labels[id] = 'Fin conversacion';
+                else labels[id] = node.message?.substring(0, 30) || `Paso ${i + 1}`;
             }
         });
-        return names;
+        return labels;
     });
+    const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
 
-    // Always show start node first, then the rest in original order
-    const nodeIds = [
-        flow.startNodeId,
-        ...Object.keys(flow.nodes).filter(id => id !== flow.startNodeId),
-    ];
-
-    const getNodeLabel = (nodeId: string) => {
-        return nodeNames[nodeId] || nodeId;
-    };
-
-    const addNode = () => {
-        const id = generateId();
-        const newNode: ChatbotFlowNode = {
-            id,
-            message: '',
-            options: [],
-        };
-        setFlow(prev => ({
-            ...prev,
-            nodes: { ...prev.nodes, [id]: newNode },
-        }));
-        setNodeNames(prev => ({ ...prev, [id]: `Paso ${nodeIds.length + 1}` }));
-    };
-
-    const removeNode = (nodeId: string) => {
-        if (nodeId === flow.startNodeId) return;
-        setFlow(prev => {
-            const newNodes = { ...prev.nodes };
-            delete newNodes[nodeId];
-            // Clean up references to deleted node
-            Object.values(newNodes).forEach(node => {
-                if (node.options) {
-                    node.options = node.options.map(opt =>
-                        opt.nextNodeId === nodeId ? { ...opt, nextNodeId: prev.startNodeId } : opt
-                    );
-                }
-            });
-            return { ...prev, nodes: newNodes };
-        });
-        setNodeNames(prev => {
-            const newNames = { ...prev };
-            delete newNames[nodeId];
-            return newNames;
-        });
-    };
-
-    const updateNode = (nodeId: string, updates: Partial<ChatbotFlowNode>) => {
+    const handleUpdateNode = useCallback((nodeId: string, updates: Partial<ChatbotFlowNode>) => {
         setFlow(prev => ({
             ...prev,
             nodes: {
@@ -99,73 +158,106 @@ export function FlowEditor({
                 [nodeId]: { ...prev.nodes[nodeId], ...updates },
             },
         }));
-    };
+    }, []);
 
-    const addOption = (nodeId: string) => {
-        const node = flow.nodes[nodeId];
-        const optionNumber = (node.options?.length || 0) + 1;
-        const newOption: ChatbotFlowOption = {
-            label: `Opción ${optionNumber}`,
-            match: [String(optionNumber)],
-            nextNodeId: flow.startNodeId,
-        };
-        updateNode(nodeId, {
-            options: [...(node.options || []), newOption],
-        });
-    };
-
-    const updateOption = (nodeId: string, optIndex: number, updates: Partial<ChatbotFlowOption>) => {
-        const node = flow.nodes[nodeId];
-        const options = [...(node.options || [])];
-        options[optIndex] = { ...options[optIndex], ...updates };
-        updateNode(nodeId, { options });
-    };
-
-    const removeOption = (nodeId: string, optIndex: number) => {
-        const node = flow.nodes[nodeId];
-        const options = (node.options || [])
-            .filter((_, i) => i !== optIndex)
-            .map((opt, newIndex) => {
-                // Regenerate match arrays with correct new number
-                const visibleNumber = String(newIndex + 1);
-                const fullLabel = opt.label.toLowerCase().trim();
-                const words = fullLabel.split(/\s+/).filter(w => w.length >= 2);
-                const matchSet = new Set([visibleNumber, ...(fullLabel ? [fullLabel] : []), ...words]);
-                return { ...opt, match: Array.from(matchSet) };
+    const handleDeleteNode = useCallback((nodeId: string) => {
+        if (nodeId === initialFlow.startNodeId) return;
+        setFlow(prev => {
+            const newNodes = { ...prev.nodes };
+            delete newNodes[nodeId];
+            Object.values(newNodes).forEach(node => {
+                if (node.options) {
+                    node.options = node.options.filter(opt => opt.nextNodeId !== nodeId);
+                }
             });
-        updateNode(nodeId, { options });
-    };
+            return { ...prev, nodes: newNodes };
+        });
+        setNodeLabels(prev => {
+            const newLabels = { ...prev };
+            delete newLabels[nodeId];
+            return newLabels;
+        });
+        if (selectedNodeId === nodeId) setSelectedNodeId(null);
+    }, [initialFlow.startNodeId, selectedNodeId]);
+
+    const handleSelectNode = useCallback((nodeId: string) => {
+        setSelectedNodeId(nodeId);
+    }, []);
+
+    const { nodes: initialNodes, edges: initialEdges } = useMemo(
+        () => chatbotFlowToReactFlow(flow, nodeLabels, handleUpdateNode, handleDeleteNode, handleSelectNode, nodePositions),
+        [flow, nodeLabels, handleUpdateNode, handleDeleteNode, handleSelectNode, nodePositions],
+    );
+
+    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+    // Sync ReactFlow nodes/edges when flow or labels change
+    useMemo(() => {
+        setNodes(initialNodes);
+        setEdges(initialEdges);
+    }, [initialNodes, initialEdges, setNodes, setEdges]);
+
+    const onConnect: OnConnect = useCallback(
+        (connection: Connection) => {
+            if (!connection.source || !connection.target) return;
+            // When user draws an edge, add as an option on the source node
+            const sourceNode = flow.nodes[connection.source];
+            if (!sourceNode || sourceNode.action) return;
+            const newOption: ChatbotFlowOption = {
+                label: `Opcion ${(sourceNode.options?.length || 0) + 1}`,
+                match: [String((sourceNode.options?.length || 0) + 1)],
+                nextNodeId: connection.target,
+            };
+            handleUpdateNode(connection.source, {
+                options: [...(sourceNode.options || []), newOption],
+            });
+        },
+        [flow, handleUpdateNode],
+    );
+
+    const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => {
+        setNodePositions(prev => ({
+            ...prev,
+            [node.id]: { x: node.position.x, y: node.position.y },
+        }));
+    }, []);
+
+    const addNode = useCallback(() => {
+        const id = generateId();
+        const newNode: ChatbotFlowNode = { id, message: '', options: [] };
+        setFlow(prev => ({
+            ...prev,
+            nodes: { ...prev.nodes, [id]: newNode },
+        }));
+        const count = Object.keys(flow.nodes).length;
+        setNodeLabels(prev => ({ ...prev, [id]: `Paso ${count + 1}` }));
+        setNodePositions(prev => ({
+            ...prev,
+            [id]: { x: 250 + Math.random() * 200, y: 100 + count * 180 },
+        }));
+    }, [flow.nodes]);
 
     const handleSave = () => {
         setSaveResult(null);
+        // Capture current positions from ReactFlow nodes
+        const currentFlow = reactFlowToChatbotFlow(nodes, initialFlow.startNodeId);
         startTransition(async () => {
-            const result = await updateChatbotFlow(chatbotId, flow);
+            const result = await updateChatbotFlow(chatbotId, currentFlow);
             setSaveResult(result);
+            setTimeout(() => setSaveResult(null), 3000);
         });
     };
 
-    const getActionIcon = (type?: string) => {
-        switch (type) {
-            case 'transfer_to_human': return <User className="h-4 w-4" />;
-            case 'transfer_to_ai_agent': return <Bot className="h-4 w-4" />;
-            case 'end_conversation': return <XCircle className="h-4 w-4" />;
-            default: return <MessageCircle className="h-4 w-4" />;
-        }
-    };
+    const nodeTypes: NodeTypes = useMemo(() => ({ chatbotNode: ChatbotNode }), []);
 
-    const getActionLabel = (type?: string) => {
-        switch (type) {
-            case 'transfer_to_human': return 'Transfiere a un agente humano';
-            case 'transfer_to_ai_agent': return 'Transfiere al agente IA';
-            case 'end_conversation': return 'Finaliza la conversación';
-            default: return null;
-        }
-    };
+    const selectedNode = selectedNodeId ? flow.nodes[selectedNodeId] : null;
+    const allNodesList = Object.keys(flow.nodes).map(id => ({ id, label: nodeLabels[id] || id }));
 
     return (
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="h-[calc(100vh-120px)] flex flex-col">
             {/* Top bar */}
-            <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-3 border-b">
+            <div className="flex items-center justify-between py-3 px-4 border-b bg-background z-10">
                 <Link href={backHref}>
                     <Button variant="ghost" size="sm">
                         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -175,7 +267,7 @@ export function FlowEditor({
                 <div className="flex items-center gap-3">
                     {saveResult && (
                         <div className={`flex items-center gap-1.5 text-sm ${saveResult.startsWith('Error') ? 'text-destructive' : 'text-green-600'}`}>
-                            {saveResult.startsWith('Error') ? <AlertCircle className="h-4 w-4 shrink-0" /> : <CheckCircle2 className="h-4 w-4 shrink-0" />}
+                            {saveResult.startsWith('Error') ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                             <span className="hidden sm:inline">{saveResult.replace('Success: ', '').replace('Error: ', '')}</span>
                         </div>
                     )}
@@ -186,214 +278,57 @@ export function FlowEditor({
                 </div>
             </div>
 
-            {/* Help text */}
-            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-200">
-                <p className="font-medium mb-1">Cómo funciona el editor de flujos</p>
-                <p className="text-blue-600 dark:text-blue-300">
-                    Cada <strong>paso</strong> es un mensaje que el chatbot envía. Puedes agregar <strong>opciones</strong> para que el cliente elija qué hacer.
-                    Cada opción lleva a otro paso. También puedes hacer que un paso <strong>transfiera</strong> a un agente humano o a la IA.
-                </p>
-            </div>
+            {/* Canvas + Edit panel */}
+            <div className="flex-1 flex relative">
+                <div className={`flex-1 transition-all ${selectedNode ? 'mr-[380px]' : ''}`}>
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        onNodeDragStop={onNodeDragStop}
+                        onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+                        onPaneClick={() => setSelectedNodeId(null)}
+                        nodeTypes={nodeTypes}
+                        fitView
+                        fitViewOptions={{ padding: 0.3 }}
+                        defaultEdgeOptions={{
+                            type: 'smoothstep',
+                            animated: true,
+                            style: { strokeWidth: 2 },
+                        }}
+                        proOptions={{ hideAttribution: true }}
+                    >
+                        <Background gap={20} size={1} />
+                        <Controls showInteractive={false} />
+                        <MiniMap
+                            nodeStrokeWidth={3}
+                            className="!bg-muted/50 !border-border"
+                        />
+                        <Panel position="bottom-center">
+                            <Button onClick={addNode} className="shadow-lg">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Agregar paso
+                            </Button>
+                        </Panel>
+                    </ReactFlow>
+                </div>
 
-            {/* Visual flow */}
-            <div className="space-y-3">
-                {nodeIds.map((nodeId, nodeIndex) => {
-                    const node = flow.nodes[nodeId];
-                    const isStart = nodeId === flow.startNodeId;
-                    const hasAction = !!node.action;
-
-                    return (
-                        <div key={nodeId}>
-                            {/* Connector arrow */}
-                            {nodeIndex > 0 && (
-                                <div className="flex justify-center py-1">
-                                    <div className="w-px h-6 bg-border" />
-                                </div>
-                            )}
-
-                            <Card className={`relative ${isStart ? 'border-primary ring-1 ring-primary/20' : ''} ${hasAction ? 'border-orange-300 dark:border-orange-700' : ''}`}>
-                                {/* Node header */}
-                                <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isStart ? 'bg-primary text-primary-foreground' : hasAction ? 'bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300' : 'bg-muted text-muted-foreground'}`}>
-                                            {getActionIcon(node.action?.type)}
-                                        </div>
-                                        <div className="min-w-0">
-                                            {editingName === nodeId ? (
-                                                <Input
-                                                    autoFocus
-                                                    className="h-7 text-sm font-semibold w-48"
-                                                    value={nodeNames[nodeId] || ''}
-                                                    onChange={(e) => setNodeNames(prev => ({ ...prev, [nodeId]: e.target.value }))}
-                                                    onBlur={() => setEditingName(null)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && setEditingName(null)}
-                                                />
-                                            ) : (
-                                                <button
-                                                    onClick={() => setEditingName(nodeId)}
-                                                    className="flex items-center gap-1.5 text-left hover:bg-muted rounded px-1.5 py-0.5 -ml-1.5 transition-colors"
-                                                >
-                                                    <span className="font-semibold text-sm truncate">{getNodeLabel(nodeId)}</span>
-                                                    <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
-                                                </button>
-                                            )}
-                                            <div className="flex items-center gap-1.5">
-                                                {isStart && <Badge variant="default" className="text-[10px] h-4 px-1.5">INICIO</Badge>}
-                                                {hasAction && <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-orange-300 text-orange-600">{getActionLabel(node.action?.type)}</Badge>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                        {!isStart && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                                onClick={() => removeNode(nodeId)}
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <CardContent className="space-y-4 pt-2">
-                                    {/* Message */}
-                                    <div className="space-y-1.5">
-                                        <Label className="text-xs text-muted-foreground">Mensaje del chatbot</Label>
-                                        <Textarea
-                                            value={node.message}
-                                            onChange={(e) => updateNode(nodeId, { message: e.target.value })}
-                                            rows={2}
-                                            placeholder="Escribe el mensaje que verá el cliente..."
-                                            className="resize-none"
-                                        />
-                                    </div>
-
-                                    {/* Action selector */}
-                                    <div className="space-y-1.5">
-                                        <Label className="text-xs text-muted-foreground">Qué hace este paso?</Label>
-                                        <select
-                                            value={node.action?.type || 'show_options'}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (value === 'show_options') {
-                                                    updateNode(nodeId, { action: undefined });
-                                                } else {
-                                                    updateNode(nodeId, {
-                                                        action: { type: value as 'transfer_to_human' | 'transfer_to_ai_agent' | 'end_conversation' },
-                                                        options: [],
-                                                    });
-                                                }
-                                            }}
-                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                        >
-                                            <option value="show_options">Mostrar opciones al cliente</option>
-                                            <option value="transfer_to_human">Transferir a agente humano</option>
-                                            <option value="transfer_to_ai_agent">Transferir a agente IA</option>
-                                            <option value="end_conversation">Finalizar conversación</option>
-                                        </select>
-                                    </div>
-
-                                    {/* Options (only if no terminal action) */}
-                                    {!node.action && (
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <Label className="text-xs text-muted-foreground">Opciones para el cliente</Label>
-                                            </div>
-
-                                            {(node.options || []).map((option, optIndex) => (
-                                                <div key={optIndex} className="flex items-center gap-2 bg-muted/40 rounded-lg p-2.5 group">
-                                                    <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                                                        {optIndex + 1}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-2">
-                                                        <Input
-                                                            value={option.label}
-                                                            onChange={(e) => {
-                                                                const label = e.target.value;
-                                                                const visibleNumber = String(optIndex + 1);
-                                                                const fullLabel = label.toLowerCase().trim();
-                                                                const words = fullLabel.split(/\s+/).filter(w => w.length >= 2);
-                                                                const matchSet = new Set([visibleNumber, ...(fullLabel ? [fullLabel] : []), ...words]);
-                                                                updateOption(nodeId, optIndex, {
-                                                                    label,
-                                                                    match: Array.from(matchSet),
-                                                                });
-                                                            }}
-                                                            placeholder="Texto de la opción"
-                                                            className="h-8 text-sm"
-                                                        />
-                                                        <select
-                                                            value={option.nextNodeId}
-                                                            onChange={(e) => updateOption(nodeId, optIndex, { nextNodeId: e.target.value })}
-                                                            className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                                        >
-                                                            {nodeIds.filter(id => id !== nodeId).map(id => (
-                                                                <option key={id} value={id}>
-                                                                    &#8594; {getNodeLabel(id)}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                                                        onClick={() => removeOption(nodeId, optIndex)}
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
-                                            ))}
-
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => addOption(nodeId)}
-                                                className="w-full text-muted-foreground hover:text-foreground border border-dashed h-9"
-                                            >
-                                                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                                                Agregar opción
-                                            </Button>
-                                        </div>
-                                    )}
-
-                                    {/* Preview of what user sees */}
-                                    {node.message && !node.action && (node.options?.length || 0) > 0 && (
-                                        <div className="border rounded-lg p-3 bg-muted/20">
-                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Vista previa del cliente</p>
-                                            <div className="bg-background rounded-lg p-3 shadow-sm border text-sm space-y-2">
-                                                <p>{node.message}</p>
-                                                <div className="border-t pt-2 space-y-1">
-                                                    {(node.options || []).map((opt, i) => (
-                                                        <p key={i} className="text-muted-foreground">
-                                                            <span className="font-medium text-foreground">{i + 1}.</span> {opt.label}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Add step button */}
-            <Button variant="outline" onClick={addNode} className="w-full border-dashed h-12 text-muted-foreground hover:text-foreground">
-                <Plus className="mr-2 h-4 w-4" />
-                Agregar nuevo paso
-            </Button>
-
-            {/* Bottom save */}
-            <div className="flex justify-end pb-6">
-                <Button onClick={handleSave} disabled={isPending}>
-                    <Save className="mr-2 h-4 w-4" />
-                    {isPending ? 'Guardando...' : 'Guardar flujo'}
-                </Button>
+                {/* Side edit panel */}
+                {selectedNode && selectedNodeId && (
+                    <NodeEditPanel
+                        nodeId={selectedNodeId}
+                        node={selectedNode}
+                        label={nodeLabels[selectedNodeId] || ''}
+                        isStart={selectedNodeId === initialFlow.startNodeId}
+                        allNodes={allNodesList}
+                        onUpdateNode={handleUpdateNode}
+                        onUpdateLabel={(label) => setNodeLabels(prev => ({ ...prev, [selectedNodeId]: label }))}
+                        onDelete={() => handleDeleteNode(selectedNodeId)}
+                        onClose={() => setSelectedNodeId(null)}
+                    />
+                )}
             </div>
         </div>
     );
