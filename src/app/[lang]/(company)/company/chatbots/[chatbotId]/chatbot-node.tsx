@@ -41,14 +41,12 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
                 ${isStart ? 'border-primary' : ''}
             `}
         >
-            {/* Input handle (top) - not for start node */}
-            {!isStart && (
-                <Handle
-                    type="target"
-                    position={Position.Top}
-                    className="!w-3 !h-3 !bg-primary !border-2 !border-background"
-                />
-            )}
+            {/* Input handle (top) */}
+            <Handle
+                type="target"
+                position={Position.Top}
+                className="!w-3 !h-3 !bg-primary !border-2 !border-background"
+            />
 
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/50">
