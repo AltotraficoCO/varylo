@@ -153,28 +153,32 @@ export default async function ConversationsPage({
         if (conversationCheck) {
             const isAssigned = conversationCheck.assignedAgents.some(a => a.id === userId);
             if (!isAgent || isAssigned) {
-                selectedConversation = await prisma.conversation.findUnique({
-                    where: { id: selectedId },
-                    include: {
-                        contact: true,
-                        messages: {
-                            orderBy: { createdAt: 'asc' }
-                        },
-                        assignedAgents: true,
-                        handledByAiAgent: { select: { id: true, name: true } },
-                        tags: true,
-                        channel: true,
-                        insights: {
-                            orderBy: { createdAt: 'desc' },
-                            take: 1,
-                        },
-                        capturedData: {
-                            orderBy: { createdAt: 'asc' },
-                        },
-                    }
-                });
-                if (selectedConversation) {
-                    messages = selectedConversation.messages;
+                const [convData, capturedData] = await Promise.all([
+                    prisma.conversation.findUnique({
+                        where: { id: selectedId },
+                        include: {
+                            contact: true,
+                            messages: {
+                                orderBy: { createdAt: 'asc' }
+                            },
+                            assignedAgents: true,
+                            handledByAiAgent: { select: { id: true, name: true } },
+                            tags: true,
+                            channel: true,
+                            insights: {
+                                orderBy: { createdAt: 'desc' },
+                                take: 1,
+                            },
+                        }
+                    }),
+                    prisma.capturedData.findMany({
+                        where: { conversationId: selectedId },
+                        orderBy: { createdAt: 'asc' },
+                    }).catch(() => []),
+                ]);
+                if (convData) {
+                    selectedConversation = { ...convData, capturedData };
+                    messages = convData.messages;
                 }
             }
         }
