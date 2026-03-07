@@ -144,16 +144,39 @@ async function processNode(
             select: { contactId: true },
         });
         const trimmedValue = userMessage.trim();
-        await prisma.capturedData.create({
-            data: {
-                companyId,
-                conversationId,
-                contactId: conversation?.contactId || null,
-                fieldName: capture.fieldName,
-                fieldValue: trimmedValue,
-                source: 'chatbot',
-            },
-        });
+
+        // Upsert: if this contact already has this field captured, overwrite it
+        const existingCapture = conversation?.contactId
+            ? await prisma.capturedData.findFirst({
+                where: {
+                    contactId: conversation.contactId,
+                    fieldName: capture.fieldName,
+                    companyId,
+                },
+            })
+            : null;
+
+        if (existingCapture) {
+            await prisma.capturedData.update({
+                where: { id: existingCapture.id },
+                data: {
+                    fieldValue: trimmedValue,
+                    conversationId,
+                    source: 'chatbot',
+                },
+            });
+        } else {
+            await prisma.capturedData.create({
+                data: {
+                    companyId,
+                    conversationId,
+                    contactId: conversation?.contactId || null,
+                    fieldName: capture.fieldName,
+                    fieldValue: trimmedValue,
+                    source: 'chatbot',
+                },
+            });
+        }
 
         // Auto-update contact with known fields
         if (conversation?.contactId) {
