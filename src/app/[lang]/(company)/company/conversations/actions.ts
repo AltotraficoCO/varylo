@@ -128,6 +128,40 @@ export async function sendMessage(conversationId: string, content: string) {
     }
 }
 
+export async function sendMediaMessage(
+    conversationId: string,
+    content: string,
+    mediaUrl: string,
+    mediaType: string,
+    mimeType: string,
+    fileName: string,
+) {
+    const session = await auth();
+    if (!session?.user?.id || !session?.user?.companyId) {
+        return { success: false, message: "Unauthorized" };
+    }
+
+    try {
+        await sendChannelMessage({
+            conversationId,
+            companyId: session.user.companyId,
+            content: content || `[${mediaType}]`,
+            fromName: session.user.name || 'Agent',
+            mediaUrl,
+            mediaType,
+            mimeType,
+            fileName,
+        });
+
+        revalidatePath('/[lang]/company/conversations', 'page');
+        revalidatePath('/[lang]/agent', 'page');
+        return { success: true };
+    } catch (error) {
+        console.error("Error sending media message:", error);
+        return { success: false, message: "Error al enviar el archivo. Intenta de nuevo." };
+    }
+}
+
 export async function reanalyzeConversation(conversationId: string) {
     const session = await auth();
     if (!session?.user?.companyId) {
