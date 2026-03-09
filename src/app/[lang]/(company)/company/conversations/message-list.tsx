@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { FileText, Download, Play } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
 
 interface Message {
     id: string;
@@ -15,17 +15,32 @@ interface Message {
     fileName?: string | null;
 }
 
+/**
+ * Resolve the display URL for a message's media.
+ * - "wa:xxx" → proxy through /api/media?messageId=...
+ * - "data:..." → use directly (outbound uploads)
+ * - any other URL → use directly
+ */
+function resolveMediaSrc(msg: Message): string | null {
+    if (!msg.mediaUrl) return null;
+    if (msg.mediaUrl.startsWith('wa:')) {
+        return `/api/media?messageId=${msg.id}`;
+    }
+    return msg.mediaUrl;
+}
+
 function MediaContent({ msg }: { msg: Message }) {
     const isOutbound = msg.direction === 'OUTBOUND';
+    const src = resolveMediaSrc(msg);
 
-    if (!msg.mediaUrl || !msg.mediaType) return null;
+    if (!src || !msg.mediaType) return null;
 
     switch (msg.mediaType) {
         case 'image':
         case 'sticker':
             return (
                 <img
-                    src={msg.mediaUrl}
+                    src={src}
                     alt={msg.fileName || 'Imagen'}
                     className={cn(
                         "rounded-lg max-w-full max-h-64 object-contain",
@@ -38,7 +53,7 @@ function MediaContent({ msg }: { msg: Message }) {
         case 'video':
             return (
                 <video
-                    src={msg.mediaUrl}
+                    src={src}
                     controls
                     className="rounded-lg max-w-full max-h-64"
                     preload="metadata"
@@ -48,7 +63,7 @@ function MediaContent({ msg }: { msg: Message }) {
         case 'audio':
             return (
                 <audio
-                    src={msg.mediaUrl}
+                    src={src}
                     controls
                     className="max-w-full min-w-[200px]"
                     preload="metadata"
@@ -58,7 +73,7 @@ function MediaContent({ msg }: { msg: Message }) {
         case 'document':
             return (
                 <a
-                    href={msg.mediaUrl}
+                    href={src}
                     download={msg.fileName || 'documento'}
                     target="_blank"
                     rel="noopener noreferrer"

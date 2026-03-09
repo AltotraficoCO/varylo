@@ -6,7 +6,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { markWhatsAppMessageAsRead } from '@/lib/channel-sender';
 import { rateLimitResponse } from '@/lib/rate-limit';
-import { extractMediaFromMessage, getWhatsAppMediaUrl } from '@/lib/whatsapp-media';
+import { extractMediaFromMessage } from '@/lib/whatsapp-media';
 
 const MAX_MESSAGE_LENGTH = 4096;
 
@@ -143,20 +143,17 @@ export async function POST(req: NextRequest) {
                     markWhatsAppMessageAsRead(config.phoneNumberId, config.accessToken, messageId);
                 }
 
-                // Download media if present
+                // Store media reference (download happens on demand via /api/media)
                 let mediaUrl: string | undefined;
                 let mediaType: string | undefined;
                 let mimeType: string | undefined;
                 let fileName: string | undefined;
 
-                if (mediaInfo && config?.accessToken) {
-                    const downloaded = await getWhatsAppMediaUrl(mediaInfo.mediaId, config.accessToken);
-                    if (downloaded) {
-                        mediaUrl = downloaded.url;
-                        mimeType = downloaded.mimeType || mediaInfo.mimeType;
-                        fileName = downloaded.fileName || mediaInfo.fileName;
-                    }
+                if (mediaInfo) {
+                    mediaUrl = `wa:${mediaInfo.mediaId}`;
                     mediaType = mediaInfo.mediaType;
+                    mimeType = mediaInfo.mimeType;
+                    fileName = mediaInfo.fileName;
                 }
 
                 // Use caption as content for media messages, or a placeholder

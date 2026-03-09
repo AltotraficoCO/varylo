@@ -1,8 +1,6 @@
 /**
- * Download media from WhatsApp Cloud API.
- * Returns the publicly-accessible URL (from Meta CDN) so we can store it directly.
- *
- * Flow: mediaId → GET media URL from Meta → return the download URL
+ * WhatsApp media utilities.
+ * Handles downloading media from Meta's API and extracting media info from webhooks.
  */
 
 interface MediaInfo {
@@ -12,21 +10,22 @@ interface MediaInfo {
 }
 
 /**
- * Get the download URL for a WhatsApp media object.
- * The URL is temporary (valid for a few minutes) but we store it
- * and can re-fetch if needed.
+ * Get the CDN download URL for a WhatsApp media object.
+ * Returns the Meta CDN URL (temporary, ~5 min validity) and mime type.
  */
 export async function getWhatsAppMediaUrl(
     mediaId: string,
     accessToken: string,
 ): Promise<MediaInfo | null> {
     try {
-        // Step 1: Get media metadata (includes download URL)
         const res = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
             headers: { Authorization: `Bearer ${accessToken}` },
         });
 
-        if (!res.ok) return null;
+        if (!res.ok) {
+            console.error('[WhatsApp Media] Meta API error:', res.status, await res.text().catch(() => ''));
+            return null;
+        }
 
         const data = await res.json();
         const mediaUrl = data.url;
@@ -34,25 +33,41 @@ export async function getWhatsAppMediaUrl(
 
         if (!mediaUrl) return null;
 
-        // Step 2: Download the actual file and convert to base64 data URL
-        // Meta media URLs require auth header, so we download and re-host
-        const mediaRes = await fetch(mediaUrl, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-        });
-
-        if (!mediaRes.ok) return null;
-
-        const buffer = await mediaRes.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        const dataUrl = `data:${mimeType};base64,${base64}`;
-
         return {
-            url: dataUrl,
+            url: mediaUrl,
             mimeType,
             fileName: data.filename || undefined,
         };
     } catch (error) {
-        console.error('[WhatsApp Media] Failed to fetch media:', error instanceof Error ? error.message : 'Unknown');
+        console.error('[WhatsApp Media] Failed to fetch media URL:', error instanceof Error ? error.message : 'Unknown');
+        return null;
+    }
+}
+
+/**
+ * Download media binary from Meta CDN URL and return as base64 data URL.
+ * This requires the auth token because Meta CDN URLs are protected.
+ */
+export async function downloadWhatsAppMedia(
+    cdnUrl: string,
+    accessToken: string,
+    mimeType: string,
+): Promise<string | null> {
+    try {
+        const res = await fetch(cdnUrl, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!res.ok) {
+            console.error('[WhatsApp Media] Download failed:', res.status);
+            return null;
+        }
+
+        const buffer = await res.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        return `data:${mimeType};base64,${base64}`;
+    } catch (error) {
+        console.error('[WhatsApp Media] Download error:', error instanceof Error ? error.message : 'Unknown');
         return null;
     }
 }
