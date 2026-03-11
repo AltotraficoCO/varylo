@@ -148,6 +148,7 @@ model Company {
   aiUsageLogs        AiUsageLog[]
   paymentSources     PaymentSource[]
   subscriptions      Subscription[]
+  ecommerceIntegration EcommerceIntegration?
 }
 
 model Channel {
@@ -468,6 +469,20 @@ model CapturedData {
   @@index([conversationId])
   @@index([companyId])
   @@index([contactId])
+}
+
+model EcommerceIntegration {
+  id            String   @id @default(cuid())
+  companyId     String   @unique
+  platform      String   // "shopify" | "woocommerce"
+  storeUrl      String   // e.g. "mystore.myshopify.com" or "mystore.com"
+  apiKey        String   // encrypted - Shopify Admin API access token or WooCommerce consumer key
+  apiSecret     String?  // encrypted - WooCommerce consumer secret (not needed for Shopify)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model SiteConfig {
