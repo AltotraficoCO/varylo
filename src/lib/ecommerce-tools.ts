@@ -433,18 +433,24 @@ async function wooCheckInventory(config: EcommerceConfig, productId: string): Pr
 
 // --- Payment methods ---
 
-async function wooGetPaymentMethods(config: EcommerceConfig) {
+interface PaymentMethod {
+    id: string;
+    title: string;
+    description: string;
+}
+
+async function wooGetPaymentMethods(config: EcommerceConfig): Promise<PaymentMethod[]> {
     const data = await wooFetch(config, 'payment_gateways');
     return (data || [])
         .filter((g: Record<string, unknown>) => g.enabled === true)
-        .map((g: Record<string, unknown>) => ({
+        .map((g: Record<string, unknown>): PaymentMethod => ({
             id: g.id as string,
             title: g.title as string,
             description: stripHtml((g.description as string) || ''),
         }));
 }
 
-async function shopifyGetPaymentMethods(_config: EcommerceConfig) {
+async function shopifyGetPaymentMethods(_config: EcommerceConfig): Promise<PaymentMethod[]> {
     // Shopify doesn't expose payment gateways via REST Admin API easily
     // Return a generic response — the checkout page will show available methods
     return [

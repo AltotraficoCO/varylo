@@ -35,6 +35,37 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
     const [playing, setPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch audio as Blob to bypass CORS and Content-Type issues
+    useEffect(() => {
+        let cancelled = false;
+        async function loadAudio() {
+            try {
+                setLoading(true);
+                const res = await fetch(src);
+                if (!res.ok) throw new Error('fetch failed');
+                const blob = await res.blob();
+                // Create blob with explicit MIME type for better browser compatibility
+                const type = mimeType?.split(';')[0] || blob.type || 'audio/ogg';
+                const typedBlob = new Blob([blob], { type });
+                if (!cancelled) {
+                    setBlobUrl(URL.createObjectURL(typedBlob));
+                }
+            } catch {
+                if (!cancelled) setError(true);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }
+        loadAudio();
+        return () => {
+            cancelled = true;
+            if (blobUrl) URL.revokeObjectURL(blobUrl);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [src]);
 
     function formatTime(s: number) {
         if (!s || !isFinite(s)) return '0:00';
@@ -82,10 +113,27 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
         );
     }
 
+    if (loading || !blobUrl) {
+        return (
+            <div className="flex items-center gap-2 min-w-[220px]">
+                <div className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center shrink-0",
+                    isOutbound ? "bg-primary-foreground/20" : "bg-primary/10"
+                )}>
+                    <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                </div>
+                <div className="flex-1">
+                    <div className="h-1.5 rounded-full bg-muted/50" />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex items-center gap-2 min-w-[220px]">
             <audio
                 ref={audioRef}
+                src={blobUrl}
                 preload="metadata"
                 onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
                 onTimeUpdate={() => setProgress(audioRef.current?.currentTime || 0)}
@@ -93,11 +141,7 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
                 onPause={() => setPlaying(false)}
                 onEnded={() => { setPlaying(false); setProgress(0); }}
                 onError={() => setError(true)}
-            >
-                <source src={src} type={mimeType || 'audio/ogg'} />
-                <source src={src} type="audio/ogg" />
-                <source src={src} type="audio/mpeg" />
-            </audio>
+            />
             <button
                 onClick={togglePlay}
                 className={cn(
