@@ -137,16 +137,6 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             }
         }
 
-        // Check if ecommerce is enabled for this agent and company has integration
-        let ecommerceEnabled = false;
-        if (aiAgent.ecommerceEnabled) {
-            const integration = await prisma.ecommerceIntegration.findUnique({
-                where: { companyId: conversation.companyId },
-                select: { active: true },
-            });
-            ecommerceEnabled = !!integration?.active;
-        }
-
         // Build chat history
         const messages: ChatCompletionMessageParam[] = [
             {
