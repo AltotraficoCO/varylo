@@ -487,17 +487,19 @@ async function wooCreateOrder(
     const lastName = nameParts.slice(1).join(' ') || '';
 
     const lineItems = items.map((item) => ({
-        product_id: parseInt(item.product_id, 10),
-        ...(item.variation_id ? { variation_id: parseInt(item.variation_id, 10) } : {}),
-        quantity: item.quantity || 1,
+        product_id: Number(item.product_id),
+        ...(item.variation_id ? { variation_id: Number(item.variation_id) } : {}),
+        quantity: Number(item.quantity) || 1,
     }));
+
+    console.log('[EcommerceTool] Creating WooCommerce order:', JSON.stringify({ customerName, lineItems }));
 
     const orderData: Record<string, unknown> = {
         status: 'pending',
         billing: {
             first_name: firstName,
             last_name: lastName,
-            ...(customerEmail ? { email: customerEmail } : {}),
+            email: customerEmail || `${firstName.toLowerCase().replace(/\s+/g, '')}@pedido.temp`,
             ...(customerPhone ? { phone: customerPhone } : {}),
         },
         line_items: lineItems,
@@ -624,6 +626,7 @@ export async function executeEcommerceTool(
                         price: `$${product.price} ${product.currency}`,
                         available: product.available ? 'Disponible' : 'Agotado',
                         variants: product.variants.map((v) => ({
+                            id: v.id,
                             title: v.title,
                             price: `$${v.price}`,
                             stock: v.inventory_quantity,
@@ -723,6 +726,7 @@ export async function executeEcommerceTool(
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Error desconocido';
         console.error(`[EcommerceTool] ${toolName} error:`, message);
+        console.error(`[EcommerceTool] ${toolName} args:`, JSON.stringify(args));
         return JSON.stringify({ error: `Error al consultar la tienda: ${message}` });
     }
 }
