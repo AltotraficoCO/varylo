@@ -17,16 +17,15 @@ interface Message {
 
 /**
  * Resolve the display URL for a message's media.
- * - "wa:xxx" → proxy through /api/media?messageId=...
- * - "data:..." → use directly (outbound uploads)
- * - any other URL → use directly
+ * - "data:..." → use directly (outbound uploads before save)
+ * - Everything else → proxy through /api/media to avoid CORS/auth issues
  */
 function resolveMediaSrc(msg: Message): string | null {
     if (!msg.mediaUrl) return null;
-    if (msg.mediaUrl.startsWith('wa:')) {
-        return `/api/media?messageId=${msg.id}`;
+    if (msg.mediaUrl.startsWith('data:')) {
+        return msg.mediaUrl;
     }
-    return msg.mediaUrl;
+    return `/api/media?messageId=${msg.id}`;
 }
 
 /**

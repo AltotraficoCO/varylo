@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
-import { downloadWhatsAppMedia, getWhatsAppMediaUrl } from '@/lib/whatsapp-media';
+import { getWhatsAppMediaUrl, downloadWhatsAppMedia } from '@/lib/whatsapp-media';
 
 /**
  * GET /api/media?messageId=xxx
- * Proxy to download WhatsApp media on demand.
- * The mediaUrl field stores the WhatsApp media ID (wa:<mediaId>).
- * This route fetches the actual binary from Meta CDN and returns it.
+ * Proxy to serve media for messages.
+ * Handles both:
+ *   - Supabase Storage URLs (direct fetch with service key if needed)
+ *   - Legacy WhatsApp media IDs (wa:<mediaId>) via Meta CDN
  */
 export async function GET(req: NextRequest) {
     const session = await auth();
@@ -33,11 +34,31 @@ export async function GET(req: NextRequest) {
         },
     });
 
-    if (!message?.mediaUrl?.startsWith('wa:')) {
+    if (!message?.mediaUrl) {
         return new NextResponse('Media not found', { status: 404 });
     }
 
-    const waMediaId = message.mediaUrl.replace('wa:', '');
+    // Legacy: WhatsApp media ID (wa:<mediaId>)
+    if (message.mediaUrl.startsWith('wa:')) {
+        return handleWhatsAppMedia(message);
+    }
+
+    // Supabase Storage URL or any HTTP URL — proxy it
+    if (message.mediaUrl.startsWith('http')) {
+        return handleHttpMedia(message);
+    }
+
+    return new NextResponse('Unsupported media format', { status: 400 });
+}
+
+/** Proxy WhatsApp media via Meta CDN */
+async function handleWhatsAppMedia(message: {
+    mediaUrl: string | null;
+    fileName: string | null;
+    mimeType: string | null;
+    conversation: { channel: { type: string; configJson: unknown } };
+}) {
+    const waMediaId = message.mediaUrl!.replace('wa:', '');
     const channel = message.conversation.channel;
 
     if (channel.type !== ChannelType.WHATSAPP) {
@@ -49,19 +70,16 @@ export async function GET(req: NextRequest) {
         return new NextResponse('Channel not configured', { status: 500 });
     }
 
-    // Step 1: Get the CDN URL from Meta
     const mediaInfo = await getWhatsAppMediaUrl(waMediaId, config.accessToken);
     if (!mediaInfo) {
         return new NextResponse('Failed to fetch media from WhatsApp', { status: 502 });
     }
 
-    // Step 2: Download the actual binary
     const dataUrl = await downloadWhatsAppMedia(mediaInfo.url, config.accessToken, mediaInfo.mimeType);
     if (!dataUrl) {
         return new NextResponse('Failed to download media', { status: 502 });
     }
 
-    // Convert data URL back to binary for response
     const base64Data = dataUrl.split(',')[1];
     const buffer = Buffer.from(base64Data, 'base64');
 
@@ -74,4 +92,43 @@ export async function GET(req: NextRequest) {
             'Cache-Control': 'private, max-age=3600',
         },
     });
+}
+
+/** Proxy HTTP media (Supabase Storage, etc.) */
+async function handleHttpMedia(message: {
+    mediaUrl: string | null;
+    mimeType: string | null;
+    fileName: string | null;
+}) {
+    try {
+        const res = await fetch(message.mediaUrl!, {
+            headers: {
+                // Use service role key for Supabase Storage if it's a Supabase URL
+                ...(message.mediaUrl!.includes('supabase') && process.env.SUPABASE_SERVICE_ROLE_KEY
+                    ? { Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` }
+                    : {}),
+            },
+        });
+
+        if (!res.ok) {
+            console.error('[MediaProxy] Fetch failed:', res.status, message.mediaUrl);
+            return new NextResponse('Failed to fetch media', { status: 502 });
+        }
+
+        const buffer = Buffer.from(await res.arrayBuffer());
+        const contentType = message.mimeType || res.headers.get('content-type') || 'application/octet-stream';
+
+        return new NextResponse(buffer, {
+            headers: {
+                'Content-Type': contentType,
+                'Content-Disposition': message.fileName
+                    ? `inline; filename="${message.fileName}"`
+                    : 'inline',
+                'Cache-Control': 'private, max-age=3600',
+            },
+        });
+    } catch (error) {
+        console.error('[MediaProxy] Error:', error instanceof Error ? error.message : 'Unknown');
+        return new NextResponse('Failed to fetch media', { status: 502 });
+    }
 }
