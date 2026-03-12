@@ -29,6 +29,51 @@ function resolveMediaSrc(msg: Message): string | null {
     return msg.mediaUrl;
 }
 
+/**
+ * Encode an AudioBuffer to a WAV Blob (universally playable).
+ */
+function audioBufferToWav(buffer: AudioBuffer): Blob {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const length = buffer.length * numChannels * 2; // 16-bit PCM
+    const arrayBuffer = new ArrayBuffer(44 + length);
+    const view = new DataView(arrayBuffer);
+
+    // WAV header
+    const writeStr = (offset: number, str: string) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + length, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true); // chunk size
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * 2, true);
+    view.setUint16(32, numChannels * 2, true);
+    view.setUint16(34, 16, true); // bits per sample
+    writeStr(36, 'data');
+    view.setUint32(40, length, true);
+
+    // Interleave channels and write 16-bit PCM
+    const channels = [];
+    for (let ch = 0; ch < numChannels; ch++) {
+        channels.push(buffer.getChannelData(ch));
+    }
+    let offset = 44;
+    for (let i = 0; i < buffer.length; i++) {
+        for (let ch = 0; ch < numChannels; ch++) {
+            const sample = Math.max(-1, Math.min(1, channels[ch][i]));
+            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+            offset += 2;
+        }
+    }
+
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
 function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: string | null; isOutbound: boolean }) {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [error, setError] = useState(false);
@@ -36,22 +81,41 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
 
-    // Fetch audio as Blob to bypass CORS and Content-Type issues
     useEffect(() => {
         let cancelled = false;
+        let url: string | null = null;
+
         async function loadAudio() {
             try {
-                setLoading(true);
                 const res = await fetch(src);
                 if (!res.ok) throw new Error('fetch failed');
-                const blob = await res.blob();
-                // Create blob with explicit MIME type for better browser compatibility
-                const type = mimeType?.split(';')[0] || blob.type || 'audio/ogg';
-                const typedBlob = new Blob([blob], { type });
-                if (!cancelled) {
-                    setBlobUrl(URL.createObjectURL(typedBlob));
+                const arrayBuffer = await res.arrayBuffer();
+
+                // Check if it's OGG/Opus (needs conversion for Safari)
+                const mime = (mimeType?.split(';')[0] || '').toLowerCase();
+                const isOgg = mime.includes('ogg') || mime.includes('opus') || src.endsWith('.ogg');
+
+                if (isOgg) {
+                    // Decode with AudioContext (supports OGG Opus in all browsers)
+                    // then convert to WAV which is universally playable
+                    const audioCtx = new AudioContext();
+                    try {
+                        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+                        const wavBlob = audioBufferToWav(audioBuffer);
+                        url = URL.createObjectURL(wavBlob);
+                    } finally {
+                        await audioCtx.close();
+                    }
+                } else {
+                    // Non-OGG: use blob directly
+                    const blob = new Blob([arrayBuffer], { type: mime || 'audio/mpeg' });
+                    url = URL.createObjectURL(blob);
+                }
+
+                if (!cancelled && url) {
+                    setBlobUrl(url);
                 }
             } catch {
                 if (!cancelled) setError(true);
@@ -62,7 +126,7 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
         loadAudio();
         return () => {
             cancelled = true;
-            if (blobUrl) URL.revokeObjectURL(blobUrl);
+            if (url) URL.revokeObjectURL(url);
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [src]);
