@@ -350,7 +350,7 @@ function buildSystemPrompt(systemPrompt: string, contextInfo: string | null, cal
         prompt += '\n3. Usa check_inventory para verificar disponibilidad y stock.';
         prompt += '\n4. Usa get_payment_methods para consultar los medios de pago disponibles cuando el cliente pregunte cómo pagar.';
         prompt += '\n5. Cuando el cliente quiera comprar, ANTES de crear el pedido debes tener TODOS estos datos: nombre completo, correo electrónico, teléfono, dirección de envío y ciudad. El correo es OBLIGATORIO, no crees el pedido sin él. Si falta algún dato, pídelo amablemente.';
-        prompt += '\n6. Usa create_order para crear el pedido. IMPORTANTE: product_id y variation_id deben ser IDs NUMÉRICOS (ej: "1234", "5678"), NUNCA nombres de productos o variantes. Primero busca con search_products y get_product_details para obtener los IDs correctos.';
+        prompt += '\n6. Usa create_order para crear el pedido. IMPORTANTE: product_id debe ser el "id" que devolvió search_products. Si el producto es variable, variation_id debe ser el "id" de la variante que devolvió get_product_details (es un número diferente al product_id). NUNCA inventes IDs ni uses ejemplos.';
         prompt += '\nDespués de crear el pedido, envía el link de pago al cliente para que complete su compra.';
         prompt += '\nPresenta la información de forma clara y amigable. Incluye precios y disponibilidad. Si un producto no está disponible, sugiere alternativas buscando productos similares.';
     }

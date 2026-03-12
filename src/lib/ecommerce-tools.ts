@@ -35,7 +35,7 @@ export const ECOMMERCE_TOOLS: ChatCompletionTool[] = [
                 properties: {
                     product_id: {
                         type: 'string',
-                        description: 'ID numérico del producto obtenido de search_products (ej: "1234", NO nombres)',
+                        description: 'ID numérico del producto obtenido del campo "id" en los resultados de search_products. NO inventes IDs.',
                     },
                 },
                 required: ['product_id'],
@@ -53,7 +53,7 @@ export const ECOMMERCE_TOOLS: ChatCompletionTool[] = [
                 properties: {
                     product_id: {
                         type: 'string',
-                        description: 'ID numérico del producto (ej: "1234")',
+                        description: 'ID numérico del producto obtenido de search_products.',
                     },
                     variant_name: {
                         type: 'string',
@@ -127,11 +127,11 @@ export const ECOMMERCE_TOOLS: ChatCompletionTool[] = [
                             properties: {
                                 product_id: {
                                     type: 'string',
-                                    description: 'ID numérico del producto (ej: "1234"). DEBE ser el número obtenido de search_products, NO un nombre.',
+                                    description: 'ID numérico del producto obtenido del campo "id" en search_products. NO inventes IDs, deben ser los que devuelve la API.',
                                 },
                                 variation_id: {
                                     type: 'string',
-                                    description: 'ID numérico de la variante (ej: "5678"). OBLIGATORIO para productos variables. Obtenerlo del campo "id" en las variantes de get_product_details.',
+                                    description: 'ID numérico de la variante. OBLIGATORIO para productos variables. Obtenerlo del campo "id" de cada variante en get_product_details. Es DIFERENTE al product_id.',
                                 },
                                 quantity: {
                                     type: 'number',
@@ -854,6 +854,14 @@ export async function executeEcommerceTool(
         const message = error instanceof Error ? error.message : 'Error desconocido';
         console.error(`[EcommerceTool] ${toolName} error:`, message);
         console.error(`[EcommerceTool] ${toolName} args:`, JSON.stringify(args));
+
+        // Give the AI a clearer error when product/variation ID doesn't exist
+        if (message.includes('404') || message.includes('invalid_id') || message.includes('ID no')) {
+            return JSON.stringify({
+                error: `El ID de producto o variante no existe en la tienda. NO inventes IDs. Debes usar search_products primero para obtener los IDs reales, y get_product_details para obtener los IDs de las variantes.`,
+            });
+        }
+
         return JSON.stringify({ error: `Error al consultar la tienda: ${message}` });
     }
 }
