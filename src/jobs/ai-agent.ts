@@ -235,7 +235,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                         } catch (err) {
                             result = JSON.stringify({ success: false, message: 'Error al guardar el dato.' });
                         }
-                    } else if (['search_products', 'get_product_details', 'check_inventory'].includes(toolCall.function.name)) {
+                    } else if (['search_products', 'get_product_details', 'check_inventory', 'get_payment_methods', 'create_order'].includes(toolCall.function.name)) {
                         result = await executeEcommerceTool(
                             toolCall.function.name,
                             args,
@@ -344,10 +344,13 @@ function buildSystemPrompt(systemPrompt: string, contextInfo: string | null, cal
     }
 
     if (ecommerceEnabled) {
-        prompt += '\n\nTienes acceso a la tienda online de la empresa. Puedes buscar productos, consultar detalles y verificar inventario. Cuando un cliente pregunte por productos:';
+        prompt += '\n\nTienes acceso a la tienda online de la empresa. Puedes buscar productos, consultar detalles, verificar inventario, consultar métodos de pago y crear pedidos. Cuando un cliente pregunte por productos:';
         prompt += '\n1. Usa search_products para buscar productos por nombre o categoría.';
-        prompt += '\n2. Usa get_product_details para obtener información detallada de un producto específico.';
+        prompt += '\n2. Usa get_product_details para obtener información detallada de un producto específico (variantes, precios, tallas, colores).';
         prompt += '\n3. Usa check_inventory para verificar disponibilidad y stock.';
+        prompt += '\n4. Usa get_payment_methods para consultar los medios de pago disponibles cuando el cliente pregunte cómo pagar.';
+        prompt += '\n5. Cuando el cliente quiera comprar, usa create_order para crear el pedido. Necesitas: nombre del cliente, los productos (product_id y quantity), y si es un producto variable necesitas el variation_id (obtenerlo de get_product_details). El email y teléfono son opcionales pero recomendados.';
+        prompt += '\nDespués de crear el pedido, envía el link de pago al cliente para que complete la compra.';
         prompt += '\nPresenta la información de forma clara y amigable. Incluye precios y disponibilidad. Si un producto no está disponible, sugiere alternativas buscando productos similares.';
     }
 

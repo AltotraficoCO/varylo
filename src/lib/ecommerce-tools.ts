@@ -65,6 +65,67 @@ export const ECOMMERCE_TOOLS: ChatCompletionTool[] = [
             },
         },
     },
+    {
+        type: 'function',
+        function: {
+            name: 'get_payment_methods',
+            description:
+                'Obtiene los métodos de pago disponibles en la tienda online (ej: tarjeta de crédito, transferencia, contra entrega, PSE, etc.).',
+            parameters: {
+                type: 'object',
+                properties: {},
+                required: [],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_order',
+            description:
+                'Crea un pedido/orden en la tienda online y devuelve el link de pago para que el cliente complete la compra. Debes tener al menos el nombre del cliente y un producto. Si el producto es variable, necesitas el ID de la variante.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    customer_name: {
+                        type: 'string',
+                        description: 'Nombre completo del cliente',
+                    },
+                    customer_email: {
+                        type: 'string',
+                        description: 'Email del cliente (opcional, para enviarle confirmación)',
+                    },
+                    customer_phone: {
+                        type: 'string',
+                        description: 'Teléfono del cliente (opcional)',
+                    },
+                    items: {
+                        type: 'array',
+                        description: 'Lista de productos a comprar',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                product_id: {
+                                    type: 'string',
+                                    description: 'ID del producto',
+                                },
+                                variation_id: {
+                                    type: 'string',
+                                    description: 'ID de la variante (obligatorio para productos variables, obtenerlo de get_product_details)',
+                                },
+                                quantity: {
+                                    type: 'number',
+                                    description: 'Cantidad (default: 1)',
+                                },
+                            },
+                            required: ['product_id'],
+                        },
+                    },
+                },
+                required: ['customer_name', 'items'],
+            },
+        },
+    },
 ];
 
 // --- Types ---
@@ -143,13 +204,15 @@ async function getEcommerceConfig(companyId: string): Promise<EcommerceConfig | 
 
 // --- Shopify API ---
 
-async function shopifyFetch(config: EcommerceConfig, endpoint: string) {
+async function shopifyFetch(config: EcommerceConfig, endpoint: string, options?: { method?: string; body?: unknown }) {
     const url = `https://${config.storeUrl}/admin/api/2024-01/${endpoint}`;
     const res = await fetch(url, {
+        method: options?.method || 'GET',
         headers: {
             'X-Shopify-Access-Token': config.apiKey,
             'Content-Type': 'application/json',
         },
+        ...(options?.body ? { body: JSON.stringify(options.body) } : {}),
     });
 
     if (!res.ok) {
@@ -230,15 +293,17 @@ function wooAuth(config: EcommerceConfig): string {
     return Buffer.from(`${config.apiKey}:${config.apiSecret}`).toString('base64');
 }
 
-async function wooFetch(config: EcommerceConfig, endpoint: string) {
+async function wooFetch(config: EcommerceConfig, endpoint: string, options?: { method?: string; body?: unknown }) {
     const baseUrl = config.storeUrl.startsWith('http') ? config.storeUrl : `https://${config.storeUrl}`;
     const url = `${baseUrl}/wp-json/wc/v3/${endpoint}`;
 
     const res = await fetch(url, {
+        method: options?.method || 'GET',
         headers: {
             Authorization: `Basic ${wooAuth(config)}`,
             'Content-Type': 'application/json',
         },
+        ...(options?.body ? { body: JSON.stringify(options.body) } : {}),
     });
 
     if (!res.ok) {
@@ -366,11 +431,143 @@ async function wooCheckInventory(config: EcommerceConfig, productId: string): Pr
     };
 }
 
+// --- Payment methods ---
+
+async function wooGetPaymentMethods(config: EcommerceConfig) {
+    const data = await wooFetch(config, 'payment_gateways');
+    return (data || [])
+        .filter((g: Record<string, unknown>) => g.enabled === true)
+        .map((g: Record<string, unknown>) => ({
+            id: g.id as string,
+            title: g.title as string,
+            description: stripHtml((g.description as string) || ''),
+        }));
+}
+
+async function shopifyGetPaymentMethods(_config: EcommerceConfig) {
+    // Shopify doesn't expose payment gateways via REST Admin API easily
+    // Return a generic response — the checkout page will show available methods
+    return [
+        { id: 'shopify_payments', title: 'Pago online', description: 'Tarjeta de crédito/débito y otros métodos disponibles en el checkout.' },
+    ];
+}
+
+// --- Create order ---
+
+interface OrderItem {
+    product_id: string;
+    variation_id?: string;
+    quantity?: number;
+}
+
+interface OrderResult {
+    order_id: string;
+    order_number: string;
+    total: string;
+    currency: string;
+    payment_url: string;
+    status: string;
+}
+
+async function wooCreateOrder(
+    config: EcommerceConfig,
+    customerName: string,
+    customerEmail: string | undefined,
+    customerPhone: string | undefined,
+    items: OrderItem[],
+): Promise<OrderResult> {
+    const nameParts = customerName.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    const lineItems = items.map((item) => ({
+        product_id: parseInt(item.product_id, 10),
+        ...(item.variation_id ? { variation_id: parseInt(item.variation_id, 10) } : {}),
+        quantity: item.quantity || 1,
+    }));
+
+    const orderData: Record<string, unknown> = {
+        status: 'pending',
+        billing: {
+            first_name: firstName,
+            last_name: lastName,
+            ...(customerEmail ? { email: customerEmail } : {}),
+            ...(customerPhone ? { phone: customerPhone } : {}),
+        },
+        line_items: lineItems,
+        set_paid: false,
+    };
+
+    const order = await wooFetch(config, 'orders', { method: 'POST', body: orderData });
+
+    // WooCommerce returns payment_url for pending orders
+    const baseUrl = config.storeUrl.startsWith('http') ? config.storeUrl : `https://${config.storeUrl}`;
+    const paymentUrl = (order.payment_url as string) || `${baseUrl}/checkout/order-pay/${order.id}/?key=${order.order_key}`;
+
+    return {
+        order_id: String(order.id),
+        order_number: String(order.number || order.id),
+        total: order.total as string,
+        currency: (order.currency as string) || 'COP',
+        payment_url: paymentUrl,
+        status: order.status as string,
+    };
+}
+
+async function shopifyCreateOrder(
+    config: EcommerceConfig,
+    customerName: string,
+    customerEmail: string | undefined,
+    _customerPhone: string | undefined,
+    items: OrderItem[],
+): Promise<OrderResult> {
+    const lineItems = items.map((item) => ({
+        variant_id: parseInt(item.variation_id || item.product_id, 10),
+        quantity: item.quantity || 1,
+    }));
+
+    // For Shopify we need variant IDs. If only product_id given, get the first variant
+    for (let i = 0; i < lineItems.length; i++) {
+        const item = items[i];
+        if (!item.variation_id) {
+            const productData = await shopifyFetch(config, `products/${item.product_id}.json`);
+            const variants = (productData.product?.variants || []) as Record<string, unknown>[];
+            if (variants[0]) {
+                lineItems[i].variant_id = variants[0].id as number;
+            }
+        }
+    }
+
+    const draftOrder = await shopifyFetch(config, 'draft_orders.json', {
+        method: 'POST',
+        body: {
+            draft_order: {
+                line_items: lineItems,
+                ...(customerEmail ? { email: customerEmail } : {}),
+                ...(customerName ? { customer: { first_name: customerName } } : {}),
+                use_customer_default_address: false,
+            },
+        },
+    });
+
+    const order = draftOrder.draft_order;
+    const invoiceUrl = order.invoice_url as string;
+
+    return {
+        order_id: String(order.id),
+        order_number: String(order.name || order.id),
+        total: order.total_price as string,
+        currency: (order.currency as string) || 'COP',
+        payment_url: invoiceUrl,
+        status: order.status as string,
+    };
+}
+
 // --- Unified executor ---
 
 export async function executeEcommerceTool(
     toolName: string,
-    args: Record<string, string>,
+    args: Record<string, unknown>,
     companyId: string,
 ): Promise<string> {
     try {
@@ -381,16 +578,18 @@ export async function executeEcommerceTool(
 
         const isShopify = config.platform === 'shopify';
 
+        const str = (key: string) => (args[key] as string) || '';
+
         switch (toolName) {
             case 'search_products': {
                 const products = isShopify
-                    ? await shopifySearchProducts(config, args.query)
-                    : await wooSearchProducts(config, args.query);
+                    ? await shopifySearchProducts(config, str('query'))
+                    : await wooSearchProducts(config, str('query'));
 
                 if (products.length === 0) {
                     return JSON.stringify({
                         products: [],
-                        message: `No se encontraron productos para "${args.query}".`,
+                        message: `No se encontraron productos para "${str('query')}".`,
                     });
                 }
 
@@ -408,8 +607,8 @@ export async function executeEcommerceTool(
 
             case 'get_product_details': {
                 const product = isShopify
-                    ? await shopifyGetProductDetails(config, args.product_id)
-                    : await wooGetProductDetails(config, args.product_id);
+                    ? await shopifyGetProductDetails(config, str('product_id'))
+                    : await wooGetProductDetails(config, str('product_id'));
 
                 return JSON.stringify({
                     product: {
@@ -436,13 +635,13 @@ export async function executeEcommerceTool(
 
             case 'check_inventory': {
                 const inventory = isShopify
-                    ? await shopifyCheckInventory(config, args.product_id)
-                    : await wooCheckInventory(config, args.product_id);
+                    ? await shopifyCheckInventory(config, str('product_id'))
+                    : await wooCheckInventory(config, str('product_id'));
 
                 let variants = inventory.variants;
 
-                if (args.variant_name) {
-                    const lower = args.variant_name.toLowerCase();
+                if (str('variant_name')) {
+                    const lower = str('variant_name').toLowerCase();
                     const filtered = variants.filter(
                         (v) => v.title.toLowerCase().includes(lower),
                     );
@@ -458,6 +657,57 @@ export async function executeEcommerceTool(
                         sku: v.sku || 'N/A',
                     })),
                     message: `Inventario de "${inventory.title}".`,
+                });
+            }
+
+            case 'get_payment_methods': {
+                const methods = isShopify
+                    ? await shopifyGetPaymentMethods(config)
+                    : await wooGetPaymentMethods(config);
+
+                if (methods.length === 0) {
+                    return JSON.stringify({
+                        methods: [],
+                        message: 'No hay métodos de pago habilitados en la tienda.',
+                    });
+                }
+
+                return JSON.stringify({
+                    methods: methods.map((m) => ({
+                        id: m.id,
+                        name: m.title,
+                        description: m.description,
+                    })),
+                    message: `${methods.length} método(s) de pago disponible(s).`,
+                });
+            }
+
+            case 'create_order': {
+                // args.items comes already parsed from OpenAI function calling
+                const rawItems = args.items;
+                const orderItems: OrderItem[] = Array.isArray(rawItems)
+                    ? rawItems as unknown as OrderItem[]
+                    : typeof rawItems === 'string'
+                        ? JSON.parse(rawItems) as OrderItem[]
+                        : [];
+
+                if (orderItems.length === 0) {
+                    return JSON.stringify({ error: 'Se necesita al menos un producto para crear el pedido.' });
+                }
+
+                const result = isShopify
+                    ? await shopifyCreateOrder(config, str('customer_name'), str('customer_email') || undefined, str('customer_phone') || undefined, orderItems)
+                    : await wooCreateOrder(config, str('customer_name'), str('customer_email') || undefined, str('customer_phone') || undefined, orderItems);
+
+                return JSON.stringify({
+                    order: {
+                        id: result.order_id,
+                        number: result.order_number,
+                        total: `$${result.total} ${result.currency}`,
+                        status: result.status,
+                        payment_url: result.payment_url,
+                    },
+                    message: `Pedido #${result.order_number} creado exitosamente. Total: $${result.total} ${result.currency}. Envíale al cliente el link de pago para que complete su compra.`,
                 });
             }
 
