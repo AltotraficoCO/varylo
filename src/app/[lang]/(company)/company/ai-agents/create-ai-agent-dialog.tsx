@@ -31,11 +31,12 @@ interface Channel {
     type: string;
 }
 
-export function CreateAiAgentDialog({ channels, hasGoogleCalendar }: { channels: Channel[]; hasGoogleCalendar: boolean }) {
+export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce }: { channels: Channel[]; hasGoogleCalendar: boolean; hasEcommerce: boolean }) {
     const [state, action, isPending] = useActionState(createAiAgent, undefined);
     const [open, setOpen] = useState(false);
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
     const [calendarEnabled, setCalendarEnabled] = useState(false);
+    const [ecommerceEnabled, setEcommerceEnabled] = useState(false);
 
     useEffect(() => {
         if (state?.startsWith('Success')) {
@@ -178,6 +179,26 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar }: { channels:
                                 </p>
                             </div>
                         )}
+                    </div>
+
+                    <div className="space-y-2 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="ecommerceEnabled" className="flex flex-col gap-1">
+                                <span>Tienda Online</span>
+                                <span className="font-normal text-xs text-muted-foreground">
+                                    {hasEcommerce
+                                        ? 'Permite al agente consultar productos, precios e inventario.'
+                                        : 'Conecta tu tienda en Settings > IA y Créditos primero.'}
+                                </span>
+                            </Label>
+                            <Switch
+                                id="ecommerceEnabled"
+                                checked={ecommerceEnabled}
+                                onCheckedChange={setEcommerceEnabled}
+                                disabled={!hasEcommerce}
+                            />
+                        </div>
+                        <input type="hidden" name="ecommerceEnabled" value={ecommerceEnabled ? 'on' : 'off'} />
                     </div>
 
                     <div className="space-y-2">

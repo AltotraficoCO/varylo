@@ -23,6 +23,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const channelIds = formData.getAll('channelIds') as string[];
     const calendarEnabled = formData.get('calendarEnabled') === 'on';
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
+    const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
 
     if (!name || !systemPrompt) {
         return 'Error: Nombre y prompt del sistema son requeridos.';
@@ -54,6 +55,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
                 transferKeywords,
                 calendarEnabled,
                 calendarId,
+                ecommerceEnabled,
                 channels: validChannelIds.length > 0 ? {
                     connect: validChannelIds.map(id => ({ id })),
                 } : undefined,
@@ -86,6 +88,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const channelIds = formData.getAll('channelIds') as string[];
     const calendarEnabled = formData.get('calendarEnabled') === 'on';
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
+    const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
 
     if (!id || !name || !systemPrompt) return 'Error: Campos requeridos faltantes.';
 
@@ -111,6 +114,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
                 transferKeywords,
                 calendarEnabled,
                 calendarId,
+                ecommerceEnabled,
                 channels: {
                     set: validChannels.map(c => ({ id: c.id })),
                 },

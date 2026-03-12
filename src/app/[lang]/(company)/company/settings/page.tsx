@@ -36,7 +36,7 @@ export default async function SettingsPage(props: {
     if (!companyId) return null;
 
     // Fetch all data in parallel
-    const [company, whatsappChannel, webchatChannel, tags, companyAgents] = await Promise.all([
+    const [company, whatsappChannel, webchatChannel, tags, companyAgents, ecommerceIntegration] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -62,6 +62,10 @@ export default async function SettingsPage(props: {
             where: { companyId, active: true, role: { in: [Role.AGENT, Role.COMPANY_ADMIN] } },
             select: { id: true, name: true, email: true },
             orderBy: { name: 'asc' },
+        }),
+        prisma.ecommerceIntegration.findUnique({
+            where: { companyId },
+            select: { platform: true, storeUrl: true, active: true },
         }),
     ]);
 
@@ -187,6 +191,11 @@ export default async function SettingsPage(props: {
                                 isConnected: hasGoogleCalendar,
                                 email: googleCalendarEmail,
                                 connectedAt: googleCalendarConnectedAt,
+                            }}
+                            ecommerce={{
+                                isConnected: !!ecommerceIntegration?.active,
+                                platform: ecommerceIntegration?.platform || null,
+                                storeUrl: ecommerceIntegration?.storeUrl || null,
                             }}
                         />
                     )}

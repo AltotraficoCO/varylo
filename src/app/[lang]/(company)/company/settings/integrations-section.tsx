@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, Key, Coins, Calendar } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Key, Coins, Calendar, ShoppingBag } from 'lucide-react';
 import { OpenAIKeyForm } from './openai-form';
 import { CreditBalanceCard } from './credit-balance-card';
 import { GoogleCalendarForm } from './google-calendar-form';
+import { EcommerceForm } from './ecommerce-form';
 
 type IntegrationItem = {
     id: string;
@@ -35,9 +36,14 @@ type IntegrationsSectionProps = {
         email: string | null;
         connectedAt: string | null;
     };
+    ecommerce: {
+        isConnected: boolean;
+        platform: string | null;
+        storeUrl: string | null;
+    };
 };
 
-export function IntegrationsSection({ openai, credits, googleCalendar }: IntegrationsSectionProps) {
+export function IntegrationsSection({ openai, credits, googleCalendar, ecommerce }: IntegrationsSectionProps) {
     const [activeItem, setActiveItem] = useState<string | null>(null);
 
     const formatBalance = (balance: number) => {
@@ -71,6 +77,17 @@ export function IntegrationsSection({ openai, credits, googleCalendar }: Integra
             color: 'bg-blue-50 text-blue-600 border-blue-200',
             badge: googleCalendar.isConnected ? 'Conectado' : 'No conectado',
             badgeVariant: googleCalendar.isConnected ? 'default' : 'secondary',
+        },
+        {
+            id: 'ecommerce',
+            name: 'Tienda Online',
+            description: 'Conecta Shopify o WooCommerce para consultar productos e inventario.',
+            icon: ShoppingBag,
+            color: 'bg-purple-50 text-purple-600 border-purple-200',
+            badge: ecommerce.isConnected
+                ? `${ecommerce.platform === 'shopify' ? 'Shopify' : 'WooCommerce'}`
+                : 'No conectada',
+            badgeVariant: ecommerce.isConnected ? 'default' : 'secondary',
         },
     ];
 
@@ -129,6 +146,27 @@ export function IntegrationsSection({ openai, credits, googleCalendar }: Integra
                     isConnected={googleCalendar.isConnected}
                     email={googleCalendar.email}
                     connectedAt={googleCalendar.connectedAt}
+                />
+            </div>
+        );
+    }
+
+    if (activeItem === 'ecommerce') {
+        return (
+            <div className="space-y-4">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActiveItem(null)}
+                    className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Volver a integraciones
+                </Button>
+                <EcommerceForm
+                    isConnected={ecommerce.isConnected}
+                    platform={ecommerce.platform}
+                    storeUrl={ecommerce.storeUrl}
                 />
             </div>
         );

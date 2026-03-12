@@ -37,6 +37,7 @@ interface AiAgentData {
     channelIds: string[];
     calendarEnabled: boolean;
     calendarId: string;
+    ecommerceEnabled: boolean;
 }
 
 interface Channel {
@@ -44,11 +45,12 @@ interface Channel {
     type: string;
 }
 
-export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar }: { agent: AiAgentData; channels: Channel[]; hasGoogleCalendar: boolean }) {
+export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcommerce }: { agent: AiAgentData; channels: Channel[]; hasGoogleCalendar: boolean; hasEcommerce: boolean }) {
     const [state, action, isPending] = useActionState(updateAiAgent, undefined);
     const [open, setOpen] = useState(false);
     const [selectedChannels, setSelectedChannels] = useState<string[]>(agent.channelIds);
     const [calendarEnabled, setCalendarEnabled] = useState(agent.calendarEnabled);
+    const [ecommerceEnabled, setEcommerceEnabled] = useState(agent.ecommerceEnabled);
 
     useEffect(() => {
         if (state?.startsWith('Success')) {
@@ -186,6 +188,26 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar }: { agen
                                 </p>
                             </div>
                         )}
+                    </div>
+
+                    <div className="space-y-2 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="edit-ecommerceEnabled" className="flex flex-col gap-1">
+                                <span>Tienda Online</span>
+                                <span className="font-normal text-xs text-muted-foreground">
+                                    {hasEcommerce
+                                        ? 'Permite al agente consultar productos, precios e inventario.'
+                                        : 'Conecta tu tienda en Settings > IA y Créditos primero.'}
+                                </span>
+                            </Label>
+                            <Switch
+                                id="edit-ecommerceEnabled"
+                                checked={ecommerceEnabled}
+                                onCheckedChange={setEcommerceEnabled}
+                                disabled={!hasEcommerce}
+                            />
+                        </div>
+                        <input type="hidden" name="ecommerceEnabled" value={ecommerceEnabled ? 'on' : 'off'} />
                     </div>
 
                     <div className="space-y-2">

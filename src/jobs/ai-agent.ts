@@ -4,6 +4,7 @@ import { sendChannelMessage, sendWhatsAppTypingIndicator } from '@/lib/channel-s
 import { checkCreditBalance, deductCredits, logUsageOnly } from '@/lib/credits';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { CALENDAR_TOOLS, executeCalendarTool } from '@/lib/calendar-tools';
+import { ECOMMERCE_TOOLS, executeEcommerceTool } from '@/lib/ecommerce-tools';
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
 
 interface AiAgentResult {
@@ -98,11 +99,21 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             calendarEnabled = !!company?.googleCalendarRefreshToken;
         }
 
+        // Check if ecommerce is enabled for this agent and company has integration
+        let ecommerceEnabled = false;
+        if (aiAgent.ecommerceEnabled) {
+            const integration = await prisma.ecommerceIntegration.findUnique({
+                where: { companyId: conversation.companyId },
+                select: { active: true },
+            });
+            ecommerceEnabled = !!integration?.active;
+        }
+
         // Build chat history
         const messages: ChatCompletionMessageParam[] = [
             {
                 role: 'system',
-                content: buildSystemPrompt(aiAgent.systemPrompt, aiAgent.contextInfo, calendarEnabled),
+                content: buildSystemPrompt(aiAgent.systemPrompt, aiAgent.contextInfo, calendarEnabled, ecommerceEnabled),
             },
         ];
 
@@ -165,6 +176,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         const tools: ChatCompletionTool[] = [
             ...dataCaptureTools,
             ...(calendarEnabled ? CALENDAR_TOOLS : []),
+            ...(ecommerceEnabled ? ECOMMERCE_TOOLS : []),
         ];
 
         // Function calling loop
@@ -220,6 +232,12 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                         } catch (err) {
                             result = JSON.stringify({ success: false, message: 'Error al guardar el dato.' });
                         }
+                    } else if (['search_products', 'get_product_details', 'check_inventory'].includes(toolCall.function.name)) {
+                        result = await executeEcommerceTool(
+                            toolCall.function.name,
+                            args,
+                            conversation.companyId,
+                        );
                     } else {
                         result = await executeCalendarTool(
                             toolCall.function.name,
@@ -301,7 +319,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
     }
 }
 
-function buildSystemPrompt(systemPrompt: string, contextInfo: string | null, calendarEnabled: boolean): string {
+function buildSystemPrompt(systemPrompt: string, contextInfo: string | null, calendarEnabled: boolean, ecommerceEnabled: boolean): string {
     const now = new Date();
     const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
     const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -320,6 +338,14 @@ function buildSystemPrompt(systemPrompt: string, contextInfo: string | null, cal
         prompt += '\n2. Si está disponible, crea el evento con create_calendar_event.';
         prompt += '\n3. Confirma al cliente con los detalles de la reunión.';
         prompt += '\nSi el horario no está disponible, sugiere alternativas. Usa formato 24h para las horas internamente pero comunica en formato 12h al cliente.';
+    }
+
+    if (ecommerceEnabled) {
+        prompt += '\n\nTienes acceso a la tienda online de la empresa. Puedes buscar productos, consultar detalles y verificar inventario. Cuando un cliente pregunte por productos:';
+        prompt += '\n1. Usa search_products para buscar productos por nombre o categoría.';
+        prompt += '\n2. Usa get_product_details para obtener información detallada de un producto específico.';
+        prompt += '\n3. Usa check_inventory para verificar disponibilidad y stock.';
+        prompt += '\nPresenta la información de forma clara y amigable. Incluye precios y disponibilidad. Si un producto no está disponible, sugiere alternativas buscando productos similares.';
     }
 
     prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';

@@ -547,6 +547,160 @@ export async function disconnectGoogleCalendar() {
     }
 }
 
+// ECOMMERCE INTEGRATION ACTIONS
+
+export async function saveEcommerceIntegration(prevState: string | undefined, formData: FormData) {
+    const session = await auth();
+
+    if (!session?.user?.companyId) {
+        return 'Error: No authorized session found.';
+    }
+
+    const companyId = session.user.companyId;
+    const platform = formData.get('platform') as string;
+    const storeUrl = formData.get('storeUrl') as string;
+    const apiKey = formData.get('apiKey') as string;
+    const apiSecret = formData.get('apiSecret') as string;
+
+    if (!platform || !storeUrl || !apiKey) {
+        return 'Error: Plataforma, URL de tienda y API Key son requeridos.';
+    }
+
+    if (!['shopify', 'woocommerce'].includes(platform)) {
+        return 'Error: Plataforma no válida. Usa "shopify" o "woocommerce".';
+    }
+
+    if (platform === 'woocommerce' && !apiSecret) {
+        return 'Error: El Consumer Secret es requerido para WooCommerce.';
+    }
+
+    // Clean store URL
+    let cleanUrl = storeUrl.trim().replace(/\/+$/, '');
+    if (platform === 'shopify') {
+        // Ensure format: mystore.myshopify.com
+        cleanUrl = cleanUrl.replace(/^https?:\/\//, '');
+    }
+
+    try {
+        // Test connection
+        const testResult = await testEcommerceConnection(platform, cleanUrl, apiKey, apiSecret);
+        if (!testResult.success) {
+            return `Error: ${testResult.message}`;
+        }
+
+        const encryptedKey = encrypt(apiKey);
+        const encryptedSecret = apiSecret ? encrypt(apiSecret) : null;
+
+        await prisma.ecommerceIntegration.upsert({
+            where: { companyId },
+            create: {
+                companyId,
+                platform,
+                storeUrl: cleanUrl,
+                apiKey: encryptedKey,
+                apiSecret: encryptedSecret,
+                active: true,
+            },
+            update: {
+                platform,
+                storeUrl: cleanUrl,
+                apiKey: encryptedKey,
+                apiSecret: encryptedSecret,
+                active: true,
+            },
+        });
+
+        revalidatePath('/[lang]/company/settings', 'page');
+        return 'Success: Tienda online conectada correctamente.';
+    } catch (error) {
+        console.error('Failed to save ecommerce integration:', error);
+        return 'Error: No se pudo guardar la configuración.';
+    }
+}
+
+async function testEcommerceConnection(
+    platform: string,
+    storeUrl: string,
+    apiKey: string,
+    apiSecret?: string,
+): Promise<{ success: boolean; message: string }> {
+    try {
+        if (platform === 'shopify') {
+            const res = await fetch(`https://${storeUrl}/admin/api/2024-01/shop.json`, {
+                headers: {
+                    'X-Shopify-Access-Token': apiKey,
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!res.ok) {
+                return { success: false, message: 'No se pudo conectar a Shopify. Verifica la URL y el Access Token.' };
+            }
+            return { success: true, message: 'Conexión exitosa.' };
+        } else {
+            const baseUrl = storeUrl.startsWith('http') ? storeUrl : `https://${storeUrl}`;
+            const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+            const res = await fetch(`${baseUrl}/wp-json/wc/v3/system_status?_fields=environment`, {
+                headers: {
+                    Authorization: `Basic ${auth}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!res.ok) {
+                return { success: false, message: 'No se pudo conectar a WooCommerce. Verifica la URL y las credenciales.' };
+            }
+            return { success: true, message: 'Conexión exitosa.' };
+        }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido';
+        return { success: false, message: `Error de conexión: ${msg}` };
+    }
+}
+
+export async function disconnectEcommerce() {
+    const session = await auth();
+    if (!session?.user?.companyId) {
+        return { success: false, message: 'No authorized session.' };
+    }
+
+    try {
+        await prisma.ecommerceIntegration.deleteMany({
+            where: { companyId: session.user.companyId },
+        });
+
+        revalidatePath('/[lang]/company/settings', 'page');
+        return { success: true, message: 'Tienda online desconectada.' };
+    } catch (error) {
+        console.error('Failed to disconnect ecommerce:', error);
+        return { success: false, message: 'Error al desconectar.' };
+    }
+}
+
+export async function testEcommerceIntegration() {
+    const session = await auth();
+    if (!session?.user?.companyId) {
+        return { success: false, message: 'No authorized session.' };
+    }
+
+    try {
+        const integration = await prisma.ecommerceIntegration.findUnique({
+            where: { companyId: session.user.companyId },
+        });
+
+        if (!integration) {
+            return { success: false, message: 'No hay tienda configurada.' };
+        }
+
+        const { decrypt } = await import('@/lib/encryption');
+        const apiKey = decrypt(integration.apiKey);
+        const apiSecret = integration.apiSecret ? decrypt(integration.apiSecret) : undefined;
+
+        return testEcommerceConnection(integration.platform, integration.storeUrl, apiKey, apiSecret);
+    } catch (error) {
+        console.error('Test ecommerce failed:', error);
+        return { success: false, message: 'Error al probar la conexión.' };
+    }
+}
+
 // AUTOMATION PRIORITY
 
 // ASSIGNMENT STRATEGY
