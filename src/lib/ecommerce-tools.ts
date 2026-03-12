@@ -511,6 +511,23 @@ async function wooCreateOrder(
     customer: OrderCustomer,
     items: OrderItem[],
 ): Promise<OrderResult> {
+    // Pre-validate: check that variable products have variation_id
+    for (const item of items) {
+        const product = await wooFetch(config, `products/${item.product_id}`);
+        const productType = product.type as string;
+        if (productType === 'variable' && !item.variation_id) {
+            const variations = await wooFetch(config, `products/${item.product_id}/variations?per_page=100`);
+            const variantList = (variations || []).map((v: Record<string, unknown>) => {
+                const attrs = (v.attributes as Record<string, unknown>[]) || [];
+                return `  - ID: ${v.id} → ${attrs.map((a) => `${a.name}: ${a.option}`).join(' / ')} ($${v.price})`;
+            }).join('\n');
+            throw new Error(
+                `El producto "${product.name}" (ID: ${item.product_id}) es variable y necesita un variation_id. ` +
+                `Usa get_product_details para ver las variantes disponibles:\n${variantList}`
+            );
+        }
+    }
+
     const nameParts = customer.name.trim().split(' ');
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
@@ -544,6 +561,18 @@ async function wooCreateOrder(
     };
 
     const order = await wooFetch(config, 'orders', { method: 'POST', body: orderData });
+
+    // Validate order has line items and total > 0
+    const orderLineItems = (order.line_items as unknown[]) || [];
+    const orderTotal = parseFloat(order.total as string || '0');
+    if (orderLineItems.length === 0 || orderTotal <= 0) {
+        // Delete the empty order
+        try { await wooFetch(config, `orders/${order.id}`, { method: 'DELETE', body: { force: true } }); } catch { /* ignore */ }
+        throw new Error(
+            'El pedido se creó sin productos o con total $0. Esto ocurre cuando un producto variable no tiene variation_id. ' +
+            'Usa get_product_details para obtener el ID de la variante correcta antes de crear el pedido.'
+        );
+    }
 
     // WooCommerce returns payment_url for pending orders
     const baseUrl = config.storeUrl.startsWith('http') ? config.storeUrl : `https://${config.storeUrl}`;
