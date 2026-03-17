@@ -18,6 +18,7 @@ import {
     Building2,
     UserCircle,
     Globe,
+    Megaphone,
 } from 'lucide-react';
 import { SidebarUnreadBadge } from './unread-badge';
 
@@ -229,6 +230,7 @@ function SidebarItem({ item, lang, pathname, onLinkClick }: { item: NavItem, lan
 const companyCommunicationItems: NavItem[] = [
     { title: 'Conversaciones', href: '/company/conversations', icon: MessageSquare },
     { title: 'Contactos', href: '/company/contacts', icon: Contact },
+    { title: 'Difusiones', href: '/company/broadcasts', icon: Megaphone },
 ];
 
 const superAdminSections: SectionGroup[] = [

@@ -112,6 +112,7 @@ model User {
 
   assignedConversations Conversation[] @relation("ConversationAgents")
   sentMessages          Message[]
+  broadcasts            Broadcast[]
 }
 
 model Company {
@@ -149,6 +150,8 @@ model Company {
   paymentSources     PaymentSource[]
   subscriptions      Subscription[]
   ecommerceIntegration EcommerceIntegration?
+  contactLists       ContactList[]
+  broadcasts         Broadcast[]
 }
 
 model Channel {
@@ -187,6 +190,8 @@ model Contact {
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   tags          Tag[]
+  contactLists     ContactList[]    @relation("ContactListMembers")
+  broadcastLogs    BroadcastLog[]
 }
 
 model Conversation {
@@ -492,4 +497,64 @@ model SiteConfig {
   footerSections  Json?
   copyrightText   String?
   updatedAt       DateTime @updatedAt
+}
+
+// Broadcast enums & models
+
+enum BroadcastStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model ContactList {
+  id          String    @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contacts    Contact[]    @relation("ContactListMembers")
+  broadcasts  Broadcast[]
+}
+
+model Broadcast {
+  id                  String          @id @default(cuid())
+  companyId           String
+  contactListId       String
+  templateName        String
+  templateLang        String
+  templateComponents  Json            @default("[]")
+  templateBody        String?
+  status              BroadcastStatus @default(PENDING)
+  totalContacts       Int             @default(0)
+  sentCount           Int             @default(0)
+  failedCount         Int             @default(0)
+  createdById         String
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactList  ContactList    @relation(fields: [contactListId], references: [id])
+  createdBy    User           @relation(fields: [createdById], references: [id])
+  logs         BroadcastLog[]
+}
+
+model BroadcastLog {
+  id           String    @id @default(cuid())
+  broadcastId  String
+  contactId    String
+  status       String    @default("PENDING")
+  errorMessage String?
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  broadcast    Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
 }
