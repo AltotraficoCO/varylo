@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { ChannelType, MessageDirection } from '@prisma/client';
-import { findLeastBusyAgent } from '@/lib/assign-agent';
+import { ChannelType } from '@prisma/client';
 
 async function getWhatsAppConfig(companyId: string) {
   const channel = await prisma.channel.findFirst({
@@ -86,7 +85,7 @@ export async function executeBroadcast(broadcastId: string) {
     throw new Error('No WhatsApp channel configured');
   }
 
-  const { channel, config } = waConfig;
+  const { config } = waConfig;
 
   // Mark as in progress
   await prisma.broadcast.update({
@@ -109,7 +108,7 @@ export async function executeBroadcast(broadcastId: string) {
       continue;
     }
 
-    // Send template
+    // Send template via Meta API only — no conversation/message created
     const result = await sendTemplateToPhone({
       phoneNumberId: config.phoneNumberId!,
       accessToken: config.accessToken!,
@@ -120,50 +119,13 @@ export async function executeBroadcast(broadcastId: string) {
     });
 
     if (result.success) {
-      // Create or find conversation + save message
-      let conversation = await prisma.conversation.findFirst({
-        where: {
-          companyId: broadcast.companyId,
-          contactId: contact.id,
-          channelId: channel.id,
-          status: 'OPEN',
-        },
-      });
-
-      if (!conversation) {
-        const agentId = (await findLeastBusyAgent(broadcast.companyId)) || broadcast.createdById;
-        conversation = await prisma.conversation.create({
-          data: {
-            companyId: broadcast.companyId,
-            channelId: channel.id,
-            contactId: contact.id,
-            status: 'OPEN',
-            assignedAgents: { connect: { id: agentId } },
-          },
-        });
-      }
-
-      await prisma.message.create({
-        data: {
-          companyId: broadcast.companyId,
-          conversationId: conversation.id,
-          direction: MessageDirection.OUTBOUND,
-          from: config.phoneNumberId!,
-          to: contact.phone,
-          content: broadcast.templateBody || `[Plantilla: ${broadcast.templateName}]`,
-          providerMessageId: result.messageId,
-          senderId: broadcast.createdById,
-        },
-      });
-
-      await prisma.conversation.update({
-        where: { id: conversation.id },
-        data: { lastMessageAt: new Date() },
-      });
-
       await prisma.broadcastLog.update({
         where: { id: log.id },
-        data: { status: 'SENT', sentAt: new Date() },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+          // Store providerMessageId in errorMessage field for reference (reuse field)
+        },
       });
       sentCount++;
       console.log(`[Broadcast ${broadcastId}] Sent to ${contact.phone} (${sentCount}/${broadcast.totalContacts})`);
@@ -176,7 +138,7 @@ export async function executeBroadcast(broadcastId: string) {
       console.log(`[Broadcast ${broadcastId}] Failed for ${contact.phone}: ${result.error}`);
     }
 
-    // Update counts periodically
+    // Update counts
     await prisma.broadcast.update({
       where: { id: broadcastId },
       data: { sentCount, failedCount },

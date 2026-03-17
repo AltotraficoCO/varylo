@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ChannelType, MessageDirection } from '@prisma/client';
 import { runAutomationPipeline } from '@/jobs/pipeline';
@@ -9,8 +8,6 @@ import { markWhatsAppMessageAsRead } from '@/lib/channel-sender';
 import { rateLimitResponse } from '@/lib/rate-limit';
 import { extractMediaFromMessage, getWhatsAppMediaUrl, downloadWhatsAppMedia } from '@/lib/whatsapp-media';
 import { uploadToStorage, buildMediaPath } from '@/lib/storage';
-
-export const maxDuration = 60;
 
 const MAX_MESSAGE_LENGTH = 4096;
 
@@ -252,6 +249,48 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
+                // If this is a new conversation, check if we sent a broadcast template
+                // to this contact recently and inject it as the first message
+                if (conversation.createdAt.getTime() > Date.now() - 5000) {
+                    // Conversation was just created — check for recent broadcast sends
+                    const recentBroadcastLog = await prisma.broadcastLog.findFirst({
+                        where: {
+                            contactId: contact.id,
+                            status: 'SENT',
+                            sentAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // last 7 days
+                        },
+                        include: {
+                            broadcast: {
+                                select: {
+                                    templateBody: true,
+                                    templateName: true,
+                                    createdById: true,
+                                    companyId: true,
+                                },
+                            },
+                        },
+                        orderBy: { sentAt: 'desc' },
+                    });
+
+                    if (recentBroadcastLog?.broadcast) {
+                        const bc = recentBroadcastLog.broadcast;
+                        const config2 = channel.configJson as { phoneNumberId?: string };
+                        await prisma.message.create({
+                            data: {
+                                companyId,
+                                conversationId: conversation.id,
+                                direction: MessageDirection.OUTBOUND,
+                                from: config2.phoneNumberId || '',
+                                to: from,
+                                content: bc.templateBody || `[Plantilla: ${bc.templateName}]`,
+                                senderId: bc.createdById,
+                                timestamp: recentBroadcastLog.sentAt || recentBroadcastLog.createdAt,
+                                createdAt: recentBroadcastLog.sentAt || recentBroadcastLog.createdAt,
+                            },
+                        });
+                    }
+                }
+
                 // Save Message with media fields
                 await prisma.message.create({
                     data: {
@@ -275,9 +314,9 @@ export async function POST(req: NextRequest) {
                     data: { lastMessageAt: new Date(), lastInboundAt: new Date() }
                 });
 
-                // Automation pipeline — run after response so Vercel doesn't kill it
+                // Automation pipeline — pass text content (media messages may not have text)
                 if (content && content !== `[${mediaType}]`) {
-                    after(runAutomationPipeline(conversation.id, content, channel.automationPriority));
+                    runAutomationPipeline(conversation.id, content, channel.automationPriority);
                 }
             }
         }
