@@ -558,3 +558,13 @@ model BroadcastLog {
   broadcast    Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
   contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
 }
+
+model TrustedLogo {
+  id        String   @id @default(cuid())
+  name      String
+  imageUrl  String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

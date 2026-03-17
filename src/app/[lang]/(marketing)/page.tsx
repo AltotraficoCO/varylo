@@ -16,6 +16,14 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
         // Table may not exist yet — fall back to dictionary
     }
 
+    let trustedLogos: { id: string; name: string; imageUrl: string }[] = [];
+    try {
+        trustedLogos = await prisma.trustedLogo.findMany({
+            where: { active: true },
+            orderBy: { sortOrder: 'asc' }
+        });
+    } catch {}
+
     return (
         <div className="flex flex-col">
 
@@ -51,12 +59,26 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
                     </div>
                     <div className="mt-20 flex flex-col items-center gap-4">
                         <p className="text-xs text-gray-400 uppercase tracking-[0.2em] font-medium">{d.hero.socialProof}</p>
-                        <div className="flex items-center gap-8 text-gray-400">
-                            <span className="text-lg font-bold tracking-tight">TechStore</span>
-                            <span className="text-lg font-bold tracking-tight">FastDelivery</span>
-                            <span className="hidden sm:block text-lg font-bold tracking-tight">BeautyBox</span>
-                            <span className="hidden md:block text-lg font-bold tracking-tight">CloudShop</span>
-                        </div>
+                        {trustedLogos.length > 0 ? (
+                            <div className="flex items-center gap-8 flex-wrap justify-center">
+                                {trustedLogos.map((logo) => (
+                                    <img
+                                        key={logo.id}
+                                        src={logo.imageUrl}
+                                        alt={logo.name}
+                                        title={logo.name}
+                                        className="h-8 max-w-[120px] object-contain grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-8 text-gray-400">
+                                <span className="text-lg font-bold tracking-tight">TechStore</span>
+                                <span className="text-lg font-bold tracking-tight">FastDelivery</span>
+                                <span className="hidden sm:block text-lg font-bold tracking-tight">BeautyBox</span>
+                                <span className="hidden md:block text-lg font-bold tracking-tight">CloudShop</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </section>

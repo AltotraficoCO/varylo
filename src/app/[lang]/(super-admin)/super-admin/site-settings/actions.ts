@@ -79,3 +79,36 @@ export async function updateFooterAction(
         return { success: false, error: 'Error al actualizar el footer' };
     }
 }
+
+export async function getTrustedLogos() {
+    return prisma.trustedLogo.findMany({
+        where: { active: true },
+        orderBy: { sortOrder: 'asc' },
+    });
+}
+
+export async function createTrustedLogo(data: { name: string; imageUrl: string; sortOrder: number }) {
+    await requireSuperAdmin();
+    try {
+        await prisma.trustedLogo.create({ data });
+        revalidatePath('/super-admin/site-settings');
+        revalidatePath('/');
+        return { success: true };
+    } catch (error) {
+        console.error('Error creating trusted logo:', error);
+        return { success: false, error: 'Error al crear el logo' };
+    }
+}
+
+export async function deleteTrustedLogo(id: string) {
+    await requireSuperAdmin();
+    try {
+        await prisma.trustedLogo.delete({ where: { id } });
+        revalidatePath('/super-admin/site-settings');
+        revalidatePath('/');
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting trusted logo:', error);
+        return { success: false, error: 'Error al eliminar el logo' };
+    }
+}

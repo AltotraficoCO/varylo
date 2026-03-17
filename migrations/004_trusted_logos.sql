@@ -1,0 +1,11 @@
+-- Trusted Logos
+CREATE TABLE IF NOT EXISTS "TrustedLogo" (
+  "id"        TEXT NOT NULL,
+  "name"      TEXT NOT NULL,
+  "imageUrl"  TEXT NOT NULL,
+  "sortOrder" INTEGER NOT NULL DEFAULT 0,
+  "active"    BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "TrustedLogo_pkey" PRIMARY KEY ("id")
+);
