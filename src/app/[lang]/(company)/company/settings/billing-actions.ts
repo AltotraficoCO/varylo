@@ -157,7 +157,8 @@ export async function subscribeToPlan(planPricingId: string) {
         return { success: true };
     } catch (error: any) {
         console.error('Error subscribing:', error);
-        return { success: false, error: 'Error al suscribirse. Intenta de nuevo.' };
+        const msg = error.message || 'Error desconocido';
+        return { success: false, error: `Error al suscribirse: ${msg}` };
     }
 }
 
