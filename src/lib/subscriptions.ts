@@ -63,8 +63,25 @@ export async function createSubscription(
         },
     });
 
-    // Create first billing attempt
-    await chargeSubscription(subscription.id);
+    // Upgrade company plan
+    const planEnum2 = PLAN_SLUG_TO_ENUM[pricing.landingPlan.slug];
+    if (planEnum2) {
+        await prisma.company.update({
+            where: { id: companyId },
+            data: { plan: planEnum2 },
+        });
+    }
+
+    // Create first billing attempt — if it fails, mark as PAST_DUE (don't rollback)
+    try {
+        await chargeSubscription(subscription.id);
+    } catch (error) {
+        console.error(`[Subscription] First charge failed for sub ${subscription.id}, marking PAST_DUE:`, error);
+        await prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { status: 'PAST_DUE' },
+        });
+    }
 
     return subscription;
 }

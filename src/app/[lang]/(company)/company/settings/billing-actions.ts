@@ -152,8 +152,11 @@ export async function subscribeToPlan(planPricingId: string) {
     }
 
     try {
-        await createSubscription(companyId, planPricingId, defaultSource.id);
+        const sub = await createSubscription(companyId, planPricingId, defaultSource.id);
         revalidatePath('/company/settings');
+        if (sub.status === 'PAST_DUE') {
+            return { success: true, warning: 'Suscripción creada pero el primer cobro falló. Se reintentará automáticamente.' };
+        }
         return { success: true };
     } catch (error: any) {
         console.error('Error subscribing:', error);
