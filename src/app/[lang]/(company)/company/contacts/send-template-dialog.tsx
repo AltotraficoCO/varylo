@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
     Dialog,
     DialogContent,
@@ -64,6 +64,8 @@ export function SendTemplateDialog({
     lang: string;
 }) {
     const router = useRouter();
+    const pathname = usePathname();
+    const isAgentRoute = pathname.includes('/agent');
     const [step, setStep] = useState<Step>('recipient');
 
     // Recipient state
@@ -193,7 +195,8 @@ export function SendTemplateDialog({
         if (result.success && result.conversationId) {
             toast.success('Plantilla enviada correctamente');
             onOpenChange(false);
-            router.push(`/${lang}/company/conversations?id=${result.conversationId}`);
+            const basePath = isAgentRoute ? 'agent' : 'company/conversations';
+            router.push(`/${lang}/${basePath}?conversationId=${result.conversationId}`);
         } else {
             toast.error(result.error || 'Error al enviar');
         }
