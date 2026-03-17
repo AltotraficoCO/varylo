@@ -100,6 +100,41 @@ export async function createTrustedLogo(data: { name: string; imageUrl: string; 
     }
 }
 
+export async function uploadTrustedLogo(formData: FormData) {
+    await requireSuperAdmin();
+    const file = formData.get('file') as File;
+    const name = formData.get('name') as string;
+    const sortOrder = Number(formData.get('sortOrder') || 0);
+
+    if (!file || !name) {
+        return { success: false, error: 'Nombre y archivo son obligatorios.' };
+    }
+
+    try {
+        const { uploadToStorage } = await import('@/lib/storage');
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const ext = file.name.split('.').pop() || 'png';
+        const safeName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        const path = `logos/${safeName}_${Date.now()}.${ext}`;
+        const url = await uploadToStorage(buffer, path, file.type);
+
+        if (!url) {
+            return { success: false, error: 'Error al subir la imagen.' };
+        }
+
+        await prisma.trustedLogo.create({
+            data: { name, imageUrl: url, sortOrder },
+        });
+
+        revalidatePath('/super-admin/site-settings');
+        revalidatePath('/');
+        return { success: true };
+    } catch (error) {
+        console.error('Error uploading trusted logo:', error);
+        return { success: false, error: 'Error al subir el logo.' };
+    }
+}
+
 export async function deleteTrustedLogo(id: string) {
     await requireSuperAdmin();
     try {
