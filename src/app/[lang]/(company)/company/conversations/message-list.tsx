@@ -324,7 +324,8 @@ export function MessageList({ messages }: { messages: Message[] }) {
             {messages.map((msg) => {
                 const isOutbound = msg.direction === 'OUTBOUND';
                 const hasMedia = msg.mediaUrl && msg.mediaType;
-                const isPlaceholder = msg.content.startsWith('[') && msg.content.endsWith(']');
+                const isTemplate = msg.content.startsWith('[Plantilla:') && msg.content.endsWith(']');
+                const isPlaceholder = !isTemplate && msg.content.startsWith('[') && msg.content.endsWith(']');
 
                 return (
                     <div
@@ -343,7 +344,12 @@ export function MessageList({ messages }: { messages: Message[] }) {
                             )}
                         >
                             {hasMedia && <MediaContent msg={msg} />}
-                            {msg.content && !isPlaceholder && (
+                            {isTemplate && (
+                                <p className={cn("whitespace-pre-wrap italic opacity-90", hasMedia && "mt-1.5")}>
+                                    📋 {msg.content.slice(1, -1)}
+                                </p>
+                            )}
+                            {msg.content && !isPlaceholder && !isTemplate && (
                                 <p className={cn("whitespace-pre-wrap", hasMedia && "mt-1.5")}>
                                     {msg.content}
                                 </p>

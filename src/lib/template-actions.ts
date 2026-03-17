@@ -106,6 +106,7 @@ export async function sendTemplateMessage(params: {
     templateName: string;
     templateLanguage: string;
     templateComponents: any[];
+    templateBody?: string;
 }): Promise<{ success: boolean; conversationId?: string; error?: string }> {
     const session = await auth();
     if (!session?.user?.companyId || !session?.user?.id) {
@@ -218,7 +219,7 @@ export async function sendTemplateMessage(params: {
                 direction: MessageDirection.OUTBOUND,
                 from: config.phoneNumberId,
                 to: contact.phone,
-                content: `[Plantilla: ${params.templateName}]`,
+                content: params.templateBody || `[Plantilla: ${params.templateName}]`,
                 providerMessageId,
                 senderId: userId,
             },

@@ -188,6 +188,7 @@ export function SendTemplateDialog({
             templateName: selectedTemplate.name,
             templateLanguage: selectedTemplate.language,
             templateComponents: components,
+            templateBody: getPreviewText(selectedTemplate),
         });
 
         setSending(false);
