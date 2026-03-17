@@ -152,12 +152,9 @@ export async function subscribeToPlan(planPricingId: string, installments: numbe
     }
 
     try {
-        const sub = await createSubscription(companyId, planPricingId, defaultSource.id, installments);
+        await createSubscription(companyId, planPricingId, defaultSource.id, installments);
         revalidatePath('/company/settings');
-        if (sub.status === 'PAST_DUE') {
-            return { success: true, warning: 'Suscripción creada pero el primer cobro falló. Se reintentará automáticamente.' };
-        }
-        return { success: true };
+        return { success: true, warning: 'Pago enviado. Tu plan se activará cuando el pago sea confirmado.' };
     } catch (error: any) {
         console.error('Error subscribing:', error);
         const msg = error.message || 'Error desconocido';

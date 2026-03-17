@@ -51,37 +51,25 @@ export async function createSubscription(
         return subscription;
     }
 
-    // No trial — create subscription + charge
+    // No trial — create subscription as PAST_DUE (pending payment)
+    // It will be activated by the Wompi webhook when payment is APPROVED
     periodEnd.setDate(periodEnd.getDate() + pricing.billingPeriodDays);
     const subscription = await prisma.subscription.create({
         data: {
             companyId,
             planPricingId,
             paymentSourceId,
-            status: 'ACTIVE',
+            status: 'PAST_DUE',
             currentPeriodStart: now,
             currentPeriodEnd: periodEnd,
         },
     });
 
-    // Upgrade company plan
-    const planEnum2 = PLAN_SLUG_TO_ENUM[pricing.landingPlan.slug];
-    if (planEnum2) {
-        await prisma.company.update({
-            where: { id: companyId },
-            data: { plan: planEnum2 },
-        });
-    }
-
-    // Create first billing attempt — if it fails, mark as PAST_DUE (don't rollback)
+    // Charge — the webhook will activate the subscription and upgrade the plan
     try {
         await chargeSubscription(subscription.id, installments);
     } catch (error) {
-        console.error(`[Subscription] First charge failed for sub ${subscription.id}, marking PAST_DUE:`, error);
-        await prisma.subscription.update({
-            where: { id: subscription.id },
-            data: { status: 'PAST_DUE' },
-        });
+        console.error(`[Subscription] First charge failed for sub ${subscription.id}:`, error);
     }
 
     return subscription;

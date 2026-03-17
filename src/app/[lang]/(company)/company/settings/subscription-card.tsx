@@ -59,14 +59,20 @@ export function SubscriptionCard({
 }) {
     const [loading, setLoading] = useState('');
     const [error, setError] = useState('');
+    const [warning, setWarning] = useState('');
     const [installments, setInstallments] = useState<Record<string, number>>({});
 
     async function handleSubscribe(planPricingId: string, planInstallments: number) {
         setLoading(planPricingId);
         setError('');
+        setWarning('');
         const result = await subscribeToPlan(planPricingId, planInstallments);
         setLoading('');
-        if (!result.success) setError(result.error || 'Error');
+        if (!result.success) {
+            setError(result.error || 'Error');
+        } else if (result.warning) {
+            setWarning(result.warning);
+        }
     }
 
     async function handleCancel() {
@@ -215,6 +221,12 @@ export function SubscriptionCard({
                     ))}
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
+                {warning && (
+                    <div className="flex items-center gap-2 text-amber-700 text-sm bg-amber-50 p-3 rounded-lg">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>{warning}</span>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
