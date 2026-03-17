@@ -1,4 +1,5 @@
 import { getWompiConfig, getWompiBaseUrl, type WompiConfigData } from './wompi-config';
+import { createHash } from 'crypto';
 
 async function getConfig(): Promise<WompiConfigData> {
     const config = await getWompiConfig();
@@ -82,20 +83,35 @@ export async function createTransaction(params: {
     currency?: string;
 }) {
     const config = await getConfig();
+    const currency = params.currency || 'COP';
+
+    // Generate integrity signature (required in production)
+    // Format: reference + amount_in_cents + currency + integrity_secret
+    const signatureString = `${params.reference}${params.amountInCents}${currency}${config.integritySecret}`;
+    const signature = createHash('sha256').update(signatureString).digest('hex');
+
+    const body: any = {
+        amount_in_cents: params.amountInCents,
+        currency,
+        payment_source_id: Number(params.paymentSourceId),
+        reference: params.reference,
+        customer_email: params.customerEmail,
+        recurrent: true,
+        signature,
+        payment_method: {
+            installments: 1,
+        },
+    };
+
+    console.log('[Wompi createTransaction] Request:', { ...body, signature: signature.slice(0, 12) + '...' });
+
     const res = await fetch(`${baseUrl(config)}/v1/transactions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${config.privateKey}`,
         },
-        body: JSON.stringify({
-            amount_in_cents: params.amountInCents,
-            currency: params.currency || 'COP',
-            payment_source_id: Number(params.paymentSourceId),
-            reference: params.reference,
-            customer_email: params.customerEmail,
-            recurrent: true,
-        }),
+        body: JSON.stringify(body),
     });
     const json = await res.json();
     if (!res.ok) {
