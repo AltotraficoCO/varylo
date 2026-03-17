@@ -57,11 +57,13 @@ export function SendBroadcastDialog({
   onOpenChange,
   contactLists,
   lang,
+  preselectedListId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contactLists: ContactList[];
   lang: string;
+  preselectedListId?: string | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>('list');
@@ -82,8 +84,16 @@ export function SendBroadcastDialog({
       setSelectedTemplate(null);
       setParamValues({});
       setTemplateError('');
+    } else if (preselectedListId) {
+      const list = contactLists.find(l => l.id === preselectedListId);
+      if (list) {
+        setSelectedList(list);
+        setStep('template');
+        if (templates.length === 0) loadTemplates();
+      }
     }
-  }, [open]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, preselectedListId]);
 
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);

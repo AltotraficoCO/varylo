@@ -36,10 +36,13 @@ import {
   XCircle,
   Clock,
   AlertCircle,
+  Eye,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreateListDialog } from './create-list-dialog';
 import { SendBroadcastDialog } from './send-broadcast-dialog';
+import { EditListDialog } from './edit-list-dialog';
 import { deleteContactList } from './actions';
 
 const STATUS_MAP: Record<string, { label: string; icon: any; color: string }> = {
@@ -97,6 +100,8 @@ export function BroadcastsClient({
   const [showCreateList, setShowCreateList] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
   const [deleteListId, setDeleteListId] = useState<string | null>(null);
+  const [editListId, setEditListId] = useState<string | null>(null);
+  const [broadcastListId, setBroadcastListId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [tier, setTier] = useState<{ messaging_limit_tier?: string; quality_rating?: string } | null>(null);
   const router = useRouter();
@@ -149,10 +154,18 @@ export function BroadcastsClient({
           </div>
           <div className="flex items-center gap-2">
             {tab === 'lists' && (
-              <Button size="sm" onClick={() => setShowCreateList(true)} className="h-8 px-3 text-xs">
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Nueva lista
-              </Button>
+              <>
+                {contactLists.length > 0 && (
+                  <Button size="sm" variant="outline" onClick={() => setShowBroadcast(true)} className="h-8 px-3 text-xs">
+                    <Megaphone className="h-3.5 w-3.5 mr-1.5" />
+                    Enviar difusión
+                  </Button>
+                )}
+                <Button size="sm" onClick={() => setShowCreateList(true)} className="h-8 px-3 text-xs">
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Nueva lista
+                </Button>
+              </>
             )}
             {tab === 'broadcasts' && contactLists.length > 0 && (
               <Button size="sm" onClick={() => setShowBroadcast(true)} className="h-8 px-3 text-xs">
@@ -246,14 +259,38 @@ export function BroadcastsClient({
                               {new Date(list.createdAt).toLocaleDateString('es-CO')}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                onClick={() => setDeleteListId(list.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 px-2 text-xs text-primary hover:text-primary"
+                                  onClick={() => {
+                                    setBroadcastListId(list.id);
+                                    setShowBroadcast(true);
+                                  }}
+                                >
+                                  <Send className="h-3.5 w-3.5 mr-1" />
+                                  Enviar
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  onClick={() => setEditListId(list.id)}
+                                  title="Ver / Editar"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setDeleteListId(list.id)}
+                                  title="Eliminar"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -358,9 +395,19 @@ export function BroadcastsClient({
 
       <SendBroadcastDialog
         open={showBroadcast}
-        onOpenChange={setShowBroadcast}
+        onOpenChange={(open) => {
+          setShowBroadcast(open);
+          if (!open) setBroadcastListId(null);
+        }}
         contactLists={contactLists}
         lang={lang}
+        preselectedListId={broadcastListId}
+      />
+
+      <EditListDialog
+        listId={editListId}
+        onClose={() => setEditListId(null)}
+        allContacts={contacts}
       />
 
       <AlertDialog open={!!deleteListId} onOpenChange={() => setDeleteListId(null)}>
