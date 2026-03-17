@@ -75,6 +75,7 @@ export async function executeBroadcast(broadcastId: string) {
   });
 
   if (!broadcast) throw new Error('Broadcast not found');
+  console.log(`[Broadcast ${broadcastId}] Starting with ${broadcast.logs.length} pending contacts`);
 
   const waConfig = await getWhatsAppConfig(broadcast.companyId);
   if (!waConfig) {
@@ -165,12 +166,14 @@ export async function executeBroadcast(broadcastId: string) {
         data: { status: 'SENT', sentAt: new Date() },
       });
       sentCount++;
+      console.log(`[Broadcast ${broadcastId}] Sent to ${contact.phone} (${sentCount}/${broadcast.totalContacts})`);
     } else {
       await prisma.broadcastLog.update({
         where: { id: log.id },
         data: { status: 'FAILED', errorMessage: result.error },
       });
       failedCount++;
+      console.log(`[Broadcast ${broadcastId}] Failed for ${contact.phone}: ${result.error}`);
     }
 
     // Update counts periodically

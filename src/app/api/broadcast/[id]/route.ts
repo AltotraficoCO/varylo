@@ -40,7 +40,7 @@ export async function GET(
   return NextResponse.json(broadcast);
 }
 
-// POST: Start broadcast execution
+// POST: Start broadcast execution (awaited — runs within the request lifecycle)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -64,10 +64,14 @@ export async function POST(
     );
   }
 
-  // Execute in background (don't await)
-  executeBroadcast(id).catch(err => {
+  try {
+    const result = await executeBroadcast(id);
+    return NextResponse.json({ success: true, ...result });
+  } catch (err: any) {
     console.error('[Broadcast] Execution error:', err);
-  });
-
-  return NextResponse.json({ success: true, message: 'Difusión iniciada.' });
+    return NextResponse.json(
+      { success: false, error: err.message || 'Error ejecutando difusión' },
+      { status: 500 }
+    );
+  }
 }

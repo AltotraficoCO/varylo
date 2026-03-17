@@ -159,13 +159,28 @@ export function SendBroadcastDialog({
     });
 
     if (result.success && result.broadcastId) {
-      // Trigger the broadcast execution
-      fetch(`/api/broadcast/${result.broadcastId}`, { method: 'POST' }).catch(() => {});
-
       toast.success(
-        `Difusión iniciada: enviando a ${selectedList._count.contacts} contactos.`
+        `Enviando a ${selectedList._count.contacts} contactos... Esto puede tomar unos minutos.`
       );
       onOpenChange(false);
+
+      // Execute broadcast (awaited on server) and refresh when done
+      fetch(`/api/broadcast/${result.broadcastId}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            toast.success(`Difusión completada: ${data.sentCount} enviados, ${data.failedCount} fallidos.`);
+          } else {
+            toast.error(data.error || 'Error en la difusión.');
+          }
+          router.refresh();
+        })
+        .catch(() => {
+          toast.error('Error al ejecutar la difusión.');
+          router.refresh();
+        });
+
+      // Refresh immediately to show IN_PROGRESS status
       router.refresh();
     } else {
       toast.error(result.error || 'Error al crear la difusión.');
