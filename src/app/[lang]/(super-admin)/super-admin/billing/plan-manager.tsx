@@ -24,6 +24,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { EditPlanDialog } from "./edit-plan-dialog";
+import { CreatePlanDialog } from "./create-plan-dialog";
 import { seedLandingPlans, getLandingPlansWithPricing, deleteLandingPlan } from "./actions";
 
 type PlanPricing = {
@@ -106,6 +107,10 @@ export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
     }
 
     return (
+        <div className="space-y-6">
+        <div className="flex justify-end">
+            <CreatePlanDialog onCreated={refresh} />
+        </div>
         <div className="grid gap-6 lg:grid-cols-3">
             {plans.map((plan) => (
                 <Card key={plan.id} className={plan.isFeatured ? 'border-primary' : ''}>
@@ -154,6 +159,7 @@ export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
                     </CardFooter>
                 </Card>
             ))}
+        </div>
         </div>
     );
 }

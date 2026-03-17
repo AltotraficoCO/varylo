@@ -43,6 +43,44 @@ const updatePlanSchema = z.object({
     showTrialOnRegister: z.boolean().optional(),
 });
 
+const createPlanSchema = z.object({
+    slug: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string().min(1),
+    price: z.number().int().min(0),
+    features: z.array(z.string()),
+    isFeatured: z.boolean().default(false),
+    ctaText: z.string().min(1).default('Empezar ahora'),
+    ctaLink: z.string().nullable().default(null),
+    sortOrder: z.number().int().default(0),
+    showTrialOnRegister: z.boolean().default(false),
+});
+
+export async function createLandingPlan(data: z.infer<typeof createPlanSchema>) {
+    await requireSuperAdmin();
+    const result = createPlanSchema.safeParse(data);
+    if (!result.success) return { success: false, error: 'Datos inválidos' };
+
+    try {
+        // Check slug uniqueness
+        const existing = await prisma.landingPlan.findUnique({
+            where: { slug: result.data.slug },
+        });
+        if (existing) return { success: false, error: `Ya existe un plan con el slug "${result.data.slug}"` };
+
+        const plan = await prisma.landingPlan.create({
+            data: result.data,
+        });
+
+        revalidatePath('/super-admin/billing');
+        revalidatePath('/');
+        return { success: true, plan };
+    } catch (error) {
+        console.error('Error creating plan:', error);
+        return { success: false, error: 'Error al crear el plan' };
+    }
+}
+
 export async function updateLandingPlan(data: z.infer<typeof updatePlanSchema>) {
     await requireSuperAdmin();
     const result = updatePlanSchema.safeParse(data);
