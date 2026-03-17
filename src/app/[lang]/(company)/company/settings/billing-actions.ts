@@ -126,7 +126,7 @@ export async function removePaymentSource(sourceId: string) {
 
 // ============ Subscriptions ============
 
-export async function subscribeToPlan(planPricingId: string) {
+export async function subscribeToPlan(planPricingId: string, installments: number = 1) {
     let session;
     try {
         session = await requireCompanyAdmin();
@@ -152,7 +152,7 @@ export async function subscribeToPlan(planPricingId: string) {
     }
 
     try {
-        const sub = await createSubscription(companyId, planPricingId, defaultSource.id);
+        const sub = await createSubscription(companyId, planPricingId, defaultSource.id, installments);
         revalidatePath('/company/settings');
         if (sub.status === 'PAST_DUE') {
             return { success: true, warning: 'Suscripción creada pero el primer cobro falló. Se reintentará automáticamente.' };
@@ -170,7 +170,7 @@ export async function cancelMySubscription() {
     const companyId = session.user.companyId!;
 
     const activeSub = await prisma.subscription.findFirst({
-        where: { companyId, status: { in: ['ACTIVE', 'PAST_DUE', 'TRIAL'] } },
+        where: { companyId, status: { in: ['ACTIVE', 'PAST_DUE', 'TRIAL'] }, cancelledAt: null },
     });
     if (!activeSub) {
         return { success: false, error: 'No tienes suscripción activa' };
@@ -187,7 +187,12 @@ export async function getActiveSubscription() {
     try {
         return await prisma.subscription.findFirst({
             where: { companyId, status: { in: ['ACTIVE', 'PAST_DUE', 'TRIAL'] } },
-            include: {
+            select: {
+                id: true,
+                status: true,
+                currentPeriodStart: true,
+                currentPeriodEnd: true,
+                cancelledAt: true,
                 planPricing: {
                     include: { landingPlan: { select: { name: true, slug: true } } },
                 },

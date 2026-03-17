@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Crown, AlertTriangle, Check } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 import { cancelMySubscription, subscribeToPlan } from './billing-actions';
 
 type ActiveSubscription = {
@@ -12,6 +13,7 @@ type ActiveSubscription = {
     status: string;
     currentPeriodStart: string;
     currentPeriodEnd: string;
+    cancelledAt: string | null;
     planPricing: {
         landingPlan: { name: string; slug: string };
     };
@@ -57,11 +59,12 @@ export function SubscriptionCard({
 }) {
     const [loading, setLoading] = useState('');
     const [error, setError] = useState('');
+    const [installments, setInstallments] = useState<Record<string, number>>({});
 
-    async function handleSubscribe(planPricingId: string) {
+    async function handleSubscribe(planPricingId: string, planInstallments: number) {
         setLoading(planPricingId);
         setError('');
-        const result = await subscribeToPlan(planPricingId);
+        const result = await subscribeToPlan(planPricingId, planInstallments);
         setLoading('');
         if (!result.success) setError(result.error || 'Error');
     }
@@ -112,17 +115,29 @@ export function SubscriptionCard({
                             <span>Hay un problema con tu pago. Actualiza tu tarjeta.</span>
                         </div>
                     )}
+                    {subscription.cancelledAt && subscription.status !== 'CANCELLED' && (
+                        <div className="flex items-center gap-2 text-amber-700 text-sm bg-amber-50 p-3 rounded-lg">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span>
+                                Tu suscripción fue cancelada. El plan seguirá activo hasta el{' '}
+                                <strong>{new Date(subscription.currentPeriodEnd).toLocaleDateString('es-CO')}</strong>.
+                                No se realizarán más cobros.
+                            </span>
+                        </div>
+                    )}
                     {error && <p className="text-sm text-red-500">{error}</p>}
                 </CardContent>
                 <CardFooter>
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleCancel}
-                        disabled={loading === 'cancel'}
-                    >
-                        {loading === 'cancel' ? 'Cancelando...' : 'Cancelar suscripción'}
-                    </Button>
+                    {!subscription.cancelledAt && (
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleCancel}
+                            disabled={loading === 'cancel'}
+                        >
+                            {loading === 'cancel' ? 'Cancelando...' : 'Cancelar suscripción'}
+                        </Button>
+                    )}
                 </CardFooter>
             </Card>
         );
@@ -174,11 +189,25 @@ export function SubscriptionCard({
                                     </li>
                                 ))}
                             </ul>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Cuotas</Label>
+                                <select
+                                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                                    value={installments[plan.id] || 1}
+                                    onChange={(e) => setInstallments(prev => ({ ...prev, [plan.id]: Number(e.target.value) }))}
+                                >
+                                    <option value={1}>1 cuota</option>
+                                    <option value={2}>2 cuotas</option>
+                                    <option value={3}>3 cuotas</option>
+                                    <option value={6}>6 cuotas</option>
+                                    <option value={12}>12 cuotas</option>
+                                </select>
+                            </div>
                             <Button
                                 className="w-full"
                                 size="sm"
                                 disabled={!hasPaymentSource || loading === plan.id}
-                                onClick={() => handleSubscribe(plan.id)}
+                                onClick={() => handleSubscribe(plan.id, installments[plan.id] || 1)}
                             >
                                 {loading === plan.id ? 'Suscribiendo...' : 'Suscribirse'}
                             </Button>

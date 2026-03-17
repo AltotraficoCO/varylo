@@ -81,6 +81,7 @@ export async function createTransaction(params: {
     reference: string;
     customerEmail: string;
     currency?: string;
+    installments?: number;
 }) {
     const config = await getConfig();
     const currency = params.currency || 'COP';
@@ -99,7 +100,7 @@ export async function createTransaction(params: {
         recurrent: true,
         signature,
         payment_method: {
-            installments: 1,
+            installments: params.installments || 1,
         },
     };
 

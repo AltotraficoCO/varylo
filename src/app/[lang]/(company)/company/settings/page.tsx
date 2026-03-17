@@ -239,6 +239,7 @@ async function BillingTabContent({ companyId, companyEmail }: { companyId: strin
         ...subscription,
         currentPeriodStart: subscription.currentPeriodStart.toISOString(),
         currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
+        cancelledAt: subscription.cancelledAt?.toISOString() || null,
     } : null;
 
     const serializedSources = paymentSources.map((s) => ({

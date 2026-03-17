@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
             where: {
                 status: 'ACTIVE',
                 currentPeriodEnd: { lte: now },
+                cancelledAt: null,  // Don't charge if user cancelled
             },
             select: { id: true },
         });
@@ -107,6 +108,33 @@ export async function GET(req: NextRequest) {
             }
         }
 
+        // 4. Expire cancelled subscriptions whose period has ended
+        const expiredCancelled = await prisma.subscription.findMany({
+            where: {
+                status: { in: ['ACTIVE', 'TRIAL'] },
+                cancelledAt: { not: null },
+                currentPeriodEnd: { lte: now },
+            },
+            include: {
+                planPricing: {
+                    include: { landingPlan: { select: { slug: true } } },
+                },
+            },
+        });
+
+        for (const sub of expiredCancelled) {
+            await prisma.subscription.update({
+                where: { id: sub.id },
+                data: { status: 'CANCELLED' },
+            });
+            await prisma.company.update({
+                where: { id: sub.companyId },
+                data: { plan: Plan.STARTER },
+            });
+            cancelled++;
+            console.log(`[Cron] Expired cancelled subscription ${sub.id}`);
+        }
+
         const summary = {
             status: 'ok',
             charged,
@@ -115,6 +143,7 @@ export async function GET(req: NextRequest) {
             dueCount: dueSubscriptions.length,
             trialEndedCount: trialEndedSubs.length,
             pastDueCount: pastDueSubs.length,
+            expiredCancelledCount: expiredCancelled.length,
             timestamp: now.toISOString(),
         };
 

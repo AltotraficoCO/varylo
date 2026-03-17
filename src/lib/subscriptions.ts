@@ -15,6 +15,7 @@ export async function createSubscription(
     companyId: string,
     planPricingId: string,
     paymentSourceId: string,
+    installments: number = 1,
 ) {
     const pricing = await prisma.planPricing.findUniqueOrThrow({
         where: { id: planPricingId },
@@ -74,7 +75,7 @@ export async function createSubscription(
 
     // Create first billing attempt — if it fails, mark as PAST_DUE (don't rollback)
     try {
-        await chargeSubscription(subscription.id);
+        await chargeSubscription(subscription.id, installments);
     } catch (error) {
         console.error(`[Subscription] First charge failed for sub ${subscription.id}, marking PAST_DUE:`, error);
         await prisma.subscription.update({
@@ -89,7 +90,7 @@ export async function createSubscription(
 /**
  * Charge a subscription: create a Wompi transaction + BillingAttempt.
  */
-export async function chargeSubscription(subscriptionId: string) {
+export async function chargeSubscription(subscriptionId: string, installments: number = 1) {
     const sub = await prisma.subscription.findUniqueOrThrow({
         where: { id: subscriptionId },
         include: {
@@ -119,6 +120,7 @@ export async function chargeSubscription(subscriptionId: string) {
             paymentSourceId: sub.paymentSource.wompiSourceId,
             reference,
             customerEmail: sub.paymentSource.wompiCustomerEmail,
+            installments,
         });
 
         await prisma.billingAttempt.update({
@@ -215,10 +217,9 @@ export async function cancelSubscription(subscriptionId: string) {
     await prisma.subscription.update({
         where: { id: subscriptionId },
         data: {
-            status: 'CANCELLED',
             cancelledAt: new Date(),
         },
     });
 
-    console.log(`[Subscription] Cancelled subscription ${subscriptionId}`);
+    console.log(`[Subscription] Subscription ${subscriptionId} marked for cancellation at period end`);
 }
