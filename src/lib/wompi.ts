@@ -98,7 +98,11 @@ export async function createTransaction(params: {
         }),
     });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.error?.reason || 'Error creating transaction');
+    if (!res.ok) {
+        const reason = json.error?.reason || json.error?.messages || JSON.stringify(json.error || json);
+        console.error('[Wompi createTransaction] Failed:', JSON.stringify(json, null, 2));
+        throw new Error(typeof reason === 'string' ? reason : JSON.stringify(reason));
+    }
     return json.data as {
         id: string;
         status: string;
