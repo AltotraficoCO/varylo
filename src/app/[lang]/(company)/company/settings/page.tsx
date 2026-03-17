@@ -36,7 +36,7 @@ export default async function SettingsPage(props: {
     if (!companyId) return null;
 
     // Fetch all data in parallel
-    const [company, whatsappChannel, webchatChannel, tags, companyAgents, ecommerceIntegration] = await Promise.all([
+    const [company, whatsappChannel, webchatChannel, tags, companyAgents, ecommerceIntegration, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -67,6 +67,10 @@ export default async function SettingsPage(props: {
             where: { companyId },
             select: { platform: true, storeUrl: true, active: true },
         }),
+        prisma.subscription.findFirst({
+            where: { companyId, status: { in: ['ACTIVE', 'TRIAL'] } },
+            select: { id: true },
+        }).catch(() => null),
     ]);
 
     const companyName = company?.name || '';
@@ -172,6 +176,7 @@ export default async function SettingsPage(props: {
                                 channelId: webchatChannel?.id || null,
                                 automationPriority: webchatChannel?.automationPriority || 'CHATBOT_FIRST',
                             }}
+                            hasActiveSubscription={!!activeSubscription}
                         />
                     )}
 

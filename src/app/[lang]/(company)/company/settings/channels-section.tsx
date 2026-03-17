@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, MessageSquare, Globe, Instagram } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MessageSquare, Globe, Instagram, Lock, CreditCard } from 'lucide-react';
 import { WhatsAppConnectionForm } from './whatsapp-form';
 import { WebChatForm } from './webchat-form';
+import Link from 'next/link';
 
 type ChannelItem = {
     id: string;
@@ -33,9 +34,10 @@ type ChannelsSectionProps = {
         channelId: string | null;
         automationPriority: string;
     };
+    hasActiveSubscription: boolean;
 };
 
-export function ChannelsSection({ whatsappConfig, webchatConfig }: ChannelsSectionProps) {
+export function ChannelsSection({ whatsappConfig, webchatConfig, hasActiveSubscription }: ChannelsSectionProps) {
     const [activeItem, setActiveItem] = useState<string | null>(null);
 
     const channels: ChannelItem[] = [
@@ -67,6 +69,60 @@ export function ChannelsSection({ whatsappConfig, webchatConfig }: ChannelsSecti
             badge: 'Próximamente',
         },
     ];
+
+    // No active subscription — show locked state
+    if (!hasActiveSubscription) {
+        return (
+            <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                    Selecciona un canal para configurarlo.
+                </p>
+
+                {/* Subscription required banner */}
+                <div className="rounded-lg border-2 border-dashed border-amber-300 bg-amber-50/50 p-6 text-center space-y-3">
+                    <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                        <Lock className="h-6 w-6 text-amber-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-amber-900">Suscripción requerida</h3>
+                    <p className="text-sm text-amber-700 max-w-md mx-auto">
+                        Para configurar canales de comunicación necesitas un plan activo. Suscríbete para empezar a recibir mensajes de tus clientes.
+                    </p>
+                    <Link href="?tab=billing">
+                        <Button className="mt-2 gap-2">
+                            <CreditCard className="h-4 w-4" />
+                            Suscríbete ahora
+                        </Button>
+                    </Link>
+                </div>
+
+                {/* Greyed out channel cards */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {channels.map((ch) => (
+                        <Card
+                            key={ch.id}
+                            className="opacity-50 grayscale pointer-events-none select-none"
+                        >
+                            <CardContent className="pt-6">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className={`p-2.5 rounded-lg border ${ch.color}`}>
+                                        <ch.icon className="h-5 w-5" />
+                                    </div>
+                                    <Badge variant="outline" className="text-xs">
+                                        <Lock className="h-3 w-3 mr-1" />
+                                        Bloqueado
+                                    </Badge>
+                                </div>
+                                <h3 className="font-semibold mb-1">{ch.name}</h3>
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    {ch.description}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     if (activeItem === 'whatsapp') {
         return (
