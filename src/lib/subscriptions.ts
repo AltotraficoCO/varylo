@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { createTransaction } from '@/lib/wompi';
+import { createTransaction, getTransaction } from '@/lib/wompi';
 import { Plan } from '@prisma/client';
 
 const PLAN_SLUG_TO_ENUM: Record<string, Plan> = {
@@ -65,14 +65,24 @@ export async function createSubscription(
         },
     });
 
-    // Charge — the webhook will activate the subscription and upgrade the plan
+    // Charge — the webhook will activate the subscription, or fallback polling will
     try {
-        await chargeSubscription(subscription.id, installments);
+        const chargeResult = await chargeSubscription(subscription.id, installments);
+
+        // Fallback: poll Wompi directly after a few seconds in case webhook doesn't arrive
+        if (chargeResult?.wompiTransactionId) {
+            await pollTransactionStatus(
+                subscription.id,
+                chargeResult.attempt.id,
+                chargeResult.wompiTransactionId,
+            );
+        }
     } catch (error) {
         console.error(`[Subscription] First charge failed for sub ${subscription.id}:`, error);
     }
 
-    return subscription;
+    // Re-fetch to return latest status
+    return prisma.subscription.findUniqueOrThrow({ where: { id: subscription.id } });
 }
 
 /**
@@ -210,4 +220,51 @@ export async function cancelSubscription(subscriptionId: string) {
     });
 
     console.log(`[Subscription] Subscription ${subscriptionId} marked for cancellation at period end`);
+}
+
+/**
+ * Poll Wompi transaction status as fallback when webhook doesn't arrive.
+ * Tries up to 3 times with 5-second intervals.
+ */
+async function pollTransactionStatus(
+    subscriptionId: string,
+    attemptId: string,
+    wompiTransactionId: string,
+) {
+    for (let i = 0; i < 3; i++) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        try {
+            // Check if webhook already handled it
+            const attempt = await prisma.billingAttempt.findUnique({
+                where: { id: attemptId },
+                select: { status: true },
+            });
+            if (attempt?.status !== 'PENDING') {
+                console.log(`[Subscription] Polling: attempt ${attemptId} already resolved as ${attempt?.status}`);
+                return;
+            }
+
+            const tx = await getTransaction(wompiTransactionId);
+            console.log(`[Subscription] Polling attempt ${i + 1}: transaction ${wompiTransactionId} status=${tx.status}`);
+
+            if (tx.status === 'APPROVED') {
+                await handlePaymentSuccess(subscriptionId, attemptId);
+                console.log(`[Subscription] Polling: activated subscription ${subscriptionId} via fallback`);
+                return;
+            }
+
+            if (tx.status === 'DECLINED' || tx.status === 'ERROR') {
+                await handlePaymentFailure(subscriptionId, attemptId, tx.status_message || tx.status);
+                console.log(`[Subscription] Polling: payment failed for ${subscriptionId}: ${tx.status}`);
+                return;
+            }
+
+            // Still PENDING, continue polling
+        } catch (error) {
+            console.error(`[Subscription] Polling error (attempt ${i + 1}):`, error);
+        }
+    }
+
+    console.log(`[Subscription] Polling: gave up after 3 attempts for transaction ${wompiTransactionId}`);
 }
