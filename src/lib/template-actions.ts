@@ -180,6 +180,23 @@ export async function sendTemplateMessage(params: {
 
     // Send template via Meta API
     try {
+        const templatePayload: any = {
+            name: params.templateName,
+            language: { code: params.templateLanguage },
+        };
+        if (params.templateComponents.length > 0) {
+            templatePayload.components = params.templateComponents;
+        }
+
+        const metaBody = {
+            messaging_product: 'whatsapp',
+            to: contact.phone,
+            type: 'template',
+            template: templatePayload,
+        };
+
+        console.log('[sendTemplateMessage] Sending to Meta:', JSON.stringify(metaBody, null, 2));
+
         const res = await fetch(
             `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`,
             {
@@ -188,27 +205,19 @@ export async function sendTemplateMessage(params: {
                     Authorization: `Bearer ${config.accessToken}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    messaging_product: 'whatsapp',
-                    to: contact.phone,
-                    type: 'template',
-                    template: {
-                        name: params.templateName,
-                        language: { code: params.templateLanguage },
-                        components: params.templateComponents,
-                    },
-                }),
+                body: JSON.stringify(metaBody),
             }
         );
 
+        const resData = await res.json().catch(() => ({}));
+        console.log('[sendTemplateMessage] Meta response:', res.status, JSON.stringify(resData));
+
         if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            const errorMsg = (errorData as any)?.error?.message || `HTTP ${res.status}`;
+            const errorMsg = (resData as any)?.error?.message || `HTTP ${res.status}`;
             console.error('[sendTemplateMessage] Meta API error:', errorMsg);
             return { success: false, error: `Error de WhatsApp: ${errorMsg}` };
         }
 
-        const resData = await res.json();
         const providerMessageId = resData?.messages?.[0]?.id;
 
         // Save message in DB

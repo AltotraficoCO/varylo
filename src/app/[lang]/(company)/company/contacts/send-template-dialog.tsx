@@ -198,6 +198,7 @@ export function SendTemplateDialog({
             onOpenChange(false);
             const basePath = isAgentRoute ? 'agent' : 'company/conversations';
             router.push(`/${lang}/${basePath}?conversationId=${result.conversationId}`);
+            router.refresh();
         } else {
             toast.error(result.error || 'Error al enviar');
         }
