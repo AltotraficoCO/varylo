@@ -20,11 +20,11 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
-import { Save, ArrowLeft, AlertCircle, CheckCircle2, Plus, MessageCircle, User, Bot, XCircle, LayoutGrid, FileInput } from 'lucide-react';
+import { Save, ArrowLeft, AlertCircle, CheckCircle2, Plus, MessageCircle, User, Bot, XCircle, LayoutGrid, FileInput, Send, Paperclip } from 'lucide-react';
 import { updateChatbotFlow } from './actions';
 import Link from 'next/link';
 import Dagre from '@dagrejs/dagre';
-import type { ChatbotFlow, ChatbotFlowNode, ChatbotFlowOption } from '@/types/chatbot';
+import type { ChatbotFlow, ChatbotFlowNode, ChatbotFlowOption, WebhookConfig } from '@/types/chatbot';
 import { ChatbotNode } from './chatbot-node';
 import { NodeEditPanel } from './node-edit-panel';
 
@@ -117,12 +117,17 @@ function chatbotFlowToReactFlow(
 function reactFlowToChatbotFlow(
     nodes: Node<FlowNodeData>[],
     startNodeId: string,
+    webhookCfg?: WebhookConfig,
 ): ChatbotFlow {
     const flowNodes: Record<string, ChatbotFlowNode> = {};
     nodes.forEach(node => {
         flowNodes[node.id] = node.data.flowNode;
     });
-    return { startNodeId, nodes: flowNodes };
+    const flow: ChatbotFlow = { startNodeId, nodes: flowNodes };
+    if (webhookCfg?.url) {
+        flow.webhookConfig = webhookCfg;
+    }
+    return flow;
 }
 
 const NODE_TEMPLATES: {
@@ -147,6 +152,13 @@ const NODE_TEMPLATES: {
         create: (id) => ({ id, message: '', dataCapture: { fieldName: '', fieldLabel: '', nextNodeId: '', validation: 'text' as const } }),
     },
     {
+        type: 'document_capture',
+        label: 'Captura de documento',
+        icon: Paperclip,
+        defaultLabel: 'Captura de documento',
+        create: (id) => ({ id, message: 'Por favor envia tu documento:', dataCapture: { fieldName: 'documento', fieldLabel: 'Documento', nextNodeId: '', validation: 'document' as const } }),
+    },
+    {
         type: 'transfer_human',
         label: 'Transferir a agente',
         icon: User,
@@ -159,6 +171,13 @@ const NODE_TEMPLATES: {
         icon: Bot,
         defaultLabel: 'Transferir a IA',
         create: (id) => ({ id, message: '', action: { type: 'transfer_to_ai_agent' } }),
+    },
+    {
+        type: 'send_webhook',
+        label: 'Enviar datos a webhook',
+        icon: Send,
+        defaultLabel: 'Enviar a ERP',
+        create: (id) => ({ id, message: 'Gracias, tus datos han sido enviados correctamente.', action: { type: 'send_to_webhook' } }),
     },
     {
         type: 'end',
@@ -187,6 +206,7 @@ function FlowCanvas({
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [showAddMenu, setShowAddMenu] = useState(false);
     const [flow, setFlow] = useState<ChatbotFlow>(initialFlow);
+    const [webhookConfig, setWebhookConfig] = useState<WebhookConfig | undefined>(initialFlow.webhookConfig);
     const [nodeLabels, setNodeLabels] = useState<Record<string, string>>(() => {
         const labels: Record<string, string> = {};
         Object.keys(initialFlow.nodes).forEach((id, i) => {
@@ -371,7 +391,7 @@ function FlowCanvas({
 
     const handleSave = () => {
         setSaveResult(null);
-        const currentFlow = reactFlowToChatbotFlow(nodes, initialFlow.startNodeId);
+        const currentFlow = reactFlowToChatbotFlow(nodes, initialFlow.startNodeId, webhookConfig);
         startTransition(async () => {
             const result = await updateChatbotFlow(chatbotId, currentFlow);
             setSaveResult(result);
@@ -478,8 +498,10 @@ function FlowCanvas({
                         label={nodeLabels[selectedNodeId] || ''}
                         isStart={selectedNodeId === initialFlow.startNodeId}
                         allNodes={allNodesList}
+                        webhookConfig={webhookConfig}
                         onUpdateNode={handleUpdateNode}
                         onUpdateLabel={(label) => setNodeLabels(prev => ({ ...prev, [selectedNodeId]: label }))}
+                        onUpdateWebhookConfig={setWebhookConfig}
                         onDelete={() => handleDeleteNode(selectedNodeId)}
                         onClose={() => setSelectedNodeId(null)}
                     />

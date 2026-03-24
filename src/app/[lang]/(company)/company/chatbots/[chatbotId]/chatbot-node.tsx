@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { MessageCircle, User, Bot, XCircle, GripVertical, FileInput } from 'lucide-react';
+import { MessageCircle, User, Bot, XCircle, GripVertical, FileInput, Send, Paperclip } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { ChatbotFlowNode } from '@/types/chatbot';
 
@@ -14,6 +14,9 @@ interface ChatbotNodeData extends Record<string, unknown> {
 
 function getNodeConfig(node: ChatbotFlowNode) {
     if (node.dataCapture) {
+        if (node.dataCapture.validation === 'document') {
+            return { icon: Paperclip, label: 'Captura de documento', color: 'border-orange-400 bg-orange-50 dark:bg-orange-950/40' };
+        }
         return { icon: FileInput, label: 'Captura de dato', color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/40' };
     }
     switch (node.action?.type) {
@@ -21,6 +24,8 @@ function getNodeConfig(node: ChatbotFlowNode) {
             return { icon: User, label: 'Agente humano', color: 'border-blue-400 bg-blue-50 dark:bg-blue-950/40' };
         case 'transfer_to_ai_agent':
             return { icon: Bot, label: 'Agente IA', color: 'border-purple-400 bg-purple-50 dark:bg-purple-950/40' };
+        case 'send_to_webhook':
+            return { icon: Send, label: 'Enviar a ERP', color: 'border-green-400 bg-green-50 dark:bg-green-950/40' };
         case 'end_conversation':
             return { icon: XCircle, label: 'Fin', color: 'border-red-400 bg-red-50 dark:bg-red-950/40' };
         default:

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendChannelMessage } from '@/lib/channel-sender';
 import { assignAgent } from '@/lib/assign-agent';
+import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { ChatbotFlow } from '@/types/chatbot';
 
 interface ChatbotResult {
@@ -9,7 +10,14 @@ interface ChatbotResult {
     transferToAi?: boolean;
 }
 
-export async function handleChatbotResponse(conversationId: string, inboundMessage: string): Promise<ChatbotResult> {
+export interface InboundMediaInfo {
+    mediaUrl?: string;
+    mediaType?: string;
+    mimeType?: string;
+    fileName?: string;
+}
+
+export async function handleChatbotResponse(conversationId: string, inboundMessage: string, media?: InboundMediaInfo): Promise<ChatbotResult> {
     try {
         const conversation = await prisma.conversation.findUnique({
             where: { id: conversationId },
@@ -31,7 +39,7 @@ export async function handleChatbotResponse(conversationId: string, inboundMessa
 
         if (session) {
             // Continue existing session
-            return await processNode(session, inboundMessage, conversationId, conversation.companyId);
+            return await processNode(session, inboundMessage, conversationId, conversation.companyId, media);
         }
 
         // No active session — check if there's a chatbot for this channel
@@ -87,7 +95,7 @@ export async function handleChatbotResponse(conversationId: string, inboundMessa
 
         // Check if start node has an action
         if (startNode.action) {
-            return await handleAction(startNode.action.type, session.id, conversationId, conversation.companyId);
+            return await handleAction(startNode.action.type, session.id, conversationId, conversation.companyId, flow);
         }
 
         return { handled: true };
@@ -101,7 +109,8 @@ async function processNode(
     session: { id: string; chatbot: { flowJson: unknown; name: string }; currentNodeId: string },
     userMessage: string,
     conversationId: string,
-    companyId: string
+    companyId: string,
+    media?: InboundMediaInfo,
 ): Promise<ChatbotResult> {
     const flow = session.chatbot.flowJson as unknown as ChatbotFlow;
     const currentNode = flow.nodes[session.currentNodeId];
@@ -117,8 +126,95 @@ async function processNode(
     // If this is a data capture node, save the user's response and move on
     if (currentNode.dataCapture) {
         const capture = currentNode.dataCapture;
+        const isDocumentCapture = capture.validation === 'document';
 
-        // Validate if needed
+        // Document capture: need media attachment
+        if (isDocumentCapture) {
+            // Try to get media from the passed info, or look at the last message in DB
+            let docMedia = media;
+            if (!docMedia?.mediaUrl) {
+                const lastMsg = await prisma.message.findFirst({
+                    where: { conversationId, direction: 'INBOUND', mediaUrl: { not: null } },
+                    orderBy: { createdAt: 'desc' },
+                    select: { mediaUrl: true, mediaType: true, mimeType: true, fileName: true },
+                });
+                if (lastMsg?.mediaUrl) {
+                    docMedia = {
+                        mediaUrl: lastMsg.mediaUrl,
+                        mediaType: lastMsg.mediaType || undefined,
+                        mimeType: lastMsg.mimeType || undefined,
+                        fileName: lastMsg.fileName || undefined,
+                    };
+                }
+            }
+
+            if (!docMedia?.mediaUrl) {
+                await sendChannelMessage({
+                    conversationId,
+                    companyId,
+                    content: 'Por favor envia un archivo (PDF, imagen o documento).',
+                    fromName: session.chatbot.name,
+                });
+                return { handled: true };
+            }
+
+            // Save document URL as captured data
+            const conversation = await prisma.conversation.findUnique({
+                where: { id: conversationId },
+                select: { contactId: true },
+            });
+
+            const docValue = JSON.stringify({
+                url: docMedia.mediaUrl,
+                mimeType: docMedia.mimeType || null,
+                fileName: docMedia.fileName || null,
+                mediaType: docMedia.mediaType || null,
+            });
+
+            const existingCapture = conversation?.contactId
+                ? await prisma.capturedData.findFirst({
+                    where: { contactId: conversation.contactId, fieldName: capture.fieldName, companyId },
+                })
+                : null;
+
+            if (existingCapture) {
+                await prisma.capturedData.update({
+                    where: { id: existingCapture.id },
+                    data: { fieldValue: docValue, conversationId, source: 'chatbot' },
+                });
+            } else {
+                await prisma.capturedData.create({
+                    data: {
+                        companyId, conversationId,
+                        contactId: conversation?.contactId || null,
+                        fieldName: capture.fieldName,
+                        fieldValue: docValue,
+                        source: 'chatbot',
+                    },
+                });
+            }
+
+            // Navigate to next node
+            const nextNode = flow.nodes[capture.nextNodeId];
+            if (!nextNode) {
+                await prisma.chatbotSession.update({ where: { id: session.id }, data: { completed: true } });
+                return { handled: false };
+            }
+
+            await prisma.chatbotSession.update({ where: { id: session.id }, data: { currentNodeId: capture.nextNodeId } });
+            await sendChannelMessage({
+                conversationId, companyId,
+                content: formatNodeMessage(nextNode.message, nextNode.options, nextNode.dataCapture),
+                fromName: session.chatbot.name,
+            });
+
+            if (nextNode.action) {
+                return await handleAction(nextNode.action.type, session.id, conversationId, companyId, flow);
+            }
+            return { handled: true };
+        }
+
+        // Text-based capture (existing logic)
         if (capture.validation) {
             const isValid = validateCapture(userMessage, capture.validation);
             if (!isValid) {
@@ -212,7 +308,7 @@ async function processNode(
         });
 
         if (nextNode.action) {
-            return await handleAction(nextNode.action.type, session.id, conversationId, companyId);
+            return await handleAction(nextNode.action.type, session.id, conversationId, companyId, flow);
         }
         return { handled: true };
     }
@@ -274,7 +370,7 @@ async function processNode(
 
     // Handle action if present
     if (nextNode.action) {
-        return await handleAction(nextNode.action.type, session.id, conversationId, companyId);
+        return await handleAction(nextNode.action.type, session.id, conversationId, companyId, flow);
     }
 
     return { handled: true };
@@ -284,7 +380,8 @@ async function handleAction(
     actionType: string,
     sessionId: string,
     conversationId: string,
-    companyId: string
+    companyId: string,
+    flow: ChatbotFlow,
 ): Promise<ChatbotResult> {
     await prisma.chatbotSession.update({
         where: { id: sessionId },
@@ -298,6 +395,11 @@ async function handleAction(
 
     if (actionType === 'transfer_to_ai_agent') {
         return { handled: false, transferToAi: true };
+    }
+
+    if (actionType === 'send_to_webhook') {
+        await triggerWebhookSend(conversationId, companyId, flow);
+        return { handled: true };
     }
 
     if (actionType === 'end_conversation') {
@@ -367,7 +469,72 @@ function validateCapture(value: string, type: string): boolean {
             return /^[\d\s\+\-\(\)]{7,20}$/.test(trimmed);
         case 'number':
             return /^\d+$/.test(trimmed);
+        case 'document':
+            return false; // Document validation is handled separately via media
         default:
             return trimmed.length > 0;
+    }
+}
+
+/**
+ * Collect all captured data for a conversation and send to the configured webhook.
+ */
+async function triggerWebhookSend(conversationId: string, companyId: string, flow: ChatbotFlow) {
+    const webhookConfig = flow.webhookConfig;
+    if (!webhookConfig?.url) {
+        console.warn(`[Chatbot] send_to_webhook action but no webhookConfig.url configured`);
+        return;
+    }
+
+    try {
+        // Get conversation contact info
+        const conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            include: {
+                contact: { select: { id: true, name: true, phone: true, email: true } },
+            },
+        });
+
+        // Get all captured data for this conversation
+        const allCaptured = await prisma.capturedData.findMany({
+            where: { conversationId, companyId },
+            orderBy: { createdAt: 'asc' },
+        });
+
+        // Separate text fields from document fields
+        const textFields: { fieldName: string; fieldValue: string }[] = [];
+        const documents: { fieldName: string; url: string; mimeType: string | null; fileName: string | null }[] = [];
+
+        for (const item of allCaptured) {
+            // Try to parse as document JSON
+            try {
+                const parsed = JSON.parse(item.fieldValue);
+                if (parsed.url && parsed.mediaType) {
+                    documents.push({
+                        fieldName: item.fieldName,
+                        url: parsed.url,
+                        mimeType: parsed.mimeType || null,
+                        fileName: parsed.fileName || null,
+                    });
+                    continue;
+                }
+            } catch {
+                // Not JSON — it's a regular text field
+            }
+            textFields.push({ fieldName: item.fieldName, fieldValue: item.fieldValue });
+        }
+
+        const contact = conversation?.contact || { id: null, name: null, phone: null, email: null };
+        const payload = buildWebhookPayload(conversationId, contact, textFields, documents);
+
+        const result = await sendWebhook(webhookConfig, payload);
+
+        if (result.ok) {
+            console.log(`[Chatbot] Webhook sent successfully for conversation ${conversationId}`);
+        } else {
+            console.error(`[Chatbot] Webhook failed for conversation ${conversationId}:`, result.error);
+        }
+    } catch (error) {
+        console.error(`[Chatbot] Error triggering webhook for ${conversationId}:`, error);
     }
 }

@@ -314,9 +314,15 @@ export async function POST(req: NextRequest) {
                     data: { lastMessageAt: new Date(), lastInboundAt: new Date() }
                 });
 
-                // Automation pipeline — pass text content (media messages may not have text)
-                if (content && content !== `[${mediaType}]`) {
-                    runAutomationPipeline(conversation.id, content, channel.automationPriority);
+                // Automation pipeline — pass text content and media info
+                // Always run pipeline (even for media-only) so chatbot document capture works
+                if (content) {
+                    runAutomationPipeline(
+                        conversation.id,
+                        content,
+                        channel.automationPriority,
+                        mediaUrl ? { mediaUrl, mediaType, mimeType, fileName } : undefined,
+                    );
                 }
             }
         }

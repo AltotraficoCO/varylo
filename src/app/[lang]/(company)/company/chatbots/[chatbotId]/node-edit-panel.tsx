@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { X, Trash2, Plus, MessageCircle, User, Bot, XCircle, Link2, Unlink, FileInput } from 'lucide-react';
-import type { ChatbotFlowNode, ChatbotFlowOption, ChatbotDataCapture } from '@/types/chatbot';
+import { X, Trash2, Plus, MessageCircle, User, Bot, XCircle, Link2, Unlink, FileInput, Send, Paperclip } from 'lucide-react';
+import type { ChatbotFlowNode, ChatbotFlowOption, ChatbotDataCapture, WebhookConfig } from '@/types/chatbot';
 
 interface NodeEditPanelProps {
     nodeId: string;
@@ -14,8 +14,10 @@ interface NodeEditPanelProps {
     label: string;
     isStart: boolean;
     allNodes: { id: string; label: string }[];
+    webhookConfig?: WebhookConfig;
     onUpdateNode: (nodeId: string, updates: Partial<ChatbotFlowNode>) => void;
     onUpdateLabel: (label: string) => void;
+    onUpdateWebhookConfig?: (config: WebhookConfig) => void;
     onDelete: () => void;
     onClose: () => void;
 }
@@ -26,8 +28,10 @@ export function NodeEditPanel({
     label,
     isStart,
     allNodes,
+    webhookConfig,
     onUpdateNode,
     onUpdateLabel,
+    onUpdateWebhookConfig,
     onDelete,
     onClose,
 }: NodeEditPanelProps) {
@@ -70,12 +74,19 @@ export function NodeEditPanel({
 
     const isDataCapture = !!node.dataCapture;
 
+    const isWebhookAction = node.action?.type === 'send_to_webhook';
+
     const getNodeIcon = () => {
-        if (isDataCapture) return <FileInput className="h-4 w-4" />;
+        if (isDataCapture) {
+            return node.dataCapture?.validation === 'document'
+                ? <Paperclip className="h-4 w-4" />
+                : <FileInput className="h-4 w-4" />;
+        }
         switch (node.action?.type) {
             case 'transfer_to_human': return <User className="h-4 w-4" />;
             case 'transfer_to_ai_agent': return <Bot className="h-4 w-4" />;
             case 'end_conversation': return <XCircle className="h-4 w-4" />;
+            case 'send_to_webhook': return <Send className="h-4 w-4" />;
             default: return <MessageCircle className="h-4 w-4" />;
         }
     };
@@ -152,7 +163,7 @@ export function NodeEditPanel({
                             <select
                                 value={node.dataCapture.validation || 'text'}
                                 onChange={(e) => onUpdateNode(nodeId, {
-                                    dataCapture: { ...node.dataCapture!, validation: e.target.value as 'text' | 'email' | 'phone' | 'number' },
+                                    dataCapture: { ...node.dataCapture!, validation: e.target.value as 'text' | 'email' | 'phone' | 'number' | 'document' },
                                 })}
                                 className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
@@ -160,8 +171,15 @@ export function NodeEditPanel({
                                 <option value="email">Correo electronico</option>
                                 <option value="phone">Telefono</option>
                                 <option value="number">Numero</option>
+                                <option value="document">Documento / Archivo (PDF, imagen)</option>
                             </select>
                         </div>
+
+                        {node.dataCapture.validation === 'document' && (
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                                El usuario debera enviar un archivo (PDF, imagen, documento). Se reenviara al webhook configurado.
+                            </p>
+                        )}
 
                         <div className="space-y-1.5">
                             {node.dataCapture.nextNodeId && getConnectedLabel(node.dataCapture.nextNodeId) ? (
@@ -191,7 +209,7 @@ export function NodeEditPanel({
                                     onUpdateNode(nodeId, { action: undefined });
                                 } else {
                                     onUpdateNode(nodeId, {
-                                        action: { type: value as 'transfer_to_human' | 'transfer_to_ai_agent' | 'end_conversation' },
+                                        action: { type: value as 'transfer_to_human' | 'transfer_to_ai_agent' | 'end_conversation' | 'send_to_webhook' },
                                         options: [],
                                     });
                                 }
@@ -201,8 +219,50 @@ export function NodeEditPanel({
                             <option value="show_options">Mostrar opciones al cliente</option>
                             <option value="transfer_to_human">Transferir a agente humano</option>
                             <option value="transfer_to_ai_agent">Transferir a agente IA</option>
+                            <option value="send_to_webhook">Enviar datos a webhook (ERP)</option>
                             <option value="end_conversation">Finalizar conversacion</option>
                         </select>
+                    </div>
+                )}
+
+                {/* Webhook config (shown when send_to_webhook action selected) */}
+                {isWebhookAction && (
+                    <div className="space-y-4 p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-xs font-medium text-blue-700 dark:text-blue-300">Configuracion de webhook</p>
+                        <p className="text-[10px] text-muted-foreground">
+                            Al llegar a este paso, se enviaran todos los datos capturados (incluyendo documentos) al URL configurado via POST.
+                        </p>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">URL del webhook</Label>
+                            <Input
+                                value={webhookConfig?.url || ''}
+                                onChange={(e) => onUpdateWebhookConfig?.({
+                                    ...webhookConfig,
+                                    url: e.target.value,
+                                })}
+                                placeholder="https://tu-erp.com/api/webhook"
+                                className="h-8 text-sm"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Secret HMAC (opcional)</Label>
+                            <Input
+                                type="password"
+                                value={webhookConfig?.secret || ''}
+                                onChange={(e) => onUpdateWebhookConfig?.({
+                                    ...webhookConfig,
+                                    url: webhookConfig?.url || '',
+                                    secret: e.target.value || undefined,
+                                })}
+                                placeholder="clave-secreta-para-firmar"
+                                className="h-8 text-sm"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                Se envia como header X-Varylo-Signature para que tu sistema verifique la autenticidad.
+                            </p>
+                        </div>
                     </div>
                 )}
 

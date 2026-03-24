@@ -1,4 +1,4 @@
-import { handleChatbotResponse } from '@/jobs/chatbot';
+import { handleChatbotResponse, type InboundMediaInfo } from '@/jobs/chatbot';
 import { handleAiAgentResponse } from '@/jobs/ai-agent';
 import { analyzeConversation } from '@/jobs/ai';
 import type { AutomationPriority } from '@prisma/client';
@@ -10,7 +10,8 @@ import type { AutomationPriority } from '@prisma/client';
 export async function runAutomationPipeline(
     conversationId: string,
     text: string,
-    priority: AutomationPriority = 'CHATBOT_FIRST'
+    priority: AutomationPriority = 'CHATBOT_FIRST',
+    media?: InboundMediaInfo,
 ) {
     try {
         if (priority === 'AI_FIRST') {
@@ -18,7 +19,7 @@ export async function runAutomationPipeline(
             const aiResult = await handleAiAgentResponse(conversationId, text);
             if (aiResult.handled) return;
 
-            const chatbotResult = await handleChatbotResponse(conversationId, text);
+            const chatbotResult = await handleChatbotResponse(conversationId, text, media);
             if (chatbotResult.handled) {
                 if (chatbotResult.transferToAi) {
                     // Already tried AI and it didn't handle — fall through to analysis
@@ -28,7 +29,7 @@ export async function runAutomationPipeline(
             }
         } else {
             // Chatbot first (default), then AI agent
-            const chatbotResult = await handleChatbotResponse(conversationId, text);
+            const chatbotResult = await handleChatbotResponse(conversationId, text, media);
             if (chatbotResult.handled) {
                 if (chatbotResult.transferToAi) {
                     // Fall through to AI agent
