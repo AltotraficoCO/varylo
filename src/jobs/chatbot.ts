@@ -486,6 +486,8 @@ async function triggerWebhookSend(conversationId: string, companyId: string, flo
         return;
     }
 
+    console.log(`[Chatbot] Triggering webhook send to ${webhookConfig.url} for conversation ${conversationId}`);
+
     try {
         // Get conversation contact info
         const conversation = await prisma.conversation.findUnique({

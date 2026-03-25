@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ChannelType, MessageDirection } from '@prisma/client';
 import { runAutomationPipeline } from '@/jobs/pipeline';
@@ -314,15 +314,14 @@ export async function POST(req: NextRequest) {
                     data: { lastMessageAt: new Date(), lastInboundAt: new Date() }
                 });
 
-                // Automation pipeline — pass text content and media info
-                // Always run pipeline (even for media-only) so chatbot document capture works
+                // Automation pipeline — run after response so Vercel keeps function alive
                 if (content) {
-                    runAutomationPipeline(
+                    after(runAutomationPipeline(
                         conversation.id,
                         content,
                         channel.automationPriority,
                         mediaUrl ? { mediaUrl, mediaType, mimeType, fileName } : undefined,
-                    );
+                    ));
                 }
             }
         }
