@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { sendChannelMessage } from '@/lib/channel-sender';
 import { assignAgent } from '@/lib/assign-agent';
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
+import { mapFieldToContact, validateCapturedValue } from '@/lib/data-capture-utils';
 import type { ChatbotFlow } from '@/types/chatbot';
 
 interface ChatbotResult {
@@ -435,45 +436,9 @@ function formatOptions(options: { label: string }[]): string {
     return options.map((opt, i) => `${i + 1}. ${opt.label}`).join('\n');
 }
 
-function mapFieldToContact(fieldName: string, value: string): Record<string, string> | null {
-    const key = fieldName.toLowerCase().replace(/\s+/g, '_');
-    const mapping: Record<string, string> = {
-        nombre: 'name',
-        name: 'name',
-        nombre_completo: 'name',
-        email: 'email',
-        correo: 'email',
-        correo_electronico: 'email',
-        celular: 'phone',
-        telefono: 'phone',
-        phone: 'phone',
-        empresa: 'companyName',
-        company: 'companyName',
-        ciudad: 'city',
-        city: 'city',
-        pais: 'country',
-        country: 'country',
-    };
-    const contactField = mapping[key];
-    if (!contactField) return null;
-    return { [contactField]: value };
-}
-
 function validateCapture(value: string, type: string): boolean {
-    const trimmed = value.trim();
-    if (!trimmed) return false;
-    switch (type) {
-        case 'email':
-            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-        case 'phone':
-            return /^[\d\s\+\-\(\)]{7,20}$/.test(trimmed);
-        case 'number':
-            return /^\d+$/.test(trimmed);
-        case 'document':
-            return false; // Document validation is handled separately via media
-        default:
-            return trimmed.length > 0;
-    }
+    const result = validateCapturedValue(value, type);
+    return result.valid;
 }
 
 /**

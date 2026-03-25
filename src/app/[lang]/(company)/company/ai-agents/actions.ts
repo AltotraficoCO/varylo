@@ -2,7 +2,31 @@
 
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { AI_AGENT_TYPES } from '@/lib/ai-agent-types';
 import { revalidatePath } from 'next/cache';
+
+function parseWebhookConfig(formData: FormData): Record<string, unknown> | null {
+    const webhookUrl = (formData.get('webhookUrl') as string)?.trim() || '';
+    if (!webhookUrl) return null;
+
+    const webhookSecret = (formData.get('webhookSecret') as string)?.trim() || '';
+    const webhookHeadersRaw = (formData.get('webhookHeaders') as string)?.trim() || '';
+
+    let headers: Record<string, string> | undefined;
+    if (webhookHeadersRaw) {
+        try {
+            headers = JSON.parse(webhookHeadersRaw);
+        } catch {
+            // Invalid JSON — ignore headers
+        }
+    }
+
+    return {
+        url: webhookUrl,
+        ...(webhookSecret ? { secret: webhookSecret } : {}),
+        ...(headers ? { headers } : {}),
+    };
+}
 
 export async function createAiAgent(prevState: string | undefined, formData: FormData) {
     const session = await auth();
@@ -11,6 +35,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     }
 
     const name = formData.get('name') as string;
+    const agentType = formData.get('agentType') as string || 'CUSTOM';
     const systemPrompt = formData.get('systemPrompt') as string;
     const contextInfo = formData.get('contextInfo') as string;
     const allowedModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'];
@@ -21,6 +46,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const temperature = isNaN(rawTemp) ? 0.7 : Math.min(2.0, Math.max(0, rawTemp));
     const transferKeywordsRaw = formData.get('transferKeywords') as string;
     const channelIds = formData.getAll('channelIds') as string[];
+    const dataCaptureEnabled = formData.get('dataCaptureEnabled') !== 'off';
     const calendarEnabled = formData.get('calendarEnabled') === 'on';
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
@@ -29,9 +55,13 @@ export async function createAiAgent(prevState: string | undefined, formData: For
         return 'Error: Nombre y prompt del sistema son requeridos.';
     }
 
+    const finalAgentType = (AI_AGENT_TYPES as readonly string[]).includes(agentType) ? agentType : 'CUSTOM';
+
     const transferKeywords = transferKeywordsRaw
         ? transferKeywordsRaw.split(',').map(k => k.trim()).filter(Boolean).slice(0, 50)
         : ['humano', 'agente', 'persona'];
+
+    const webhookConfigJson = parseWebhookConfig(formData);
 
     try {
         // Verify channel IDs belong to this company
@@ -48,14 +78,17 @@ export async function createAiAgent(prevState: string | undefined, formData: For
             data: {
                 companyId: session.user.companyId,
                 name,
+                agentType: finalAgentType,
                 systemPrompt,
                 contextInfo: contextInfo || null,
                 model,
                 temperature,
                 transferKeywords,
+                dataCaptureEnabled,
                 calendarEnabled,
                 calendarId,
                 ecommerceEnabled,
+                webhookConfigJson: webhookConfigJson ?? undefined,
                 channels: validChannelIds.length > 0 ? {
                     connect: validChannelIds.map(id => ({ id })),
                 } : undefined,
@@ -76,6 +109,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
 
     const id = formData.get('id') as string;
     const name = formData.get('name') as string;
+    const agentType = formData.get('agentType') as string || 'CUSTOM';
     const systemPrompt = formData.get('systemPrompt') as string;
     const contextInfo = formData.get('contextInfo') as string;
     const allowedModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'];
@@ -86,18 +120,22 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const temperature = isNaN(rawTemp) ? 0.7 : Math.min(2.0, Math.max(0, rawTemp));
     const transferKeywordsRaw = formData.get('transferKeywords') as string;
     const channelIds = formData.getAll('channelIds') as string[];
+    const dataCaptureEnabled = formData.get('dataCaptureEnabled') !== 'off';
     const calendarEnabled = formData.get('calendarEnabled') === 'on';
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
 
     if (!id || !name || !systemPrompt) return 'Error: Campos requeridos faltantes.';
 
+    const finalAgentType = (AI_AGENT_TYPES as readonly string[]).includes(agentType) ? agentType : 'CUSTOM';
+
     const transferKeywords = transferKeywordsRaw
         ? transferKeywordsRaw.split(',').map(k => k.trim()).filter(Boolean).slice(0, 50)
         : ['humano', 'agente', 'persona'];
 
+    const webhookConfigJson = parseWebhookConfig(formData);
+
     try {
-        // Verify channel IDs belong to this company
         const validChannels = await prisma.channel.findMany({
             where: { id: { in: channelIds }, companyId: session.user.companyId },
             select: { id: true },
@@ -107,14 +145,17 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
             where: { id, companyId: session.user.companyId },
             data: {
                 name,
+                agentType: finalAgentType,
                 systemPrompt,
                 contextInfo: contextInfo || null,
                 model,
                 temperature,
                 transferKeywords,
+                dataCaptureEnabled,
                 calendarEnabled,
                 calendarId,
                 ecommerceEnabled,
+                webhookConfigJson: webhookConfigJson ?? null,
                 channels: {
                     set: validChannels.map(c => ({ id: c.id })),
                 },

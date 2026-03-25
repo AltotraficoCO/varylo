@@ -105,6 +105,7 @@ export function buildWebhookPayload(
     contact: { id: string | null; name: string | null; phone: string | null; email: string | null },
     capturedFields: { fieldName: string; fieldValue: string }[],
     documents: { fieldName: string; url: string; mimeType: string | null; fileName: string | null }[],
+    eventName: string = 'chatbot.data_captured',
 ): WebhookPayload {
     const capturedData: Record<string, string> = {};
     for (const field of capturedFields) {
@@ -112,7 +113,7 @@ export function buildWebhookPayload(
     }
 
     return {
-        event: 'chatbot.data_captured',
+        event: eventName,
         conversationId,
         contactId: contact.id,
         contact: {

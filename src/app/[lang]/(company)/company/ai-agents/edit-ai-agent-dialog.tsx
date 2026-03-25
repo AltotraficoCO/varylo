@@ -25,19 +25,24 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Pencil } from "lucide-react";
+import { AGENT_TYPE_CONFIGS, AI_AGENT_TYPES } from '@/lib/ai-agent-types';
+import type { AiAgentType } from '@/lib/ai-agent-types';
 
 interface AiAgentData {
     id: string;
     name: string;
+    agentType: string;
     systemPrompt: string;
     contextInfo: string | null;
     model: string;
     temperature: number;
     transferKeywords: string[];
     channelIds: string[];
+    dataCaptureEnabled: boolean;
     calendarEnabled: boolean;
     calendarId: string;
     ecommerceEnabled: boolean;
+    webhookConfigJson: { url: string; secret?: string; headers?: Record<string, string> } | null;
 }
 
 interface Channel {
@@ -49,14 +54,36 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
     const [state, action, isPending] = useActionState(updateAiAgent, undefined);
     const [open, setOpen] = useState(false);
     const [selectedChannels, setSelectedChannels] = useState<string[]>(agent.channelIds);
+    const [agentType, setAgentType] = useState<AiAgentType>((agent.agentType as AiAgentType) || 'CUSTOM');
     const [calendarEnabled, setCalendarEnabled] = useState(agent.calendarEnabled);
     const [ecommerceEnabled, setEcommerceEnabled] = useState(agent.ecommerceEnabled);
+    const [dataCaptureEnabled, setDataCaptureEnabled] = useState(agent.dataCaptureEnabled);
+    const [webhookEnabled, setWebhookEnabled] = useState(!!agent.webhookConfigJson?.url);
+    const [systemPrompt, setSystemPrompt] = useState(agent.systemPrompt);
 
     useEffect(() => {
         if (state?.startsWith('Success')) {
             setOpen(false);
         }
     }, [state]);
+
+    const handleTypeChange = (type: AiAgentType) => {
+        const config = AGENT_TYPE_CONFIGS[type];
+        setAgentType(type);
+
+        // Only replace prompt if the type has a default and user confirms
+        if (config.defaultPrompt && type !== 'CUSTOM') {
+            if (confirm('¿Quieres reemplazar el prompt actual con el del tipo seleccionado?')) {
+                setSystemPrompt(config.defaultPrompt);
+            }
+        }
+
+        // Apply suggested capabilities
+        setDataCaptureEnabled(config.suggestedCapabilities.dataCaptureEnabled);
+        setWebhookEnabled(config.suggestedCapabilities.webhookEnabled);
+        if (hasGoogleCalendar) setCalendarEnabled(config.suggestedCapabilities.calendarEnabled);
+        if (hasEcommerce) setEcommerceEnabled(config.suggestedCapabilities.ecommerceEnabled);
+    };
 
     const toggleChannel = (channelId: string) => {
         setSelectedChannels(prev =>
@@ -83,6 +110,27 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                 </DialogHeader>
                 <form action={action} className="grid gap-4 py-4">
                     <input type="hidden" name="id" value={agent.id} />
+                    <input type="hidden" name="agentType" value={agentType} />
+
+                    {/* Agent Type Selector */}
+                    <div className="space-y-2">
+                        <Label>Tipo de Agente</Label>
+                        <Select value={agentType} onValueChange={(v) => handleTypeChange(v as AiAgentType)}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {AI_AGENT_TYPES.map(type => (
+                                    <SelectItem key={type} value={type}>
+                                        {AGENT_TYPE_CONFIGS[type].label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            {AGENT_TYPE_CONFIGS[agentType].description}
+                        </p>
+                    </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="edit-name">Nombre</Label>
@@ -99,7 +147,8 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                         <Textarea
                             id="edit-systemPrompt"
                             name="systemPrompt"
-                            defaultValue={agent.systemPrompt}
+                            value={systemPrompt}
+                            onChange={(e) => setSystemPrompt(e.target.value)}
                             rows={5}
                             required
                         />
@@ -156,6 +205,25 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                         </p>
                     </div>
 
+                    {/* Data Capture Toggle */}
+                    <div className="space-y-2 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="edit-dataCaptureEnabled" className="flex flex-col gap-1">
+                                <span>Captura de Datos</span>
+                                <span className="font-normal text-xs text-muted-foreground">
+                                    Permite al agente capturar automáticamente datos del cliente (nombre, email, teléfono, documentos).
+                                </span>
+                            </Label>
+                            <Switch
+                                id="edit-dataCaptureEnabled"
+                                checked={dataCaptureEnabled}
+                                onCheckedChange={setDataCaptureEnabled}
+                            />
+                        </div>
+                        <input type="hidden" name="dataCaptureEnabled" value={dataCaptureEnabled ? 'on' : 'off'} />
+                    </div>
+
+                    {/* Calendar */}
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="edit-calendarEnabled" className="flex flex-col gap-1">
@@ -190,6 +258,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                         )}
                     </div>
 
+                    {/* Ecommerce */}
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="edit-ecommerceEnabled" className="flex flex-col gap-1">
@@ -210,6 +279,60 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                         <input type="hidden" name="ecommerceEnabled" value={ecommerceEnabled ? 'on' : 'off'} />
                     </div>
 
+                    {/* Webhook */}
+                    <div className="space-y-2 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="edit-webhookEnabled" className="flex flex-col gap-1">
+                                <span>Webhook (ERP/CRM)</span>
+                                <span className="font-normal text-xs text-muted-foreground">
+                                    Envía los datos capturados a un sistema externo cuando el agente lo decida.
+                                </span>
+                            </Label>
+                            <Switch
+                                id="edit-webhookEnabled"
+                                checked={webhookEnabled}
+                                onCheckedChange={setWebhookEnabled}
+                            />
+                        </div>
+                        {webhookEnabled && (
+                            <div className="space-y-3 mt-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-webhookUrl">URL del Webhook</Label>
+                                    <Input
+                                        id="edit-webhookUrl"
+                                        name="webhookUrl"
+                                        defaultValue={agent.webhookConfigJson?.url || ''}
+                                        placeholder="https://tu-erp.com/api/webhook"
+                                        required={webhookEnabled}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-webhookSecret">Secret (opcional)</Label>
+                                    <Input
+                                        id="edit-webhookSecret"
+                                        name="webhookSecret"
+                                        defaultValue={agent.webhookConfigJson?.secret || ''}
+                                        placeholder="Clave secreta para firmar payloads (HMAC-SHA256)"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-webhookHeaders">Headers personalizados (opcional)</Label>
+                                    <Textarea
+                                        id="edit-webhookHeaders"
+                                        name="webhookHeaders"
+                                        defaultValue={agent.webhookConfigJson?.headers ? JSON.stringify(agent.webhookConfigJson.headers, null, 2) : ''}
+                                        placeholder='{"Authorization": "Bearer tu-api-key"}'
+                                        rows={2}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        JSON con headers adicionales. Ej: {`{"Authorization": "Bearer key"}`}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Channels */}
                     <div className="space-y-2">
                         <Label>Canales</Label>
                         <div className="space-y-2 rounded-md border p-3">

@@ -5,6 +5,9 @@ import { checkCreditBalance, deductCredits, logUsageOnly } from '@/lib/credits';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { CALENDAR_TOOLS, executeCalendarTool } from '@/lib/calendar-tools';
 import { ECOMMERCE_TOOLS, executeEcommerceTool } from '@/lib/ecommerce-tools';
+import { mapFieldToContact, validateCapturedValue, inferValidationType } from '@/lib/data-capture-utils';
+import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
+import type { WebhookConfig } from '@/types/chatbot';
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
 
 interface AiAgentResult {
@@ -13,6 +16,69 @@ interface AiAgentResult {
 }
 
 const MAX_TOOL_ITERATIONS = 8;
+
+// ── Tool definitions ────────────────────────────────────────────────
+
+const DATA_CAPTURE_TOOLS: ChatCompletionTool[] = [
+    {
+        type: 'function',
+        function: {
+            name: 'save_captured_data',
+            description: 'Guarda un dato capturado del cliente durante la conversacion. Usa esta herramienta cada vez que el cliente te proporcione informacion personal o relevante como nombre, email, telefono, cedula, empresa, direccion, etc.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    field_name: {
+                        type: 'string',
+                        description: 'Nombre del campo en snake_case. Ejemplos: nombre, email, telefono, cedula, empresa, direccion, ciudad, producto_interes',
+                    },
+                    field_value: {
+                        type: 'string',
+                        description: 'El valor que proporciono el cliente',
+                    },
+                },
+                required: ['field_name', 'field_value'],
+            },
+        },
+    },
+];
+
+const DOCUMENT_CAPTURE_TOOLS: ChatCompletionTool[] = [
+    {
+        type: 'function',
+        function: {
+            name: 'save_document',
+            description: 'Guarda un documento o archivo enviado por el cliente (imagen, PDF, hoja de vida, etc). Usa esta herramienta cuando el cliente envie un archivo adjunto y quieras registrarlo.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    field_name: {
+                        type: 'string',
+                        description: 'Nombre descriptivo del documento en snake_case. Ej: hoja_de_vida, cedula, foto_producto, contrato, factura',
+                    },
+                },
+                required: ['field_name'],
+            },
+        },
+    },
+];
+
+const WEBHOOK_TOOLS: ChatCompletionTool[] = [
+    {
+        type: 'function',
+        function: {
+            name: 'send_to_webhook',
+            description: 'Envia todos los datos capturados del cliente al sistema externo (ERP/CRM). Usa esta herramienta cuando hayas recopilado suficiente informacion del cliente y quieras enviarla.',
+            parameters: {
+                type: 'object',
+                properties: {},
+                required: [],
+            },
+        },
+    },
+];
+
+// ── Main handler ────────────────────────────────────────────────────
 
 export async function handleAiAgentResponse(conversationId: string, inboundMessage: string): Promise<AiAgentResult> {
     try {
@@ -103,25 +169,24 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             }
         }
 
+        // Parse webhook config
+        const webhookConfig = aiAgent.webhookConfigJson as WebhookConfig | null;
+
         // Run independent checks in parallel
         const [calendarResult, ecommerceResult, openaiResult, creditResult] = await Promise.all([
-            // Calendar check
             aiAgent.calendarEnabled
                 ? prisma.company.findUnique({
                     where: { id: conversation.companyId },
                     select: { googleCalendarRefreshToken: true },
                 }).then(c => !!c?.googleCalendarRefreshToken)
                 : Promise.resolve(false),
-            // Ecommerce check
             aiAgent.ecommerceEnabled
                 ? prisma.ecommerceIntegration.findUnique({
                     where: { companyId: conversation.companyId },
                     select: { active: true },
                 }).then(i => !!i?.active)
                 : Promise.resolve(false),
-            // OpenAI client
             getOpenAIForCompany(conversation.companyId),
-            // Credit balance
             checkCreditBalance(conversation.companyId),
         ]);
 
@@ -141,7 +206,14 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         const messages: ChatCompletionMessageParam[] = [
             {
                 role: 'system',
-                content: buildSystemPrompt(aiAgent.systemPrompt, aiAgent.contextInfo, calendarEnabled, ecommerceEnabled),
+                content: buildSystemPrompt({
+                    systemPrompt: aiAgent.systemPrompt,
+                    contextInfo: aiAgent.contextInfo,
+                    calendarEnabled,
+                    ecommerceEnabled,
+                    dataCaptureEnabled: aiAgent.dataCaptureEnabled,
+                    webhookEnabled: !!webhookConfig?.url,
+                }),
             },
         ];
 
@@ -152,32 +224,11 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             });
         }
 
-        // Build tools array
-        const dataCaptureTools: ChatCompletionTool[] = [
-            {
-                type: 'function',
-                function: {
-                    name: 'save_captured_data',
-                    description: 'Guarda un dato capturado del cliente durante la conversacion. Usa esta herramienta cada vez que el cliente te proporcione informacion personal o relevante como nombre, email, telefono, cedula, empresa, direccion, etc.',
-                    parameters: {
-                        type: 'object',
-                        properties: {
-                            field_name: {
-                                type: 'string',
-                                description: 'Nombre del campo en snake_case. Ejemplos: nombre, email, telefono, cedula, empresa, direccion, ciudad, producto_interes',
-                            },
-                            field_value: {
-                                type: 'string',
-                                description: 'El valor que proporciono el cliente',
-                            },
-                        },
-                        required: ['field_name', 'field_value'],
-                    },
-                },
-            },
-        ];
+        // Build tools array (conditional based on agent config)
         const tools: ChatCompletionTool[] = [
-            ...dataCaptureTools,
+            ...(aiAgent.dataCaptureEnabled ? DATA_CAPTURE_TOOLS : []),
+            ...(aiAgent.dataCaptureEnabled ? DOCUMENT_CAPTURE_TOOLS : []),
+            ...(webhookConfig?.url ? WEBHOOK_TOOLS : []),
             ...(calendarEnabled ? CALENDAR_TOOLS : []),
             ...(ecommerceEnabled ? ECOMMERCE_TOOLS : []),
         ];
@@ -187,7 +238,6 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         let totalCompletionTokens = 0;
         let totalTokens = 0;
         let replyContent: string | null = null;
-        // Track which ecommerce tools have been called in this turn
         const calledTools = new Set<string>();
 
         for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
@@ -198,7 +248,6 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                 ...(tools.length > 0 ? { tools } : {}),
             });
 
-            // Accumulate token usage
             if (response.usage) {
                 totalPromptTokens += response.usage.prompt_tokens;
                 totalCompletionTokens += response.usage.completion_tokens;
@@ -210,54 +259,69 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
 
             const assistantMessage = choice.message;
 
-            // If there are tool calls, execute them and loop
             if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-                // Add assistant message with tool calls to history
                 messages.push(assistantMessage);
 
-                // Execute each tool call
                 for (const toolCall of assistantMessage.tool_calls) {
                     if (toolCall.type !== 'function') continue;
                     const args = JSON.parse(toolCall.function.arguments);
                     let result: string;
 
-                    if (toolCall.function.name === 'save_captured_data') {
-                        try {
-                            await prisma.capturedData.create({
-                                data: {
-                                    companyId: conversation.companyId,
-                                    conversationId: conversation.id,
-                                    contactId: conversation.contactId,
-                                    fieldName: args.field_name,
-                                    fieldValue: args.field_value,
-                                    source: 'ai_agent',
-                                },
-                            });
-                            result = JSON.stringify({ success: true, message: `Dato "${args.field_name}" guardado correctamente.` });
-                        } catch (err) {
-                            result = JSON.stringify({ success: false, message: 'Error al guardar el dato.' });
-                        }
-                    } else if (['search_products', 'get_product_details', 'check_inventory', 'get_payment_methods', 'create_order'].includes(toolCall.function.name)) {
-                        // Block create_order if search_products wasn't called first
-                        if (toolCall.function.name === 'create_order' && !calledTools.has('search_products')) {
-                            result = JSON.stringify({
-                                error: 'No puedes crear un pedido sin antes buscar los productos. DEBES llamar search_products primero para obtener los IDs reales de los productos, y luego get_product_details para obtener los IDs de las variantes. Los IDs son números que devuelve la API, NO los inventes.',
-                            });
-                        } else {
-                            result = await executeEcommerceTool(
+                    switch (toolCall.function.name) {
+                        case 'save_captured_data':
+                            result = await handleSaveCapturedData(
+                                args,
+                                conversation.companyId,
+                                conversation.id,
+                                conversation.contactId,
+                            );
+                            break;
+
+                        case 'save_document':
+                            result = await handleSaveDocument(
+                                args,
+                                conversation.companyId,
+                                conversation.id,
+                                conversation.contactId,
+                                conversation.messages,
+                            );
+                            break;
+
+                        case 'send_to_webhook':
+                            result = await handleSendToWebhook(
+                                webhookConfig!,
+                                conversation.id,
+                                conversation.contact,
+                            );
+                            break;
+
+                        case 'search_products':
+                        case 'get_product_details':
+                        case 'check_inventory':
+                        case 'get_payment_methods':
+                        case 'create_order':
+                            if (toolCall.function.name === 'create_order' && !calledTools.has('search_products')) {
+                                result = JSON.stringify({
+                                    error: 'No puedes crear un pedido sin antes buscar los productos. DEBES llamar search_products primero para obtener los IDs reales de los productos, y luego get_product_details para obtener los IDs de las variantes. Los IDs son números que devuelve la API, NO los inventes.',
+                                });
+                            } else {
+                                result = await executeEcommerceTool(
+                                    toolCall.function.name,
+                                    args,
+                                    conversation.companyId,
+                                );
+                            }
+                            calledTools.add(toolCall.function.name);
+                            break;
+
+                        default:
+                            result = await executeCalendarTool(
                                 toolCall.function.name,
                                 args,
                                 conversation.companyId,
+                                aiAgent.calendarId,
                             );
-                        }
-                        calledTools.add(toolCall.function.name);
-                    } else {
-                        result = await executeCalendarTool(
-                            toolCall.function.name,
-                            args,
-                            conversation.companyId,
-                            aiAgent.calendarId,
-                        );
+                            break;
                     }
 
                     messages.push({
@@ -267,11 +331,10 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                     });
                 }
 
-                // Continue the loop to get the next response
                 continue;
             }
 
-            // No tool calls — this is the final text response
+            // No tool calls — final text response
             replyContent = assistantMessage.content;
             break;
         }
@@ -332,20 +395,210 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
     }
 }
 
-function buildSystemPrompt(systemPrompt: string, contextInfo: string | null, calendarEnabled: boolean, ecommerceEnabled: boolean): string {
+// ── Tool handlers ───────────────────────────────────────────────────
+
+async function handleSaveCapturedData(
+    args: { field_name: string; field_value: string },
+    companyId: string,
+    conversationId: string,
+    contactId: string | null,
+): Promise<string> {
+    try {
+        // Validate based on field name
+        const validationType = inferValidationType(args.field_name);
+        const validation = validateCapturedValue(args.field_value, validationType);
+
+        if (!validation.valid) {
+            return JSON.stringify({
+                success: false,
+                message: `El valor no es válido para "${args.field_name}". ${validation.hint || ''}. Pídele al cliente que lo corrija.`,
+            });
+        }
+
+        const trimmedValue = args.field_value.trim();
+
+        // Update existing or create new capture for this field
+        const existing = await prisma.capturedData.findFirst({
+            where: { conversationId, fieldName: args.field_name },
+            select: { id: true },
+        });
+
+        if (existing) {
+            await prisma.capturedData.update({
+                where: { id: existing.id },
+                data: { fieldValue: trimmedValue },
+            });
+        } else {
+            await prisma.capturedData.create({
+                data: {
+                    companyId,
+                    conversationId,
+                    contactId,
+                    fieldName: args.field_name,
+                    fieldValue: trimmedValue,
+                    source: 'ai_agent',
+                },
+            });
+        }
+
+        // Update contact record if applicable
+        if (contactId) {
+            const contactUpdate = mapFieldToContact(args.field_name, trimmedValue);
+            if (contactUpdate) {
+                await prisma.contact.update({
+                    where: { id: contactId },
+                    data: contactUpdate,
+                }).catch(() => {}); // Don't fail the tool call if contact update fails
+            }
+        }
+
+        return JSON.stringify({ success: true, message: `Dato "${args.field_name}" guardado correctamente.` });
+    } catch (err) {
+        return JSON.stringify({ success: false, message: 'Error al guardar el dato.' });
+    }
+}
+
+async function handleSaveDocument(
+    args: { field_name: string },
+    companyId: string,
+    conversationId: string,
+    contactId: string | null,
+    conversationMessages: { direction: string; mediaUrl: string | null; mediaType: string | null; mimeType: string | null; fileName: string | null }[],
+): Promise<string> {
+    try {
+        // Find the last inbound message with media
+        const lastMediaMessage = [...conversationMessages]
+            .reverse()
+            .find(m => m.direction === 'INBOUND' && m.mediaUrl);
+
+        if (!lastMediaMessage?.mediaUrl) {
+            return JSON.stringify({
+                success: false,
+                message: 'No se encontró ningún archivo adjunto en los mensajes recientes del cliente. Pídele que envíe el documento.',
+            });
+        }
+
+        const docValue = JSON.stringify({
+            url: lastMediaMessage.mediaUrl,
+            mimeType: lastMediaMessage.mimeType || null,
+            fileName: lastMediaMessage.fileName || null,
+            mediaType: lastMediaMessage.mediaType || null,
+        });
+
+        await prisma.capturedData.create({
+            data: {
+                companyId,
+                conversationId,
+                contactId,
+                fieldName: args.field_name,
+                fieldValue: docValue,
+                source: 'ai_agent',
+            },
+        });
+
+        return JSON.stringify({
+            success: true,
+            message: `Documento "${args.field_name}" guardado correctamente (${lastMediaMessage.fileName || lastMediaMessage.mediaType || 'archivo'}).`,
+        });
+    } catch (err) {
+        return JSON.stringify({ success: false, message: 'Error al guardar el documento.' });
+    }
+}
+
+async function handleSendToWebhook(
+    webhookConfig: WebhookConfig,
+    conversationId: string,
+    contact: { id: string; name: string | null; phone: string | null; email: string | null } | null,
+): Promise<string> {
+    try {
+        // Fetch all captured data for this conversation
+        const allCaptured = await prisma.capturedData.findMany({
+            where: { conversationId },
+            select: { fieldName: true, fieldValue: true },
+        });
+
+        if (allCaptured.length === 0) {
+            return JSON.stringify({
+                success: false,
+                message: 'No hay datos capturados para enviar. Recopila información del cliente primero.',
+            });
+        }
+
+        // Separate text fields from documents
+        const textFields: { fieldName: string; fieldValue: string }[] = [];
+        const documents: { fieldName: string; url: string; mimeType: string | null; fileName: string | null }[] = [];
+
+        for (const field of allCaptured) {
+            try {
+                const parsed = JSON.parse(field.fieldValue);
+                if (parsed && typeof parsed === 'object' && parsed.url) {
+                    documents.push({
+                        fieldName: field.fieldName,
+                        url: parsed.url,
+                        mimeType: parsed.mimeType || null,
+                        fileName: parsed.fileName || null,
+                    });
+                    continue;
+                }
+            } catch {
+                // Not JSON — it's a text field
+            }
+            textFields.push(field);
+        }
+
+        const payload = buildWebhookPayload(
+            conversationId,
+            {
+                id: contact?.id || null,
+                name: contact?.name || null,
+                phone: contact?.phone || null,
+                email: contact?.email || null,
+            },
+            textFields,
+            documents,
+            'ai_agent.data_captured',
+        );
+
+        const result = await sendWebhook(webhookConfig, payload);
+
+        if (result.ok) {
+            return JSON.stringify({ success: true, message: 'Datos enviados exitosamente al sistema externo.' });
+        }
+        return JSON.stringify({
+            success: false,
+            message: `Error al enviar datos: ${result.error || `HTTP ${result.status}`}`,
+        });
+    } catch (err) {
+        return JSON.stringify({ success: false, message: 'Error al enviar datos al webhook.' });
+    }
+}
+
+// ── System prompt builder ───────────────────────────────────────────
+
+interface SystemPromptOptions {
+    systemPrompt: string;
+    contextInfo: string | null;
+    calendarEnabled: boolean;
+    ecommerceEnabled: boolean;
+    dataCaptureEnabled: boolean;
+    webhookEnabled: boolean;
+}
+
+function buildSystemPrompt(opts: SystemPromptOptions): string {
     const now = new Date();
     const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
     const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     const dateStr = `${days[now.getDay()]} ${now.getDate()} de ${months[now.getMonth()]} de ${now.getFullYear()}`;
     const timeStr = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    let prompt = systemPrompt;
+    let prompt = opts.systemPrompt;
     prompt += `\n\nFecha y hora actual: ${dateStr}, ${timeStr}.`;
-    if (contextInfo) {
-        prompt += `\n\nInformación de contexto adicional:\n${contextInfo}`;
+
+    if (opts.contextInfo) {
+        prompt += `\n\nInformación de contexto adicional:\n${opts.contextInfo}`;
     }
 
-    if (calendarEnabled) {
+    if (opts.calendarEnabled) {
         prompt += '\n\nTienes acceso a Google Calendar. Puedes consultar disponibilidad, listar eventos y agendar reuniones. Cuando un cliente quiera agendar una reunión:';
         prompt += '\n1. Primero verifica la disponibilidad con check_calendar_availability.';
         prompt += '\n2. Si está disponible, crea el evento con create_calendar_event.';
@@ -353,7 +606,7 @@ function buildSystemPrompt(systemPrompt: string, contextInfo: string | null, cal
         prompt += '\nSi el horario no está disponible, sugiere alternativas. Usa formato 24h para las horas internamente pero comunica en formato 12h al cliente.';
     }
 
-    if (ecommerceEnabled) {
+    if (opts.ecommerceEnabled) {
         prompt += '\n\nTienes acceso a la tienda online de la empresa. Puedes buscar productos, consultar detalles, verificar inventario, consultar métodos de pago y crear pedidos. Cuando un cliente pregunte por productos:';
         prompt += '\n1. Usa search_products para buscar productos por nombre o categoría. Esto te da el ID NUMÉRICO de cada producto (ej: "1234").';
         prompt += '\n2. Usa get_product_details con el ID numérico para obtener variantes con sus IDs numéricos, precios, tallas, colores.';
@@ -365,11 +618,20 @@ function buildSystemPrompt(systemPrompt: string, contextInfo: string | null, cal
         prompt += '\nPresenta la información de forma clara y amigable. Incluye precios y disponibilidad. Si un producto no está disponible, sugiere alternativas buscando productos similares.';
     }
 
-    prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
+    if (opts.dataCaptureEnabled) {
+        prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
+        prompt += '\n\nTambién tienes la herramienta save_document para guardar archivos adjuntos que envíe el cliente (hojas de vida, documentos, fotos, etc.). Cuando el cliente envíe un archivo, usa save_document con un nombre descriptivo.';
+
+        if (opts.webhookEnabled) {
+            prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. Cuando hayas recopilado suficiente información del cliente (datos personales, documentos, etc.), usa esta herramienta para enviar todo. Confirma al cliente que sus datos fueron enviados exitosamente.';
+        }
+    }
 
     prompt += '\n\nSi el usuario insiste en hablar con un humano o si no puedes resolver su consulta, responde con [TRANSFER_TO_HUMAN] al inicio de tu mensaje seguido de un mensaje de despedida amable.';
     return prompt;
 }
+
+// ── Helpers ─────────────────────────────────────────────────────────
 
 async function transferToHuman(conversationId: string, companyId: string) {
     const leastBusyId = await findLeastBusyAgent(companyId);

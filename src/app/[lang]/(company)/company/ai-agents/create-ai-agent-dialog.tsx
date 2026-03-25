@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState, useEffect } from 'react';
+import { useActionState, useState, useEffect, useRef } from 'react';
 import { createAiAgent } from './actions';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Loader2 } from "lucide-react";
+import { AGENT_TYPE_CONFIGS, AI_AGENT_TYPES } from '@/lib/ai-agent-types';
+import type { AiAgentType } from '@/lib/ai-agent-types';
 
 interface Channel {
     id: string;
@@ -35,15 +37,39 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
     const [state, action, isPending] = useActionState(createAiAgent, undefined);
     const [open, setOpen] = useState(false);
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+    const [agentType, setAgentType] = useState<AiAgentType>('CUSTOM');
     const [calendarEnabled, setCalendarEnabled] = useState(false);
     const [ecommerceEnabled, setEcommerceEnabled] = useState(false);
+    const [dataCaptureEnabled, setDataCaptureEnabled] = useState(true);
+    const [webhookEnabled, setWebhookEnabled] = useState(false);
+    const [systemPrompt, setSystemPrompt] = useState('');
+
+    const promptRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         if (state?.startsWith('Success')) {
             setOpen(false);
             setSelectedChannels([]);
+            setAgentType('CUSTOM');
+            setSystemPrompt('');
         }
     }, [state]);
+
+    const handleTypeChange = (type: AiAgentType) => {
+        setAgentType(type);
+        const config = AGENT_TYPE_CONFIGS[type];
+
+        // Pre-fill system prompt
+        if (config.defaultPrompt) {
+            setSystemPrompt(config.defaultPrompt);
+        }
+
+        // Apply suggested capabilities
+        setDataCaptureEnabled(config.suggestedCapabilities.dataCaptureEnabled);
+        setWebhookEnabled(config.suggestedCapabilities.webhookEnabled);
+        if (hasGoogleCalendar) setCalendarEnabled(config.suggestedCapabilities.calendarEnabled);
+        if (hasEcommerce) setEcommerceEnabled(config.suggestedCapabilities.ecommerceEnabled);
+    };
 
     const toggleChannel = (channelId: string) => {
         setSelectedChannels(prev =>
@@ -69,6 +95,30 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                     </DialogDescription>
                 </DialogHeader>
                 <form action={action} className="grid gap-4 py-4">
+                    <input type="hidden" name="agentType" value={agentType} />
+
+                    {/* Agent Type Selector */}
+                    <div className="space-y-2">
+                        <Label>Tipo de Agente</Label>
+                        <Select value={agentType} onValueChange={(v) => handleTypeChange(v as AiAgentType)}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {AI_AGENT_TYPES.map(type => (
+                                    <SelectItem key={type} value={type}>
+                                        <div className="flex flex-col">
+                                            <span>{AGENT_TYPE_CONFIGS[type].label}</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            {AGENT_TYPE_CONFIGS[agentType].description}
+                        </p>
+                    </div>
+
                     <div className="space-y-2">
                         <Label htmlFor="name">Nombre</Label>
                         <Input
@@ -84,6 +134,9 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                         <Textarea
                             id="systemPrompt"
                             name="systemPrompt"
+                            ref={promptRef}
+                            value={systemPrompt}
+                            onChange={(e) => setSystemPrompt(e.target.value)}
                             placeholder="Eres un asistente de atención al cliente amable y profesional..."
                             rows={5}
                             required
@@ -147,6 +200,25 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                         </p>
                     </div>
 
+                    {/* Data Capture Toggle */}
+                    <div className="space-y-2 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="dataCaptureEnabled" className="flex flex-col gap-1">
+                                <span>Captura de Datos</span>
+                                <span className="font-normal text-xs text-muted-foreground">
+                                    Permite al agente capturar automáticamente datos del cliente (nombre, email, teléfono, documentos).
+                                </span>
+                            </Label>
+                            <Switch
+                                id="dataCaptureEnabled"
+                                checked={dataCaptureEnabled}
+                                onCheckedChange={setDataCaptureEnabled}
+                            />
+                        </div>
+                        <input type="hidden" name="dataCaptureEnabled" value={dataCaptureEnabled ? 'on' : 'off'} />
+                    </div>
+
+                    {/* Calendar */}
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="calendarEnabled" className="flex flex-col gap-1">
@@ -181,6 +253,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                         )}
                     </div>
 
+                    {/* Ecommerce */}
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="ecommerceEnabled" className="flex flex-col gap-1">
@@ -201,6 +274,57 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                         <input type="hidden" name="ecommerceEnabled" value={ecommerceEnabled ? 'on' : 'off'} />
                     </div>
 
+                    {/* Webhook */}
+                    <div className="space-y-2 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="webhookEnabled" className="flex flex-col gap-1">
+                                <span>Webhook (ERP/CRM)</span>
+                                <span className="font-normal text-xs text-muted-foreground">
+                                    Envía los datos capturados a un sistema externo cuando el agente lo decida.
+                                </span>
+                            </Label>
+                            <Switch
+                                id="webhookEnabled"
+                                checked={webhookEnabled}
+                                onCheckedChange={setWebhookEnabled}
+                            />
+                        </div>
+                        {webhookEnabled && (
+                            <div className="space-y-3 mt-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="webhookUrl">URL del Webhook</Label>
+                                    <Input
+                                        id="webhookUrl"
+                                        name="webhookUrl"
+                                        placeholder="https://tu-erp.com/api/webhook"
+                                        required={webhookEnabled}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="webhookSecret">Secret (opcional)</Label>
+                                    <Input
+                                        id="webhookSecret"
+                                        name="webhookSecret"
+                                        placeholder="Clave secreta para firmar payloads (HMAC-SHA256)"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="webhookHeaders">Headers personalizados (opcional)</Label>
+                                    <Textarea
+                                        id="webhookHeaders"
+                                        name="webhookHeaders"
+                                        placeholder='{"Authorization": "Bearer tu-api-key"}'
+                                        rows={2}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        JSON con headers adicionales. Ej: {`{"Authorization": "Bearer key"}`}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Channels */}
                     <div className="space-y-2">
                         <Label>Canales</Label>
                         <div className="space-y-2 rounded-md border p-3">
