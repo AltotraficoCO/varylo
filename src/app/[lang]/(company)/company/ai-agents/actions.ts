@@ -89,7 +89,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
                 calendarEnabled,
                 calendarId,
                 ecommerceEnabled,
-                webhookConfigJson: webhookConfigJson ?? undefined,
+                webhookConfigJson: webhookConfigJson ?? Prisma.JsonNull,
                 channels: validChannelIds.length > 0 ? {
                     connect: validChannelIds.map(id => ({ id })),
                 } : undefined,
@@ -156,7 +156,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
                 calendarEnabled,
                 calendarId,
                 ecommerceEnabled,
-                webhookConfigJson: webhookConfigJson ?? null,
+                webhookConfigJson: webhookConfigJson ?? Prisma.JsonNull,
                 channels: {
                     set: validChannels.map(c => ({ id: c.id })),
                 },
