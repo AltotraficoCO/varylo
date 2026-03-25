@@ -4,8 +4,9 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { AI_AGENT_TYPES } from '@/lib/ai-agent-types';
 import { revalidatePath } from 'next/cache';
+import type { Prisma } from '@prisma/client';
 
-function parseWebhookConfig(formData: FormData): Record<string, unknown> | null {
+function parseWebhookConfig(formData: FormData): Prisma.InputJsonValue | null {
     const webhookUrl = (formData.get('webhookUrl') as string)?.trim() || '';
     if (!webhookUrl) return null;
 
