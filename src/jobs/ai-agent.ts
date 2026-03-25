@@ -441,14 +441,22 @@ async function handleSaveCapturedData(
             });
         }
 
-        // Update contact record if applicable
+        // Update contact record only if the field is currently empty
         if (contactId) {
             const contactUpdate = mapFieldToContact(args.field_name, trimmedValue);
             if (contactUpdate) {
-                await prisma.contact.update({
+                const fieldKey = Object.keys(contactUpdate)[0];
+                const contact = await prisma.contact.findUnique({
                     where: { id: contactId },
-                    data: contactUpdate,
-                }).catch(() => {}); // Don't fail the tool call if contact update fails
+                    select: { [fieldKey]: true },
+                });
+                // Only fill empty fields — never overwrite existing data
+                if (contact && !contact[fieldKey]) {
+                    await prisma.contact.update({
+                        where: { id: contactId },
+                        data: contactUpdate,
+                    }).catch(() => {});
+                }
             }
         }
 
