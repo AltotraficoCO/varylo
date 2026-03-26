@@ -275,14 +275,21 @@ async function processNode(
             });
         }
 
-        // Auto-update contact with known fields
+        // Auto-update contact with known fields (only if currently empty)
         if (conversation?.contactId) {
             const contactUpdate = mapFieldToContact(capture.fieldName, trimmedValue);
             if (contactUpdate) {
-                await prisma.contact.update({
+                const fieldKey = Object.keys(contactUpdate)[0];
+                const existingContact = await prisma.contact.findUnique({
                     where: { id: conversation.contactId },
-                    data: contactUpdate,
+                    select: { [fieldKey]: true },
                 });
+                if (existingContact && !existingContact[fieldKey]) {
+                    await prisma.contact.update({
+                        where: { id: conversation.contactId },
+                        data: contactUpdate,
+                    });
+                }
             }
         }
 
