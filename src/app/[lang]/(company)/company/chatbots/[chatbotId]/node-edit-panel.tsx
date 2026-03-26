@@ -14,6 +14,7 @@ interface NodeEditPanelProps {
     label: string;
     isStart: boolean;
     allNodes: { id: string; label: string }[];
+    flowNodes: Record<string, ChatbotFlowNode>;
     webhookConfig?: WebhookConfig;
     onUpdateNode: (nodeId: string, updates: Partial<ChatbotFlowNode>) => void;
     onUpdateLabel: (label: string) => void;
@@ -28,6 +29,7 @@ export function NodeEditPanel({
     label,
     isStart,
     allNodes,
+    flowNodes,
     webhookConfig,
     onUpdateNode,
     onUpdateLabel,
@@ -263,6 +265,54 @@ export function NodeEditPanel({
                                 Se envia como header X-Varylo-Signature para que tu sistema verifique la autenticidad.
                             </p>
                         </div>
+
+                        {/* Payload preview */}
+                        {(() => {
+                            const captureNodes = Object.values(flowNodes).filter(n => n.dataCapture);
+                            if (captureNodes.length === 0) return null;
+
+                            const capturedData: Record<string, string> = {};
+                            const documents: { fieldName: string; url: string; mimeType: string; fileName: string }[] = [];
+
+                            for (const n of captureNodes) {
+                                const dc = n.dataCapture!;
+                                if (dc.validation === 'document') {
+                                    documents.push({
+                                        fieldName: dc.fieldName,
+                                        url: 'https://storage.example.com/archivo.pdf',
+                                        mimeType: 'application/pdf',
+                                        fileName: 'archivo.pdf',
+                                    });
+                                } else {
+                                    const examples: Record<string, string> = {
+                                        email: 'cliente@email.com',
+                                        phone: '3001234567',
+                                        number: '12345',
+                                    };
+                                    capturedData[dc.fieldName] = examples[dc.validation || ''] || dc.fieldLabel || 'valor_ejemplo';
+                                }
+                            }
+
+                            const examplePayload = {
+                                event: 'chatbot.data_captured',
+                                conversationId: 'conv_abc123',
+                                capturedData,
+                                ...(documents.length > 0 ? { documents } : {}),
+                                timestamp: new Date().toISOString(),
+                            };
+
+                            return (
+                                <div className="space-y-1.5 mt-2">
+                                    <Label className="text-xs text-muted-foreground">Ejemplo del payload (POST JSON)</Label>
+                                    <pre className="text-[10px] bg-zinc-900 text-green-400 p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">
+                                        {JSON.stringify(examplePayload, null, 2)}
+                                    </pre>
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Usa este ejemplo para mapear los campos en tu sistema externo.
+                                    </p>
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
 

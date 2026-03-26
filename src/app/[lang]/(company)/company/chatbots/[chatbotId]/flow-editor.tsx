@@ -498,6 +498,7 @@ function FlowCanvas({
                         label={nodeLabels[selectedNodeId] || ''}
                         isStart={selectedNodeId === initialFlow.startNodeId}
                         allNodes={allNodesList}
+                        flowNodes={flow.nodes}
                         webhookConfig={webhookConfig}
                         onUpdateNode={handleUpdateNode}
                         onUpdateLabel={(label) => setNodeLabels(prev => ({ ...prev, [selectedNodeId]: label }))}
