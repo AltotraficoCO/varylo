@@ -61,6 +61,37 @@ export async function uploadDataUrlToStorage(
 }
 
 /**
+ * Delete a file from Supabase Storage by its public URL.
+ */
+export async function deleteFromStorage(publicUrl: string): Promise<boolean> {
+    try {
+        const prefix = `/storage/v1/object/public/${BUCKET}/`;
+        const idx = publicUrl.indexOf(prefix);
+        if (idx === -1) return false;
+        const path = publicUrl.slice(idx + prefix.length);
+
+        const res = await fetch(
+            `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    Authorization: `Bearer ${SUPABASE_KEY}`,
+                },
+            },
+        );
+
+        if (!res.ok) {
+            console.error('[Storage] Delete failed:', res.status, await res.text().catch(() => ''));
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('[Storage] Delete error:', error instanceof Error ? error.message : 'Unknown');
+        return false;
+    }
+}
+
+/**
  * Generate a storage path for a media file.
  */
 export function buildMediaPath(companyId: string, fileName: string): string {
