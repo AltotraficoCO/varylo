@@ -498,8 +498,7 @@ async function triggerWebhookSend(conversationId: string, companyId: string, flo
             textFields.push({ fieldName: item.fieldName, fieldValue: item.fieldValue });
         }
 
-        const contact = conversation?.contact || { id: null, name: null, phone: null, email: null };
-        const payload = buildWebhookPayload(conversationId, contact, textFields, documents);
+        const payload = buildWebhookPayload(conversationId, textFields, documents);
 
         const result = await sendWebhook(webhookConfig, payload);
 

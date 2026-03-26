@@ -4,12 +4,6 @@ import type { WebhookConfig } from '@/types/chatbot';
 interface WebhookPayload {
     event: string;
     conversationId: string;
-    contactId: string | null;
-    contact: {
-        name: string | null;
-        phone: string | null;
-        email: string | null;
-    };
     capturedData: Record<string, string>;
     documents: {
         fieldName: string;
@@ -98,11 +92,11 @@ export async function sendWebhook(
 }
 
 /**
- * Build the webhook payload from captured data and conversation info.
+ * Build the webhook payload from captured data only.
+ * Does NOT include contact info from the database — only what was explicitly captured.
  */
 export function buildWebhookPayload(
     conversationId: string,
-    contact: { id: string | null; name: string | null; phone: string | null; email: string | null },
     capturedFields: { fieldName: string; fieldValue: string }[],
     documents: { fieldName: string; url: string; mimeType: string | null; fileName: string | null }[],
     eventName: string = 'chatbot.data_captured',
@@ -115,12 +109,6 @@ export function buildWebhookPayload(
     return {
         event: eventName,
         conversationId,
-        contactId: contact.id,
-        contact: {
-            name: contact.name,
-            phone: contact.phone,
-            email: contact.email,
-        },
         capturedData,
         documents,
         timestamp: new Date().toISOString(),

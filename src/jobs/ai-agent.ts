@@ -291,7 +291,6 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                             result = await handleSendToWebhook(
                                 webhookConfig!,
                                 conversation.id,
-                                conversation.contact,
                             );
                             break;
 
@@ -516,7 +515,6 @@ async function handleSaveDocument(
 async function handleSendToWebhook(
     webhookConfig: WebhookConfig,
     conversationId: string,
-    contact: { id: string; name: string | null; phone: string | null; email: string | null } | null,
 ): Promise<string> {
     try {
         // Fetch all captured data for this conversation
@@ -556,12 +554,6 @@ async function handleSendToWebhook(
 
         const payload = buildWebhookPayload(
             conversationId,
-            {
-                id: contact?.id || null,
-                name: contact?.name || null,
-                phone: contact?.phone || null,
-                email: contact?.email || null,
-            },
             textFields,
             documents,
             'ai_agent.data_captured',
