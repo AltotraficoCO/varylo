@@ -68,7 +68,7 @@ const WEBHOOK_TOOLS: ChatCompletionTool[] = [
         type: 'function',
         function: {
             name: 'send_to_webhook',
-            description: 'Envia todos los datos capturados del cliente al sistema externo (ERP/CRM). Usa esta herramienta cuando hayas recopilado suficiente informacion del cliente y quieras enviarla.',
+            description: 'Envia todos los datos capturados del cliente al sistema externo (ERP/CRM). Usa esta herramienta cuando hayas terminado de recopilar la informacion del cliente y la conversacion de captura haya concluido.',
             parameters: {
                 type: 'object',
                 properties: {},
@@ -631,7 +631,7 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
         prompt += '\n\nTambién tienes la herramienta save_document para guardar archivos adjuntos que envíe el cliente (hojas de vida, documentos, fotos, etc.). Cuando el cliente envíe un archivo, usa save_document con un nombre descriptivo.';
 
         if (opts.webhookEnabled) {
-            prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. Cuando hayas recopilado suficiente información del cliente (datos personales, documentos, etc.), usa esta herramienta para enviar todo. Confirma al cliente que sus datos fueron enviados exitosamente.';
+            prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. IMPORTANTE: Debes llamar send_to_webhook SIEMPRE al concluir la recopilación de datos del cliente. Cuando hayas terminado de capturar toda la información necesaria (datos personales, documentos, etc.), usa send_to_webhook para enviar todo. No olvides confirmar al cliente que sus datos fueron enviados exitosamente.';
         }
     }
 
