@@ -355,10 +355,12 @@ export function MessageList({ messages }: { messages: Message[] }) {
                 return (
                     <div key={msg.id}>
                         {showDivider && (
-                            <div className="flex items-center justify-center my-4">
-                                <div className="bg-muted/80 text-muted-foreground text-[11px] font-medium px-3 py-1 rounded-full shadow-sm capitalize">
+                            <div className="flex items-center gap-3 my-5">
+                                <div className="flex-1 h-px bg-border" />
+                                <span className="bg-white dark:bg-zinc-800 text-muted-foreground text-[11px] font-medium px-3 py-1 rounded-md shadow-sm border capitalize">
                                     {formatDateDivider(msgDate)}
-                                </div>
+                                </span>
+                                <div className="flex-1 h-px bg-border" />
                             </div>
                         )}
                         <div
