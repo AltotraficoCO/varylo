@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { saveInstagramCredentials } from './actions';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ export function InstagramDMForm({
     channelId?: string | null;
     automationPriority?: string;
 }) {
+    const router = useRouter();
     const [state, action, isPending] = useActionState(saveInstagramCredentials, undefined);
     const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
     const [isTesting, setIsTesting] = useState(false);
@@ -85,7 +87,12 @@ export function InstagramDMForm({
         setIsDisconnecting(true);
         try {
             const { disconnectInstagram } = await import('./actions');
-            await disconnectInstagram();
+            const result = await disconnectInstagram();
+            if (result.success) {
+                router.refresh();
+            } else {
+                alert(result.message || 'Error al desconectar.');
+            }
         } catch {
             alert('Error al desconectar.');
         } finally {
