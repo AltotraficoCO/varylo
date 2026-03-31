@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, MessageSquare, Globe, Instagram, Lock, CreditCard } from 'lucide-react';
 import { WhatsAppConnectionForm } from './whatsapp-form';
 import { WebChatForm } from './webchat-form';
+import { InstagramDMForm } from './instagram-dm-form';
 import Link from 'next/link';
 
 type ChannelItem = {
@@ -34,10 +35,16 @@ type ChannelsSectionProps = {
         channelId: string | null;
         automationPriority: string;
     };
+    instagramConfig: {
+        pageId?: string;
+        hasAccessToken: boolean;
+        channelId: string | null;
+        automationPriority: string;
+    };
     hasActiveSubscription: boolean;
 };
 
-export function ChannelsSection({ whatsappConfig, webchatConfig, hasActiveSubscription }: ChannelsSectionProps) {
+export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig, hasActiveSubscription }: ChannelsSectionProps) {
     const [activeItem, setActiveItem] = useState<string | null>(null);
 
     const channels: ChannelItem[] = [
@@ -64,9 +71,9 @@ export function ChannelsSection({ whatsappConfig, webchatConfig, hasActiveSubscr
             name: 'Instagram DM',
             description: 'Conecta tu cuenta de Instagram para recibir DMs.',
             icon: Instagram,
-            status: 'coming_soon',
+            status: 'active',
             color: 'bg-pink-50 text-pink-600 border-pink-200',
-            badge: 'Próximamente',
+            badge: instagramConfig.channelId ? 'Conectado' : 'No conectado',
         },
     ];
 
@@ -165,6 +172,28 @@ export function ChannelsSection({ whatsappConfig, webchatConfig, hasActiveSubscr
                     apiKey={webchatConfig.apiKey}
                     channelId={webchatConfig.channelId}
                     automationPriority={webchatConfig.automationPriority as any}
+                />
+            </div>
+        );
+    }
+
+    if (activeItem === 'instagram') {
+        return (
+            <div className="space-y-4">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActiveItem(null)}
+                    className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Volver a canales
+                </Button>
+                <InstagramDMForm
+                    initialPageId={instagramConfig.pageId}
+                    hasAccessToken={instagramConfig.hasAccessToken}
+                    channelId={instagramConfig.channelId}
+                    automationPriority={instagramConfig.automationPriority}
                 />
             </div>
         );

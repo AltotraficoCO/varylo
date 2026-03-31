@@ -36,7 +36,7 @@ export default async function SettingsPage(props: {
     if (!companyId) return null;
 
     // Fetch all data in parallel
-    const [company, whatsappChannel, webchatChannel, tags, companyAgents, ecommerceIntegration, activeSubscription] = await Promise.all([
+    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceIntegration, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -53,6 +53,7 @@ export default async function SettingsPage(props: {
         }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WHATSAPP } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WEB_CHAT } }),
+        prisma.channel.findFirst({ where: { companyId, type: ChannelType.INSTAGRAM } }),
         prisma.tag.findMany({
             where: { companyId },
             orderBy: { createdAt: 'desc' },
@@ -88,6 +89,9 @@ export default async function SettingsPage(props: {
     // WebChat config
     const webchatActive = webchatChannel?.status === 'CONNECTED';
     const webchatConfig = webchatChannel?.configJson as { apiKey?: string } | null;
+
+    // Instagram config
+    const instagramConfigJson = instagramChannel?.configJson as { pageId?: string; accessToken?: string } | null;
 
     return (
         <div className="w-full">
@@ -175,6 +179,12 @@ export default async function SettingsPage(props: {
                                 apiKey: webchatConfig?.apiKey || null,
                                 channelId: webchatChannel?.id || null,
                                 automationPriority: webchatChannel?.automationPriority || 'CHATBOT_FIRST',
+                            }}
+                            instagramConfig={{
+                                pageId: instagramConfigJson?.pageId,
+                                hasAccessToken: !!instagramConfigJson?.accessToken,
+                                channelId: instagramChannel?.id || null,
+                                automationPriority: instagramChannel?.automationPriority || 'CHATBOT_FIRST',
                             }}
                             hasActiveSubscription={!!activeSubscription}
                         />
