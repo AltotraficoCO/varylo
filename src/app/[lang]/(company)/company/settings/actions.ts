@@ -168,13 +168,11 @@ export async function saveInstagramCredentials(prevState: string | undefined, fo
     const companyId = session.user.companyId;
     const pageId = formData.get('pageId') as string;
     const accessToken = formData.get('accessToken') as string;
-    // verifyToken coming from form might be empty in OAuth flow, as we use global token.
+    const verifyToken = formData.get('verifyToken') as string;
 
     if (!pageId || !accessToken) {
         return 'Error: Page ID and Access Token are required.';
     }
-
-    const GLOBAL_VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || '';
 
     try {
         const existingChannel = await prisma.channel.findFirst({
@@ -187,7 +185,7 @@ export async function saveInstagramCredentials(prevState: string | undefined, fo
         const configJson = {
             pageId,
             accessToken,
-            verifyToken: GLOBAL_VERIFY_TOKEN, // Store the global one or just rely on env
+            verifyToken: verifyToken || (existingChannel?.configJson as any)?.verifyToken || '',
         };
 
         if (existingChannel) {

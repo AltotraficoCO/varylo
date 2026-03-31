@@ -1,20 +1,31 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useState, useMemo } from 'react';
 import { saveInstagramCredentials } from './actions';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Copy, Check } from "lucide-react";
+
+function generateVerifyToken(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'varylo_';
+    for (let i = 0; i < 24; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
 
 export function InstagramDMForm({
     initialPageId,
+    initialVerifyToken,
     hasAccessToken,
     channelId,
     automationPriority,
 }: {
     initialPageId?: string;
+    initialVerifyToken?: string;
     hasAccessToken?: boolean;
     channelId?: string | null;
     automationPriority?: string;
@@ -29,6 +40,16 @@ export function InstagramDMForm({
     const isSuccess = state?.startsWith('Success');
     const isError = state?.startsWith('Error');
     const isConnected = hasAccessToken || isSuccess;
+    const [copied, setCopied] = useState(false);
+
+    // Generate a stable verify token per mount (or use existing one)
+    const verifyToken = useMemo(() => initialVerifyToken || generateVerifyToken(), [initialVerifyToken]);
+
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     const handleTestConnection = async () => {
         setIsTesting(true);
@@ -177,13 +198,52 @@ export function InstagramDMForm({
                         </p>
                     </div>
 
-                    <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-                        <h4 className="text-sm font-medium">URL del Webhook</h4>
-                        <code className="text-xs bg-background px-2 py-1 rounded border block break-all">
-                            {typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/instagram` : '/api/webhook/instagram'}
-                        </code>
+                    {/* Hidden field to submit the auto-generated verify token */}
+                    <input type="hidden" name="verifyToken" value={verifyToken} />
+
+                    <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                        <h4 className="text-sm font-medium">Configuración del Webhook en Meta</h4>
                         <p className="text-xs text-muted-foreground">
-                            Configura esta URL en Meta for Developers → Tu App → Webhooks → Instagram.
+                            Ve a Meta for Developers → Tu App → Webhooks → Instagram y configura:
+                        </p>
+
+                        <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Callback URL</Label>
+                            <div className="flex items-center gap-2">
+                                <code className="text-xs bg-background px-2 py-1.5 rounded border block break-all flex-1">
+                                    {typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/instagram` : '/api/webhook/instagram'}
+                                </code>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0"
+                                    onClick={() => handleCopy(typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/instagram` : '')}
+                                >
+                                    <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Verify Token</Label>
+                            <div className="flex items-center gap-2">
+                                <code className="text-xs bg-background px-2 py-1.5 rounded border block break-all flex-1 font-mono">
+                                    {verifyToken}
+                                </code>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0"
+                                    onClick={() => handleCopy(verifyToken)}
+                                >
+                                    {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground">
                             Suscríbete al campo <code className="bg-muted px-1 rounded">messages</code>.
                         </p>
                     </div>

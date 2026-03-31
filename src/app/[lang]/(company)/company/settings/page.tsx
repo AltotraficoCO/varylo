@@ -91,7 +91,7 @@ export default async function SettingsPage(props: {
     const webchatConfig = webchatChannel?.configJson as { apiKey?: string } | null;
 
     // Instagram config
-    const instagramConfigJson = instagramChannel?.configJson as { pageId?: string; accessToken?: string } | null;
+    const instagramConfigJson = instagramChannel?.configJson as { pageId?: string; accessToken?: string; verifyToken?: string } | null;
 
     return (
         <div className="w-full">
@@ -182,6 +182,7 @@ export default async function SettingsPage(props: {
                             }}
                             instagramConfig={{
                                 pageId: instagramConfigJson?.pageId,
+                                verifyToken: instagramConfigJson?.verifyToken,
                                 hasAccessToken: !!instagramConfigJson?.accessToken,
                                 channelId: instagramChannel?.id || null,
                                 automationPriority: instagramChannel?.automationPriority || 'CHATBOT_FIRST',
