@@ -11,15 +11,8 @@ export const maxDuration = 60;
 
 const MAX_MESSAGE_LENGTH = 4096;
 
-/** Verify Meta X-Hub-Signature-256 header */
-function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
-    const appSecret = process.env.META_APP_SECRET;
-    if (!appSecret) {
-        console.error('[Instagram] META_APP_SECRET not configured');
-        return false;
-    }
-    if (!signature || !signature.startsWith('sha256=')) return false;
-
+/** Verify Meta X-Hub-Signature-256 header against a given appSecret */
+function verifySignatureWithSecret(rawBody: string, signature: string, appSecret: string): boolean {
     const expectedSignature = createHmac('sha256', appSecret)
         .update(rawBody)
         .digest('hex');
@@ -27,6 +20,36 @@ function verifyWebhookSignature(rawBody: string, signature: string | null): bool
     const actual = Buffer.from(signature, 'utf8');
     if (expected.length !== actual.length) return false;
     return timingSafeEqual(expected, actual);
+}
+
+/**
+ * Verify webhook signature trying:
+ * 1. Global META_APP_SECRET env var
+ * 2. Each Instagram channel's appSecret from configJson
+ */
+async function verifyWebhookSignature(rawBody: string, signature: string | null): Promise<boolean> {
+    if (!signature || !signature.startsWith('sha256=')) return false;
+
+    // Try global env var first (backwards compatible)
+    const globalSecret = process.env.META_APP_SECRET;
+    if (globalSecret && verifySignatureWithSecret(rawBody, signature, globalSecret)) {
+        return true;
+    }
+
+    // Try each Instagram channel's appSecret
+    const channels = await prisma.channel.findMany({
+        where: { type: ChannelType.INSTAGRAM, status: 'CONNECTED' },
+        select: { configJson: true },
+    });
+
+    for (const ch of channels) {
+        const config = ch.configJson as { appSecret?: string } | null;
+        if (config?.appSecret && verifySignatureWithSecret(rawBody, signature, config.appSecret)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 export async function GET(req: NextRequest) {
@@ -74,15 +97,12 @@ export async function POST(req: NextRequest) {
     try {
         const rawBody = await req.text();
 
-        // Verify webhook signature from Meta
+        // Verify webhook signature from Meta (checks global secret + per-channel secrets)
         const signature = req.headers.get('x-hub-signature-256');
-        const hasAppSecret = !!process.env.META_APP_SECRET;
-        console.log(`[Instagram Webhook] Signature check: hasSignature=${!!signature}, hasAppSecret=${hasAppSecret}, signaturePrefix=${signature?.substring(0, 12)}`);
-        if (!verifyWebhookSignature(rawBody, signature)) {
+        if (!(await verifyWebhookSignature(rawBody, signature))) {
             console.error('[Instagram Webhook] Signature verification FAILED');
             return new NextResponse('Forbidden', { status: 403 });
         }
-        console.log('[Instagram Webhook] Signature OK');
 
         const body = JSON.parse(rawBody);
 

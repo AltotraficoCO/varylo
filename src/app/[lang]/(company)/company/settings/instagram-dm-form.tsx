@@ -197,11 +197,24 @@ export function InstagramDMForm({
                             id="accessToken"
                             name="accessToken"
                             type="password"
-                            placeholder="EAAG..."
+                            placeholder="EAAG... o IGA..."
                             required
                         />
                         <p className="text-xs text-muted-foreground">
                             Token con permisos: <code className="text-[11px] bg-muted px-1 rounded">instagram_manage_messages</code>, <code className="text-[11px] bg-muted px-1 rounded">pages_messaging</code>
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="appSecret">App Secret</Label>
+                        <Input
+                            id="appSecret"
+                            name="appSecret"
+                            type="password"
+                            placeholder="Tu App Secret de Meta"
+                            required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Meta for Developers → Tu App → Settings → Basic → App Secret
                         </p>
                     </div>
 

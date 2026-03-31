@@ -168,10 +168,11 @@ export async function saveInstagramCredentials(prevState: string | undefined, fo
     const companyId = session.user.companyId;
     const pageId = formData.get('pageId') as string;
     const accessToken = formData.get('accessToken') as string;
+    const appSecret = formData.get('appSecret') as string;
     const verifyToken = formData.get('verifyToken') as string;
 
-    if (!pageId || !accessToken) {
-        return 'Error: Page ID and Access Token are required.';
+    if (!pageId || !accessToken || !appSecret) {
+        return 'Error: Page ID, Access Token y App Secret son requeridos.';
     }
 
     try {
@@ -185,6 +186,7 @@ export async function saveInstagramCredentials(prevState: string | undefined, fo
         const configJson = {
             pageId,
             accessToken,
+            appSecret,
             verifyToken: verifyToken || (existingChannel?.configJson as any)?.verifyToken || '',
         };
 
