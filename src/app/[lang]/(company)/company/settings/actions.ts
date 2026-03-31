@@ -242,22 +242,29 @@ export async function testInstagramConnection() {
             return { success: false, message: 'Incomplete configuration.' };
         }
 
-        const response = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=name,username`, {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-            },
+        // Try Instagram Graph API first (for IGA tokens)
+        let response = await fetch(`https://graph.instagram.com/v18.0/me?fields=user_id,username,name`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
         });
 
-        if (!response.ok) {
+        if (response.ok) {
             const data = await response.json();
-            console.error('Meta API error:', data.error);
-            return { success: false, message: 'Error al comunicarse con Meta. Verifica tu configuración.' };
+            return { success: true, message: `Conectado: @${data.username || data.name || 'Instagram'}` };
         }
 
-        const data = await response.json();
-        const displayInfo = data.name || data.username || 'Instagram Account';
+        // Fallback: try Facebook Graph API (for Page tokens)
+        response = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=name,username,instagram_business_account`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
 
-        return { success: true, message: `Connected: ${displayInfo}` };
+        if (response.ok) {
+            const data = await response.json();
+            return { success: true, message: `Conectado: ${data.name || data.username || 'Instagram'}` };
+        }
+
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Meta API error:', (errorData as any)?.error);
+        return { success: false, message: `Error de Meta: ${(errorData as any)?.error?.message || 'Verifica tu configuración.'}` };
 
     } catch (error) {
         console.error('Test connection failed:', error);
