@@ -163,6 +163,18 @@ export async function sendChannelMessage({
     const { channel, contact } = conversation;
 
     if (channel.type === ChannelType.WHATSAPP) {
+        // Block free-form messages when the 24-hour conversation window has expired
+        if (conversation.lastInboundAt) {
+            const elapsed = Date.now() - new Date(conversation.lastInboundAt).getTime();
+            const WINDOW_MS = 24 * 60 * 60 * 1000;
+            if (elapsed > WINDOW_MS) {
+                throw new Error('WINDOW_EXPIRED: La ventana de 24 horas ha expirado. Debes usar una plantilla para reiniciar la conversación.');
+            }
+        } else {
+            // No inbound message ever — can only send templates
+            throw new Error('WINDOW_EXPIRED: No hay mensajes entrantes del cliente. Debes usar una plantilla para iniciar la conversación.');
+        }
+
         const config = channel.configJson as { phoneNumberId?: string; accessToken?: string } | null;
         if (config?.accessToken && config?.phoneNumberId) {
             let payload: Record<string, any>;

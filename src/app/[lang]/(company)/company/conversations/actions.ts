@@ -124,6 +124,10 @@ export async function sendMessage(conversationId: string, content: string) {
         return { success: true };
     } catch (error) {
         console.error("Error sending message:", error);
+        const msg = error instanceof Error ? error.message : '';
+        if (msg.startsWith('WINDOW_EXPIRED:')) {
+            return { success: false, message: msg.replace('WINDOW_EXPIRED: ', ''), windowExpired: true };
+        }
         return { success: false, message: "Error al enviar el mensaje. Intenta de nuevo." };
     }
 }
@@ -158,6 +162,10 @@ export async function sendMediaMessage(
         return { success: true };
     } catch (error) {
         console.error("Error sending media message:", error);
+        const msg = error instanceof Error ? error.message : '';
+        if (msg.startsWith('WINDOW_EXPIRED:')) {
+            return { success: false, message: msg.replace('WINDOW_EXPIRED: ', ''), windowExpired: true };
+        }
         return { success: false, message: "Error al enviar el archivo. Intenta de nuevo." };
     }
 }
@@ -198,13 +206,19 @@ export async function closeConversation(conversationId: string) {
             return { success: false, message: "Conversation not found" };
         }
 
-        // Send farewell message through the channel
-        await sendChannelMessage({
-            conversationId,
-            companyId: session.user.companyId,
-            content: 'Esta conversación ha sido finalizada. Si necesita más ayuda, no dude en escribirnos nuevamente.',
-            fromName: session.user.name || 'Sistema',
-        });
+        // Send farewell message through the channel (skip if window expired)
+        try {
+            await sendChannelMessage({
+                conversationId,
+                companyId: session.user.companyId,
+                content: 'Esta conversación ha sido finalizada. Si necesita más ayuda, no dude en escribirnos nuevamente.',
+                fromName: session.user.name || 'Sistema',
+            });
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : '';
+            if (!msg.startsWith('WINDOW_EXPIRED:')) throw err;
+            // Window expired — close silently without farewell message
+        }
 
         // Mark as resolved
         await prisma.conversation.update({

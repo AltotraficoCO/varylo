@@ -317,7 +317,11 @@ export default async function ConversationsPage({
                             <ReopenBanner conversationId={selectedConversation.id} />
                         ) : (
                             <div className="p-4 bg-card border-t">
-                                <ChatInput conversationId={selectedConversation.id} />
+                                <ChatInput
+                                conversationId={selectedConversation.id}
+                                channelType={selectedConversation.channel?.type}
+                                contactId={selectedConversation.contactId}
+                            />
                             </div>
                         )}
                     </>
