@@ -16,6 +16,19 @@ function formatRemaining(ms: number): string {
     return `${seconds}s`;
 }
 
+function formatDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
+
+    const time = date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+
+    if (diffDays === 0) return `hoy ${time}`;
+    if (diffDays === 1) return `ayer ${time}`;
+    const day = date.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+    return `${day} ${time}`;
+}
+
 export function WindowTimer({ conversationId }: { conversationId: string }) {
     const { conversations } = useRealtimeData();
     const [remaining, setRemaining] = useState<number | null>(null);
@@ -45,17 +58,24 @@ export function WindowTimer({ conversationId }: { conversationId: string }) {
     const isLow = remaining > 0 && remaining < 2 * 60 * 60 * 1000; // < 2h
 
     return (
-        <div
-            className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-                isExpired
-                    ? 'bg-red-100 text-red-700'
-                    : isLow
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-green-100 text-green-700'
-            }`}
-        >
-            <Clock className="h-3 w-3" />
-            {formatRemaining(remaining)}
+        <div className="flex flex-col items-end gap-0.5">
+            <div
+                className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+                    isExpired
+                        ? 'bg-red-100 text-red-700'
+                        : isLow
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-green-100 text-green-700'
+                }`}
+            >
+                <Clock className="h-3 w-3" />
+                {formatRemaining(remaining)}
+            </div>
+            {lastInboundAt && (
+                <span className="text-[10px] text-muted-foreground px-2">
+                    Último msg: {formatDate(lastInboundAt)}
+                </span>
+            )}
         </div>
     );
 }

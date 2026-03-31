@@ -293,9 +293,14 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                     <div className="flex flex-col items-center gap-3 py-2">
                         <div className="flex items-center gap-2 text-amber-700 bg-amber-50 px-4 py-2.5 rounded-lg w-full">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
-                            <p className="text-sm">
-                                La ventana de 24 horas ha expirado. Para volver a escribir a este contacto debes usar una <strong>plantilla aprobada</strong> de WhatsApp.
-                            </p>
+                            <div className="text-sm">
+                                <p>La ventana de 24 horas ha expirado. Para volver a escribir a este contacto debes usar una <strong>plantilla aprobada</strong> de WhatsApp.</p>
+                                {lastInboundAt && (
+                                    <p className="text-xs text-amber-600 mt-1">
+                                        Último mensaje del cliente: {new Date(lastInboundAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })} a las {new Date(lastInboundAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                         <Button onClick={handleOpenTemplateSelector} className="w-full" variant="default">
                             <Send className="h-4 w-4 mr-2" />
