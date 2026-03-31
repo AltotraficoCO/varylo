@@ -3,11 +3,76 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from 'react';
 import { getAnalyticsData } from './actions';
-import { Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Sparkles, Download } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+function downloadReport(data: any) {
+    const lines: string[] = [];
+    const now = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    // Summary
+    lines.push('RESUMEN DE CONVERSACIONES');
+    lines.push('Métrica,Valor');
+    lines.push(`Abiertas,${data.summary.open}`);
+    lines.push(`Desatendidas,${data.summary.unattended}`);
+    lines.push(`Sin asignar,${data.summary.unassigned}`);
+    lines.push(`Pendientes,${data.summary.pending}`);
+    lines.push('');
+
+    // Agent status
+    lines.push('ESTADO DE AGENTES');
+    lines.push('Estado,Cantidad');
+    lines.push(`En línea,${data.agentStatus.online}`);
+    lines.push(`Ocupado,${data.agentStatus.busy}`);
+    lines.push(`Fuera de línea,${data.agentStatus.offline}`);
+    lines.push('');
+
+    // AI metrics
+    if (data.aiMetrics && data.aiMetrics.totalInsights > 0) {
+        lines.push('ANÁLISIS IA');
+        lines.push('Métrica,Valor');
+        lines.push(`Total análisis,${data.aiMetrics.totalInsights}`);
+        lines.push(`Tono promedio,${data.aiMetrics.avgTone}`);
+        lines.push(`Claridad promedio,${data.aiMetrics.avgClarity}`);
+        lines.push(`Positivo,${data.aiMetrics.positive}`);
+        lines.push(`Neutral,${data.aiMetrics.neutral}`);
+        lines.push(`Negativo,${data.aiMetrics.negative}`);
+        lines.push('');
+    }
+
+    // Agents table
+    lines.push('CONVERSACIONES POR AGENTE');
+    lines.push('Agente,Email,Estado,Abiertas,Desatendidas');
+    for (const agent of data.conversationsByAgent) {
+        const status = agent.status === 'active' ? 'En línea' : agent.status === 'busy' ? 'Ocupado' : 'Fuera de línea';
+        lines.push(`"${agent.name}","${agent.email}",${status},${agent.openCount},${agent.unattendedCount}`);
+    }
+    lines.push('');
+
+    // Heatmap
+    lines.push('TRÁFICO POR HORA (últimos 7 días)');
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    lines.push('Día,' + Array.from({ length: 24 }, (_, i) => `${i}h`).join(','));
+    for (let d = 0; d < 7; d++) {
+        const row = [dayNames[d]];
+        for (let h = 0; h < 24; h++) {
+            row.push(String(data.heatmap[`${d}-${h}`] || 0));
+        }
+        lines.push(row.join(','));
+    }
+
+    const csv = '\uFEFF' + lines.join('\n'); // BOM for Excel compatibility
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte-varylo-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 
 export default function AnalyticsPage() {
     const [data, setData] = useState<any>(null);
@@ -163,7 +228,10 @@ export default function AnalyticsPage() {
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="h-8 text-xs">Últimos 7 días</Button>
-                        <Button variant="outline" size="sm" className="h-8 text-xs bg-muted/50">Descargar reporte</Button>
+                        <Button variant="outline" size="sm" className="h-8 text-xs bg-muted/50" onClick={() => downloadReport(data)}>
+                            <Download className="h-3.5 w-3.5 mr-1" />
+                            Descargar reporte
+                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent>
