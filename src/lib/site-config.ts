@@ -34,7 +34,7 @@ const DEFAULT_FOOTER_SECTIONS: FooterSection[] = [
     {
         title: 'Legal',
         links: [
-            { label: 'Privacidad', href: '/terms' },
+            { label: 'Privacidad', href: '/privacy' },
             { label: 'Términos', href: '/terms' },
         ],
     },
