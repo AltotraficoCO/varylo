@@ -76,9 +76,13 @@ export async function POST(req: NextRequest) {
 
         // Verify webhook signature from Meta
         const signature = req.headers.get('x-hub-signature-256');
+        const hasAppSecret = !!process.env.META_APP_SECRET;
+        console.log(`[Instagram Webhook] Signature check: hasSignature=${!!signature}, hasAppSecret=${hasAppSecret}, signaturePrefix=${signature?.substring(0, 12)}`);
         if (!verifyWebhookSignature(rawBody, signature)) {
+            console.error('[Instagram Webhook] Signature verification FAILED');
             return new NextResponse('Forbidden', { status: 403 });
         }
+        console.log('[Instagram Webhook] Signature OK');
 
         const body = JSON.parse(rawBody);
 
