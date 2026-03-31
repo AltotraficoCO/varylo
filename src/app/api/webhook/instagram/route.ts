@@ -82,6 +82,9 @@ export async function POST(req: NextRequest) {
 
         const body = JSON.parse(rawBody);
 
+        // DEBUG: Log full payload to diagnose webhook delivery
+        console.log('[Instagram Webhook] Received payload:', JSON.stringify(body, null, 2));
+
         // Check format
         const entry = body.entry?.[0];
         const messaging = entry?.messaging?.[0];
@@ -130,7 +133,12 @@ export async function POST(req: NextRequest) {
                 });
             }
 
-            if (channel) {
+            if (!channel) {
+                console.error(`[Instagram Webhook] No channel found for recipientId: ${recipientId}, senderId: ${senderId}`);
+                return NextResponse.json({ status: 'no_channel' });
+            }
+
+            {
                 const companyId = channel.companyId;
 
                 // Find or create Contact
