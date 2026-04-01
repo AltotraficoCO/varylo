@@ -280,10 +280,34 @@ export async function sendChannelMessage({
                 const cleanMime = mimeType.split(';')[0];
                 const fileUrl = storedMediaUrl?.startsWith('http') ? storedMediaUrl : null;
 
-                // Voice notes: Chrome records webm which WhatsApp doesn't support.
-                // Send a text notification. Audio is playable in the platform.
-                if (mediaType === 'audio') {
-                    payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: '🎤 Te envié una nota de voz. Escúchala en nuestro chat.' } };
+                if (mediaType === 'audio' && fileUrl) {
+                    // Download from Supabase (with auth) and upload to WhatsApp media API
+                    const dlHeaders: Record<string, string> = {};
+                    if (fileUrl.includes('supabase') && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+                        dlHeaders['Authorization'] = `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
+                    }
+                    const dlRes = await fetch(fileUrl, { headers: dlHeaders });
+
+                    if (dlRes.ok) {
+                        const audioBuffer = Buffer.from(await dlRes.arrayBuffer());
+                        // Try uploading with actual mime type - WhatsApp may transcode
+                        const waMediaId = await uploadBufferToWhatsApp(
+                            config.phoneNumberId,
+                            config.accessToken,
+                            audioBuffer,
+                            cleanMime,
+                            fileName || 'audio.webm',
+                        );
+
+                        if (waMediaId) {
+                            payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, 'audio');
+                        } else {
+                            // WhatsApp rejected the format - send text with info
+                            payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: '🎤 Te envié una nota de voz.' } };
+                        }
+                    } else {
+                        payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: '🎤 Te envié una nota de voz.' } };
+                    }
                 }
                 // Non-audio with URL: send URL directly (images, docs, etc.)
                 else if (fileUrl) {
