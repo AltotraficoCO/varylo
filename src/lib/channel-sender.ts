@@ -130,7 +130,7 @@ async function uploadBufferToWhatsApp(
     fileName: string,
 ): Promise<string | null> {
     try {
-        const blob = new Blob([buffer], { type: mimeType });
+        const blob = new Blob([new Uint8Array(buffer)], { type: mimeType });
 
         const formData = new FormData();
         formData.append('messaging_product', 'whatsapp');
