@@ -99,7 +99,11 @@ async function uploadMediaToWhatsApp(
             body: formData,
         });
 
-        if (!res.ok) return null;
+        if (!res.ok) {
+            const errBody = await res.text().catch(() => '');
+            console.error(`[WhatsApp] Media upload failed: HTTP ${res.status} - ${errBody}`);
+            return null;
+        }
         const data = await res.json();
         return data.id || null;
     } catch (error) {
@@ -181,19 +185,27 @@ export async function sendChannelMessage({
 
             // If sending media, upload to WhatsApp first then send with media ID
             if (mediaUrl && mediaType && mimeType) {
+                // WhatsApp doesn't accept audio/webm — normalize to audio/ogg
+                // (same Opus codec, different container, WhatsApp API accepts it)
+                let waMimeType = mimeType;
+                let waFileName = fileName || 'file';
+                if (mimeType.startsWith('audio/webm')) {
+                    waMimeType = 'audio/ogg';
+                    waFileName = waFileName.replace(/\.webm$/, '.ogg');
+                }
+
                 const waMediaId = await uploadMediaToWhatsApp(
                     config.phoneNumberId,
                     config.accessToken,
                     mediaUrl,
-                    mimeType,
-                    fileName || 'file',
+                    waMimeType,
+                    waFileName,
                 );
 
                 if (waMediaId) {
                     payload = buildWhatsAppMediaPayload(contact.phone, content, waMediaId, mediaType, fileName);
                 } else {
-                    // Fallback to text if upload fails
-                    payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content || '[Archivo no disponible]' } };
+                    throw new Error('No se pudo subir el archivo a WhatsApp. Intenta de nuevo.');
                 }
             } else {
                 payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content } };

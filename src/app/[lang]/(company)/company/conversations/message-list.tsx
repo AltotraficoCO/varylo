@@ -92,11 +92,11 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
                 if (!res.ok) throw new Error('fetch failed');
                 const arrayBuffer = await res.arrayBuffer();
 
-                // Check if it's OGG/Opus (needs conversion for Safari)
+                // Check if it's OGG/Opus or WebM/Opus (needs conversion for Safari)
                 const mime = (mimeType?.split(';')[0] || '').toLowerCase();
-                const isOgg = mime.includes('ogg') || mime.includes('opus') || src.endsWith('.ogg');
+                const needsConversion = mime.includes('ogg') || mime.includes('opus') || mime.includes('webm') || src.endsWith('.ogg') || src.endsWith('.webm');
 
-                if (isOgg) {
+                if (needsConversion) {
                     // Decode with AudioContext (supports OGG Opus in all browsers)
                     // then convert to WAV which is universally playable
                     const audioCtx = new AudioContext();
