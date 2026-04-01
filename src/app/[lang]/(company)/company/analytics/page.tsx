@@ -72,11 +72,13 @@ function downloadReport(data: any) {
 export default function AnalyticsPage() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [heatmapDays, setHeatmapDays] = useState(7);
+    const [heatmapLoading, setHeatmapLoading] = useState(false);
 
     useEffect(() => {
         const load = async () => {
             try {
-                const result = await getAnalyticsData();
+                const result = await getAnalyticsData(7);
                 setData(result);
             } catch (error) {
                 console.error("Failed to load analytics:", error);
@@ -86,6 +88,17 @@ export default function AnalyticsPage() {
         };
         load();
     }, []);
+
+    const changeHeatmapPeriod = async (days: number) => {
+        setHeatmapDays(days);
+        setHeatmapLoading(true);
+        try {
+            const result = await getAnalyticsData(days);
+            if (result) setData(result);
+        } finally {
+            setHeatmapLoading(false);
+        }
+    };
 
     if (loading) {
         return <div className="flex justify-center items-center h-96"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
@@ -175,11 +188,25 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-between">
                     <span className="text-[16px] font-semibold text-[#09090B]">Trafico de Conversacion</span>
                     <div className="flex gap-2">
-                        <button className="bg-[#F4F4F5] rounded-lg px-3.5 py-2 text-[13px] text-[#09090B]">
-                            Ultimos 7 dias
-                        </button>
+                        {[
+                            { label: '7 días', days: 7 },
+                            { label: '14 días', days: 14 },
+                            { label: '30 días', days: 30 },
+                        ].map((opt) => (
+                            <button
+                                key={opt.days}
+                                onClick={() => changeHeatmapPeriod(opt.days)}
+                                className={`rounded-lg px-3.5 py-2 text-[13px] transition-colors ${
+                                    heatmapDays === opt.days
+                                        ? 'bg-[#10B981] text-white'
+                                        : 'bg-[#F4F4F5] text-[#09090B] hover:bg-[#E4E4E7]'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
                         <button
-                            className="border border-[#E4E4E7] rounded-lg px-3.5 py-2 text-[13px] text-[#09090B] flex items-center gap-1.5 bg-white"
+                            className="border border-[#E4E4E7] rounded-lg px-3.5 py-2 text-[13px] text-[#09090B] flex items-center gap-1.5 bg-white hover:bg-[#F4F4F5]"
                             onClick={() => downloadReport(data)}
                         >
                             <Download className="h-3.5 w-3.5" />
@@ -187,7 +214,7 @@ export default function AnalyticsPage() {
                         </button>
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className={`flex gap-2 ${heatmapLoading ? 'opacity-50 pointer-events-none' : ''}`}>
                     {/* Day labels */}
                     <div className="flex flex-col gap-[3px] pt-0 shrink-0">
                         {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
