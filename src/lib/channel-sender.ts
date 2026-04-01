@@ -273,10 +273,13 @@ export async function sendChannelMessage({
                 const cleanMime = mimeType.split(';')[0];
                 const fileUrl = storedMediaUrl?.startsWith('http') ? storedMediaUrl : null;
 
-                // For audio: always upload to WhatsApp media API (as audio/ogg)
-                // because WhatsApp doesn't accept webm format via URL
+                // For audio: WhatsApp only accepts ogg/aac/mp4/mpeg/amr (NOT webm).
+                // Chrome records webm which WhatsApp silently drops.
+                // Strategy: try media API upload as audio/ogg first.
+                // If that fails, send as document (guaranteed delivery).
                 if (mediaType === 'audio' && fileUrl) {
-                    const waMediaId = await uploadUrlToWhatsApp(
+                    // Try 1: upload to media API as audio/ogg
+                    let waMediaId = await uploadUrlToWhatsApp(
                         config.phoneNumberId,
                         config.accessToken,
                         fileUrl,
@@ -286,8 +289,26 @@ export async function sendChannelMessage({
                     if (waMediaId) {
                         payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, 'audio');
                     } else {
-                        // Fallback: try sending URL directly (might work for some formats)
-                        payload = buildWhatsAppMediaPayloadByUrl(contact.phone, content, fileUrl, mediaType, fileName);
+                        // Try 2: upload as audio/mpeg
+                        waMediaId = await uploadUrlToWhatsApp(
+                            config.phoneNumberId,
+                            config.accessToken,
+                            fileUrl,
+                            'audio/mpeg',
+                            (fileName || 'audio').replace(/\.\w+$/, '.mp3'),
+                        );
+                        if (waMediaId) {
+                            payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, 'audio');
+                        } else {
+                            // Try 3: send as document (guaranteed to arrive)
+                            payload = buildWhatsAppMediaPayloadByUrl(
+                                contact.phone,
+                                content || '🎤 Nota de voz',
+                                fileUrl,
+                                'document',
+                                (fileName || 'nota-de-voz.webm'),
+                            );
+                        }
                     }
                 }
                 // Non-audio with URL: send URL directly (images, docs, etc.)
