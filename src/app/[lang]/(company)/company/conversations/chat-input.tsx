@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
     Send, Paperclip, X, FileText, Image as ImageIcon,
-    AlertTriangle, Loader2, ChevronLeft,
+    AlertTriangle, Loader2, ChevronLeft, Mic, Square,
 } from "lucide-react";
 import { sendMessage, sendMediaMessage } from './actions';
 import { useRealtimeData } from './realtime-context';
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB (WhatsApp limit)
 const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_RECORDING_MS = 120_000; // 2 minutes max
 
 const ACCEPTED_TYPES: Record<string, string[]> = {
     image: ['image/jpeg', 'image/png', 'image/webp'],
@@ -45,6 +46,12 @@ function getMediaType(mimeType: string): string {
 
 function getAllAcceptedTypes(): string {
     return Object.values(ACCEPTED_TYPES).flat().join(',');
+}
+
+function formatDuration(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 interface TemplateComponent {
@@ -79,6 +86,14 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
     const { markAsRead, conversations } = useRealtimeData();
     const markedRef = useRef(false);
 
+    // Voice recording state
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingDuration, setRecordingDuration] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+
     // Template state
     const [showTemplateSelector, setShowTemplateSelector] = useState(false);
     const [templates, setTemplates] = useState<Template[]>([]);
@@ -108,14 +123,16 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         setSelectedTemplate(null);
         setParamValues({});
         setTemplateStep('list');
+        stopRecording();
     }, [conversationId]);
 
-    // Cleanup file preview URL
+    // Cleanup
     useEffect(() => {
         return () => {
             if (filePreview && filePreview.startsWith('blob:')) {
                 URL.revokeObjectURL(filePreview);
             }
+            stopRecording();
         };
     }, [filePreview]);
 
@@ -156,6 +173,133 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         }
     };
 
+    // --- Voice Recording ---
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+
+            // Prefer ogg/opus for WhatsApp compatibility, fallback to webm
+            const mimeType = MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')
+                ? 'audio/ogg; codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/webm; codecs=opus')
+                    ? 'audio/webm; codecs=opus'
+                    : 'audio/webm';
+
+            const recorder = new MediaRecorder(stream, { mimeType });
+            mediaRecorderRef.current = recorder;
+            audioChunksRef.current = [];
+
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    audioChunksRef.current.push(e.data);
+                }
+            };
+
+            recorder.onstop = () => {
+                // Handled in stopAndSend
+            };
+
+            recorder.start(100); // Collect data every 100ms
+            setIsRecording(true);
+            setRecordingDuration(0);
+
+            // Duration timer
+            recordingTimerRef.current = setInterval(() => {
+                setRecordingDuration(prev => {
+                    if (prev >= MAX_RECORDING_MS / 1000) {
+                        stopAndSendRecording();
+                        return prev;
+                    }
+                    return prev + 1;
+                });
+            }, 1000);
+        } catch {
+            alert('No se pudo acceder al micrófono. Verifica los permisos del navegador.');
+        }
+    };
+
+    const stopRecording = () => {
+        if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+            recordingTimerRef.current = null;
+        }
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        setIsRecording(false);
+        setRecordingDuration(0);
+    };
+
+    const cancelRecording = () => {
+        audioChunksRef.current = [];
+        stopRecording();
+    };
+
+    const stopAndSendRecording = async () => {
+        if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
+
+        return new Promise<void>((resolve) => {
+            const recorder = mediaRecorderRef.current!;
+
+            recorder.onstop = async () => {
+                stopRecording();
+
+                const chunks = audioChunksRef.current;
+                if (chunks.length === 0) { resolve(); return; }
+
+                const mimeType = recorder.mimeType || 'audio/ogg';
+                const blob = new Blob(chunks, { type: mimeType });
+                audioChunksRef.current = [];
+
+                if (blob.size > MAX_FILE_SIZE) {
+                    alert('La nota de voz excede el límite de 16MB.');
+                    resolve();
+                    return;
+                }
+
+                // Convert to base64 and send
+                setIsSending(true);
+                try {
+                    const buffer = await blob.arrayBuffer();
+                    const base64 = Buffer.from(buffer).toString('base64');
+                    const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
+                    const dataUrl = `data:${mimeType};base64,${base64}`;
+                    const fileName = `voice-note-${Date.now()}.${ext}`;
+
+                    const result = await sendMediaMessage(
+                        conversationId,
+                        '',
+                        dataUrl,
+                        'audio',
+                        mimeType.split(';')[0], // Clean mime: "audio/ogg"
+                        fileName
+                    );
+
+                    if (result.success) {
+                        router.refresh();
+                    } else if (result.windowExpired) {
+                        setShowTemplateSelector(true);
+                    } else {
+                        alert(result.message || 'Error al enviar nota de voz');
+                    }
+                } catch (error) {
+                    console.error('Error sending voice note:', error);
+                    alert('Error al enviar la nota de voz.');
+                } finally {
+                    setIsSending(false);
+                }
+                resolve();
+            };
+
+            recorder.stop();
+        });
+    };
+
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if ((!message.trim() && !selectedFile) || isSending) return;
@@ -180,7 +324,6 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 setMessage('');
                 router.refresh();
             } else if (result.windowExpired) {
-                // Window expired — force template selector
                 setShowTemplateSelector(true);
             } else {
                 alert(result.message || 'Failed to send message');
@@ -289,7 +432,6 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         return (
             <div className="p-4 border-t bg-background">
                 {!showTemplateSelector ? (
-                    // Expired banner
                     <div className="flex flex-col items-center gap-3 py-2">
                         <div className="flex items-center gap-2 text-amber-700 bg-amber-50 px-4 py-2.5 rounded-lg w-full">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -308,7 +450,6 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                         </Button>
                     </div>
                 ) : (
-                    // Inline template selector
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-medium">
@@ -385,7 +526,6 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                     </div>
                                 )}
 
-                                {/* Send button if template has no params */}
                                 {selectedTemplate && getBodyParams(selectedTemplate).length === 0 && (
                                     <Button onClick={handleSendTemplate} disabled={sendingTemplate} className="w-full">
                                         {sendingTemplate ? (
@@ -441,7 +581,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         );
     }
 
-    // Normal chat input (window open or non-WhatsApp channel)
+    // Normal chat input
     return (
         <div className="p-4 border-t bg-background">
             {/* File preview */}
@@ -466,6 +606,38 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 </div>
             )}
 
+            {/* Recording indicator */}
+            {isRecording && (
+                <div className="mb-2 flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
+                    <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-sm font-medium text-red-700 flex-1">
+                        Grabando nota de voz... {formatDuration(recordingDuration)}
+                    </span>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={cancelRecording}
+                        className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-100"
+                    >
+                        <X className="h-4 w-4 mr-1" />
+                        Cancelar
+                    </Button>
+                    <Button
+                        size="sm"
+                        onClick={stopAndSendRecording}
+                        disabled={isSending}
+                        className="h-7 px-3 bg-red-600 hover:bg-red-700 text-white"
+                    >
+                        {isSending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                        ) : (
+                            <Send className="h-3.5 w-3.5 mr-1" />
+                        )}
+                        Enviar
+                    </Button>
+                </div>
+            )}
+
             <form onSubmit={handleSend} className="flex gap-2">
                 <input
                     ref={fileInputRef}
@@ -479,7 +651,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                     variant="ghost"
                     size="icon"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isSending}
+                    disabled={isSending || isRecording}
                     className="shrink-0"
                 >
                     <Paperclip className="h-4 w-4" />
@@ -489,15 +661,32 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                     onChange={(e) => handleChange(e.target.value)}
                     placeholder={selectedFile ? "Agrega un mensaje (opcional)..." : "Escribe un mensaje..."}
                     className="flex-1"
-                    disabled={isSending}
+                    disabled={isSending || isRecording}
                 />
-                <Button
-                    type="submit"
-                    disabled={isSending || (!message.trim() && !selectedFile)}
-                    size="icon"
-                >
-                    <Send className="h-4 w-4" />
-                </Button>
+                {/* Mic button - shows when no text typed and no file selected */}
+                {!message.trim() && !selectedFile && !isRecording && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={startRecording}
+                        disabled={isSending}
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        title="Grabar nota de voz"
+                    >
+                        <Mic className="h-4 w-4" />
+                    </Button>
+                )}
+                {/* Send button - shows when there's text or a file */}
+                {(message.trim() || selectedFile) && (
+                    <Button
+                        type="submit"
+                        disabled={isSending || isRecording}
+                        size="icon"
+                    >
+                        <Send className="h-4 w-4" />
+                    </Button>
+                )}
             </form>
         </div>
     );
