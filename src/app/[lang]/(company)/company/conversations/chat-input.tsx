@@ -14,6 +14,7 @@ import { sendMessage, sendMediaMessage } from './actions';
 import { useRealtimeData } from './realtime-context';
 import { getWhatsAppTemplates, sendTemplateMessage } from '@/lib/template-actions';
 import { cn } from '@/lib/utils';
+import lamejs from 'lamejs';
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB (WhatsApp limit)
 const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -66,9 +67,6 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 
 /** Convert recorded audio blob to MP3 using lamejs (WhatsApp requires mp3/ogg/aac) */
 async function convertToMp3(blob: Blob): Promise<Blob> {
-    // Dynamically import lamejs to avoid SSR issues
-    const lamejs = await import('lamejs');
-
     // Decode the recording with AudioContext
     const arrayBuffer = await blob.arrayBuffer();
     const audioCtx = new AudioContext();
