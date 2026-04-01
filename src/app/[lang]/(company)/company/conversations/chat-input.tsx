@@ -64,7 +64,62 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     });
 }
 
-/** Upload audio blob to server via FormData (bypasses base64/server-action limits) */
+/** Convert recorded audio blob to MP3 using lamejs (WhatsApp requires mp3/ogg/aac) */
+async function convertToMp3(blob: Blob): Promise<Blob> {
+    // Dynamically import lamejs to avoid SSR issues
+    const lamejs = await import('lamejs');
+
+    // Decode the recording with AudioContext
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioCtx = new AudioContext();
+    let audioBuffer: AudioBuffer;
+    try {
+        audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    } finally {
+        await audioCtx.close();
+    }
+
+    const sampleRate = audioBuffer.sampleRate;
+    const channels = 1; // Mono for voice notes
+    const kbps = 128;
+
+    // Get mono audio data (mix down if stereo)
+    let samples: Float32Array;
+    if (audioBuffer.numberOfChannels > 1) {
+        const left = audioBuffer.getChannelData(0);
+        const right = audioBuffer.getChannelData(1);
+        samples = new Float32Array(left.length);
+        for (let i = 0; i < left.length; i++) {
+            samples[i] = (left[i] + right[i]) / 2;
+        }
+    } else {
+        samples = audioBuffer.getChannelData(0);
+    }
+
+    // Convert Float32 [-1,1] to Int16
+    const int16 = new Int16Array(samples.length);
+    for (let i = 0; i < samples.length; i++) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+
+    // Encode to MP3
+    const encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
+    const mp3Parts: Uint8Array[] = [];
+    const blockSize = 1152;
+
+    for (let i = 0; i < int16.length; i += blockSize) {
+        const chunk = int16.subarray(i, i + blockSize);
+        const mp3buf = encoder.encodeBuffer(chunk);
+        if (mp3buf.length > 0) mp3Parts.push(new Uint8Array(mp3buf));
+    }
+    const end = encoder.flush();
+    if (end.length > 0) mp3Parts.push(new Uint8Array(end));
+
+    return new Blob(mp3Parts as BlobPart[], { type: 'audio/mpeg' });
+}
+
+/** Upload audio blob to server via FormData */
 async function uploadVoiceNote(blob: Blob, fileName: string): Promise<{ url: string; mimeType: string } | null> {
     const formData = new FormData();
     formData.append('file', blob, fileName);
@@ -279,21 +334,19 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
 
                 setIsSending(true);
                 try {
-                    // Upload raw audio blob via FormData (no base64, no conversion)
-                    const ext = (recorder.mimeType || '').includes('ogg') ? 'ogg'
-                        : (recorder.mimeType || '').includes('mp4') ? 'm4a' : 'webm';
-                    const fileName = `voice-note-${Date.now()}.${ext}`;
-                    const upload = await uploadVoiceNote(rawBlob, fileName);
+                    // Convert to MP3 (WhatsApp requires mp3/ogg/aac, doesn't accept webm)
+                    const mp3Blob = await convertToMp3(rawBlob);
+                    const fileName = `voice-note-${Date.now()}.mp3`;
+                    const upload = await uploadVoiceNote(mp3Blob, fileName);
 
                     if (!upload) throw new Error('Upload failed');
 
-                    // Send message with the Supabase URL (not data URL)
                     const result = await sendMediaMessage(
                         conversationId,
                         '',
-                        upload.url,  // Already a Supabase public URL
+                        upload.url,
                         'audio',
-                        upload.mimeType,
+                        'audio/mpeg',
                         fileName
                     );
 
