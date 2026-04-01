@@ -15,7 +15,6 @@ export function WhatsAppConnectionForm({
 }: {
     initialPhoneNumberId?: string;
     initialVerifyToken?: string;
-    initialWabaId?: string;
     hasAccessToken?: boolean;
     channelId?: string | null;
     automationPriority?: string;

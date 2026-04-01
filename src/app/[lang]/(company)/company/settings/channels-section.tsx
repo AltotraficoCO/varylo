@@ -68,6 +68,7 @@ export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig
                 {/* WhatsApp */}
                 <WhatsAppConnectionForm
                     initialPhoneNumberId={whatsappConfig.phoneNumberId}
+                    initialVerifyToken={whatsappConfig.verifyToken}
                     hasAccessToken={whatsappConfig.hasAccessToken}
                     channelId={whatsappConfig.channelId}
                     automationPriority={whatsappConfig.automationPriority}
