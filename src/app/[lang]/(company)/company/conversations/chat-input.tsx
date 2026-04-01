@@ -64,70 +64,17 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     });
 }
 
-/** Convert an AudioBuffer to a WAV Blob (universally playable) */
-function audioBufferToWavBlob(audioBuffer: AudioBuffer): Blob {
-    const numChannels = audioBuffer.numberOfChannels;
-    const sampleRate = audioBuffer.sampleRate;
-    const format = 1; // PCM
-    const bitDepth = 16;
+/** Upload audio blob to server via FormData (bypasses base64/server-action limits) */
+async function uploadVoiceNote(blob: Blob, fileName: string): Promise<{ url: string; mimeType: string } | null> {
+    const formData = new FormData();
+    formData.append('file', blob, fileName);
 
-    let interleaved: Float32Array;
-    if (numChannels === 2) {
-        const left = audioBuffer.getChannelData(0);
-        const right = audioBuffer.getChannelData(1);
-        interleaved = new Float32Array(left.length + right.length);
-        for (let i = 0; i < left.length; i++) {
-            interleaved[i * 2] = left[i];
-            interleaved[i * 2 + 1] = right[i];
-        }
-    } else {
-        interleaved = audioBuffer.getChannelData(0);
+    const res = await fetch('/api/voice-upload', { method: 'POST', body: formData });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(err.error || 'Upload failed');
     }
-
-    const dataLength = interleaved.length * (bitDepth / 8);
-    const buffer = new ArrayBuffer(44 + dataLength);
-    const view = new DataView(buffer);
-
-    // WAV header
-    const writeString = (offset: number, str: string) => {
-        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-    };
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + dataLength, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, format, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
-    view.setUint16(32, numChannels * (bitDepth / 8), true);
-    view.setUint16(34, bitDepth, true);
-    writeString(36, 'data');
-    view.setUint32(40, dataLength, true);
-
-    // Write PCM samples
-    let offset = 44;
-    for (let i = 0; i < interleaved.length; i++) {
-        const sample = Math.max(-1, Math.min(1, interleaved[i]));
-        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-        offset += 2;
-    }
-
-    return new Blob([buffer], { type: 'audio/wav' });
-}
-
-/** Convert a recorded audio Blob to a clean WAV data URL via AudioContext decoding */
-async function convertToWavDataUrl(blob: Blob): Promise<string> {
-    const arrayBuffer = await blob.arrayBuffer();
-    const audioCtx = new AudioContext();
-    try {
-        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-        const wavBlob = audioBufferToWavBlob(audioBuffer);
-        return blobToDataUrl(wavBlob);
-    } finally {
-        await audioCtx.close();
-    }
+    return res.json();
 }
 
 interface TemplateComponent {
@@ -330,18 +277,23 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 const rawBlob = new Blob(chunks, { type: recorder.mimeType });
                 audioChunksRef.current = [];
 
-                // Convert any recording format to WAV (universally playable + clean data URL)
                 setIsSending(true);
                 try {
-                    const wavDataUrl = await convertToWavDataUrl(rawBlob);
-                    const fileName = `voice-note-${Date.now()}.wav`;
+                    // Upload raw audio blob via FormData (no base64, no conversion)
+                    const ext = (recorder.mimeType || '').includes('ogg') ? 'ogg'
+                        : (recorder.mimeType || '').includes('mp4') ? 'm4a' : 'webm';
+                    const fileName = `voice-note-${Date.now()}.${ext}`;
+                    const upload = await uploadVoiceNote(rawBlob, fileName);
 
+                    if (!upload) throw new Error('Upload failed');
+
+                    // Send message with the Supabase URL (not data URL)
                     const result = await sendMediaMessage(
                         conversationId,
                         '',
-                        wavDataUrl,
+                        upload.url,  // Already a Supabase public URL
                         'audio',
-                        'audio/wav',
+                        upload.mimeType,
                         fileName
                     );
 

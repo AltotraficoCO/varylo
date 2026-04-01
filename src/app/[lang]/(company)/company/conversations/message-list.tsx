@@ -83,54 +83,10 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        let cancelled = false;
-        let url: string | null = null;
-
-        async function loadAudio() {
-            try {
-                const res = await fetch(src);
-                if (!res.ok) throw new Error('fetch failed');
-                const arrayBuffer = await res.arrayBuffer();
-                const mime = (mimeType?.split(';')[0] || '').toLowerCase();
-
-                // Strategy 1: Create blob with correct mime and try native <audio> playback
-                const blob = new Blob([arrayBuffer], { type: mime || 'audio/mpeg' });
-                url = URL.createObjectURL(blob);
-
-                // Test if the browser can actually play this format
-                const testAudio = new Audio();
-                const canPlay = testAudio.canPlayType(mime || 'audio/mpeg');
-
-                if (canPlay === '') {
-                    // Strategy 2: Decode with AudioContext and convert to WAV
-                    URL.revokeObjectURL(url);
-                    url = null;
-
-                    const audioCtx = new AudioContext();
-                    try {
-                        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
-                        const wavBlob = audioBufferToWav(audioBuffer);
-                        url = URL.createObjectURL(wavBlob);
-                    } finally {
-                        await audioCtx.close();
-                    }
-                }
-
-                if (!cancelled && url) {
-                    setBlobUrl(url);
-                }
-            } catch {
-                if (!cancelled) setError(true);
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        }
-        loadAudio();
-        return () => {
-            cancelled = true;
-            if (url) URL.revokeObjectURL(url);
-        };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // Use the src URL directly - let the browser's <audio> element handle format support
+        // The media proxy (/api/media) serves with correct Content-Type headers
+        setBlobUrl(src);
+        setLoading(false);
     }, [src]);
 
     function formatTime(s: number) {
