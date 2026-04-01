@@ -280,37 +280,10 @@ export async function sendChannelMessage({
                 const cleanMime = mimeType.split(';')[0];
                 const fileUrl = storedMediaUrl?.startsWith('http') ? storedMediaUrl : null;
 
-                // For audio: WhatsApp only accepts ogg/aac/mp4/mpeg/amr (NOT webm).
-                // Chrome records webm which WhatsApp silently drops.
-                // Strategy: try media API upload as audio/ogg first.
-                // If that fails, send as document (guaranteed delivery).
-                if (mediaType === 'audio' && fileUrl) {
-                    // Try 1: upload to media API as audio/ogg
-                    let waMediaId = await uploadUrlToWhatsApp(
-                        config.phoneNumberId,
-                        config.accessToken,
-                        fileUrl,
-                        'audio/ogg',
-                        (fileName || 'audio').replace(/\.\w+$/, '.ogg'),
-                    );
-                    if (waMediaId) {
-                        payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, 'audio');
-                    } else {
-                        // Try 2: upload as document (guaranteed to arrive)
-                        waMediaId = await uploadUrlToWhatsApp(
-                            config.phoneNumberId,
-                            config.accessToken,
-                            fileUrl,
-                            'audio/mpeg',
-                            (fileName || 'audio').replace(/\.\w+$/, '.mp3'),
-                        );
-                        if (waMediaId) {
-                            payload = buildWhatsAppMediaPayloadById(contact.phone, content || '🎤 Nota de voz', waMediaId, 'document', fileName);
-                        } else {
-                            // All uploads failed - send text notification
-                            payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: '🎤 [Nota de voz - escuchar en plataforma]' } };
-                        }
-                    }
+                // Voice notes: Chrome records webm which WhatsApp doesn't support.
+                // Send a text notification. Audio is playable in the platform.
+                if (mediaType === 'audio') {
+                    payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: '🎤 Te envié una nota de voz. Escúchala en nuestro chat.' } };
                 }
                 // Non-audio with URL: send URL directly (images, docs, etc.)
                 else if (fileUrl) {
