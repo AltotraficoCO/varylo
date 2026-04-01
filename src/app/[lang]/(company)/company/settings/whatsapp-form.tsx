@@ -43,20 +43,26 @@ export function WhatsAppConnectionForm({
 
     // Load Facebook SDK
     useEffect(() => {
+        const appId = process.env.NEXT_PUBLIC_META_APP_ID || '25771963149145801';
+
+        function initFB() {
+            if (window.FB) {
+                window.FB.init({
+                    appId,
+                    autoLogAppEvents: true,
+                    xfbml: true,
+                    version: 'v21.0',
+                });
+                setFbReady(true);
+            }
+        }
+
         if (window.FB) {
-            setFbReady(true);
+            initFB();
             return;
         }
 
-        window.fbAsyncInit = function () {
-            window.FB.init({
-                appId: process.env.NEXT_PUBLIC_META_APP_ID,
-                autoLogAppEvents: true,
-                xfbml: true,
-                version: 'v21.0',
-            });
-            setFbReady(true);
-        };
+        window.fbAsyncInit = initFB;
 
         if (!document.getElementById('facebook-jssdk')) {
             const script = document.createElement('script');
@@ -64,8 +70,19 @@ export function WhatsAppConnectionForm({
             script.src = 'https://connect.facebook.net/en_US/sdk.js';
             script.async = true;
             script.defer = true;
+            script.crossOrigin = 'anonymous';
             document.body.appendChild(script);
         }
+
+        // Fallback: check every second if FB loaded (ad blockers can delay it)
+        const interval = setInterval(() => {
+            if (window.FB) {
+                initFB();
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
     }, []);
 
     const handleEmbeddedSignup = useCallback(() => {
