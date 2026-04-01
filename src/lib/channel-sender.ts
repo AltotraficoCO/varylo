@@ -73,6 +73,9 @@ export async function sendWhatsAppTypingIndicator(
  * Upload a media file (from a data URL) to WhatsApp Media API.
  * Returns the media ID for use in messages.
  */
+/**
+ * Upload media to WhatsApp from a data URL.
+ */
 async function uploadMediaToWhatsApp(
     phoneNumberId: string,
     accessToken: string,
@@ -81,11 +84,52 @@ async function uploadMediaToWhatsApp(
     fileName: string,
 ): Promise<string | null> {
     try {
-        // Convert data URL to Buffer
         const base64Data = dataUrl.split(',')[1];
         if (!base64Data) return null;
 
         const buffer = Buffer.from(base64Data, 'base64');
+        return uploadBufferToWhatsApp(phoneNumberId, accessToken, buffer, mimeType, fileName);
+    } catch (error) {
+        console.error('[WhatsApp] Media upload failed:', error instanceof Error ? error.message : 'Unknown');
+        return null;
+    }
+}
+
+/**
+ * Download a file from URL and upload to WhatsApp media API.
+ */
+async function uploadUrlToWhatsApp(
+    phoneNumberId: string,
+    accessToken: string,
+    fileUrl: string,
+    mimeType: string,
+    fileName: string,
+): Promise<string | null> {
+    try {
+        const res = await fetch(fileUrl);
+        if (!res.ok) {
+            console.error(`[WhatsApp] Failed to download file: ${res.status}`);
+            return null;
+        }
+        const buffer = Buffer.from(await res.arrayBuffer());
+        return uploadBufferToWhatsApp(phoneNumberId, accessToken, buffer, mimeType, fileName);
+    } catch (error) {
+        console.error('[WhatsApp] URL upload failed:', error instanceof Error ? error.message : 'Unknown');
+        return null;
+    }
+}
+
+/**
+ * Upload a Buffer to WhatsApp media API.
+ */
+async function uploadBufferToWhatsApp(
+    phoneNumberId: string,
+    accessToken: string,
+    buffer: Buffer,
+    mimeType: string,
+    fileName: string,
+): Promise<string | null> {
+    try {
         const blob = new Blob([buffer], { type: mimeType });
 
         const formData = new FormData();
@@ -107,7 +151,7 @@ async function uploadMediaToWhatsApp(
         const data = await res.json();
         return data.id || null;
     } catch (error) {
-        console.error('[WhatsApp] Media upload failed:', error instanceof Error ? error.message : 'Unknown');
+        console.error('[WhatsApp] Buffer upload failed:', error instanceof Error ? error.message : 'Unknown');
         return null;
     }
 }
@@ -226,14 +270,32 @@ export async function sendChannelMessage({
             let payload: Record<string, any>;
 
             if (mediaUrl && mediaType && mimeType) {
+                const cleanMime = mimeType.split(';')[0];
                 const fileUrl = storedMediaUrl?.startsWith('http') ? storedMediaUrl : null;
 
-                if (fileUrl) {
-                    // Send with public URL - WhatsApp downloads the file
+                // For audio: always upload to WhatsApp media API (as audio/ogg)
+                // because WhatsApp doesn't accept webm format via URL
+                if (mediaType === 'audio' && fileUrl) {
+                    const waMediaId = await uploadUrlToWhatsApp(
+                        config.phoneNumberId,
+                        config.accessToken,
+                        fileUrl,
+                        'audio/ogg',
+                        (fileName || 'audio').replace(/\.\w+$/, '.ogg'),
+                    );
+                    if (waMediaId) {
+                        payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, 'audio');
+                    } else {
+                        // Fallback: try sending URL directly (might work for some formats)
+                        payload = buildWhatsAppMediaPayloadByUrl(contact.phone, content, fileUrl, mediaType, fileName);
+                    }
+                }
+                // Non-audio with URL: send URL directly (images, docs, etc.)
+                else if (fileUrl) {
                     payload = buildWhatsAppMediaPayloadByUrl(contact.phone, content, fileUrl, mediaType, fileName);
-                } else if (mediaUrl.startsWith('data:')) {
-                    // Fallback: upload binary to WhatsApp media API
-                    const cleanMime = mimeType.split(';')[0];
+                }
+                // Data URL fallback: upload to WhatsApp media API
+                else if (mediaUrl.startsWith('data:')) {
                     const waMediaId = await uploadMediaToWhatsApp(
                         config.phoneNumberId,
                         config.accessToken,
