@@ -225,28 +225,46 @@ export async function sendChannelMessage({
             let payload: Record<string, any>;
 
             if (mediaUrl && mediaType && mimeType) {
-                // Strategy 1: Use Supabase public URL (WhatsApp downloads it directly)
-                if (storedMediaUrl && storedMediaUrl.startsWith('http')) {
-                    payload = buildWhatsAppMediaPayloadByUrl(contact.phone, content, storedMediaUrl, mediaType, fileName);
-                }
-                // Strategy 2: Upload binary to WhatsApp media API
-                else if (mediaUrl.startsWith('data:')) {
-                    const cleanMime = mimeType.split(';')[0];
-                    const waMediaId = await uploadMediaToWhatsApp(
-                        config.phoneNumberId,
-                        config.accessToken,
-                        mediaUrl,
-                        cleanMime,
-                        fileName || 'file',
-                    );
+                const cleanMime = mimeType.split(';')[0];
+                // WhatsApp accepted audio: aac, mp4, mpeg, amr, ogg. NOT wav/webm.
+                // For non-accepted formats, use media upload API (it may transcode).
+                // For accepted formats, prefer Supabase public URL (simpler).
+                const waAcceptedAudio = ['audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/amr', 'audio/ogg'];
+                const isAcceptedByWa = !cleanMime.startsWith('audio/') || waAcceptedAudio.includes(cleanMime);
 
-                    if (waMediaId) {
-                        payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, mediaType, fileName);
-                    } else {
-                        throw new Error('No se pudo subir el archivo a WhatsApp. Intenta de nuevo.');
-                    }
+                if (storedMediaUrl && storedMediaUrl.startsWith('http') && isAcceptedByWa) {
+                    // Strategy 1: Supabase public URL for WA-accepted formats
+                    payload = buildWhatsAppMediaPayloadByUrl(contact.phone, content, storedMediaUrl, mediaType, fileName);
                 } else {
-                    payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content } };
+                    // Strategy 2: Upload to WhatsApp media API
+                    // For WAV audio, tell WhatsApp it's audio/ogg (the API processes the binary)
+                    const uploadMime = (cleanMime === 'audio/wav' || cleanMime === 'audio/webm')
+                        ? 'audio/ogg' : cleanMime;
+                    const uploadName = (fileName || 'file').replace(/\.(wav|webm)$/, '.ogg');
+                    const uploadDataUrl = mediaUrl.startsWith('data:') ? mediaUrl : storedMediaUrl;
+
+                    if (uploadDataUrl) {
+                        const waMediaId = await uploadMediaToWhatsApp(
+                            config.phoneNumberId,
+                            config.accessToken,
+                            uploadDataUrl,
+                            uploadMime,
+                            uploadName,
+                        );
+
+                        if (waMediaId) {
+                            payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, mediaType, fileName);
+                        } else {
+                            // Last resort: send as document so at least something arrives
+                            if (storedMediaUrl && storedMediaUrl.startsWith('http')) {
+                                payload = buildWhatsAppMediaPayloadByUrl(contact.phone, content, storedMediaUrl, 'document', fileName);
+                            } else {
+                                throw new Error('No se pudo enviar el audio a WhatsApp.');
+                            }
+                        }
+                    } else {
+                        payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content } };
+                    }
                 }
             } else {
                 payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content } };

@@ -48,6 +48,21 @@ export async function GET(req: NextRequest) {
         return handleHttpMedia(message);
     }
 
+    // Data URL fallback (when Supabase upload failed)
+    if (message.mediaUrl.startsWith('data:')) {
+        const base64Data = message.mediaUrl.split(',')[1];
+        if (base64Data) {
+            const buffer = Buffer.from(base64Data, 'base64');
+            const mime = message.mimeType || 'application/octet-stream';
+            return new NextResponse(buffer, {
+                headers: {
+                    'Content-Type': mime,
+                    'Cache-Control': 'private, max-age=3600',
+                },
+            });
+        }
+    }
+
     return new NextResponse('Unsupported media format', { status: 400 });
 }
 

@@ -64,6 +64,72 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     });
 }
 
+/** Convert an AudioBuffer to a WAV Blob (universally playable) */
+function audioBufferToWavBlob(audioBuffer: AudioBuffer): Blob {
+    const numChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+
+    let interleaved: Float32Array;
+    if (numChannels === 2) {
+        const left = audioBuffer.getChannelData(0);
+        const right = audioBuffer.getChannelData(1);
+        interleaved = new Float32Array(left.length + right.length);
+        for (let i = 0; i < left.length; i++) {
+            interleaved[i * 2] = left[i];
+            interleaved[i * 2 + 1] = right[i];
+        }
+    } else {
+        interleaved = audioBuffer.getChannelData(0);
+    }
+
+    const dataLength = interleaved.length * (bitDepth / 8);
+    const buffer = new ArrayBuffer(44 + dataLength);
+    const view = new DataView(buffer);
+
+    // WAV header
+    const writeString = (offset: number, str: string) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
+    view.setUint16(32, numChannels * (bitDepth / 8), true);
+    view.setUint16(34, bitDepth, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataLength, true);
+
+    // Write PCM samples
+    let offset = 44;
+    for (let i = 0; i < interleaved.length; i++) {
+        const sample = Math.max(-1, Math.min(1, interleaved[i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
+/** Convert a recorded audio Blob to a clean WAV data URL via AudioContext decoding */
+async function convertToWavDataUrl(blob: Blob): Promise<string> {
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioCtx = new AudioContext();
+    try {
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        const wavBlob = audioBufferToWavBlob(audioBuffer);
+        return blobToDataUrl(wavBlob);
+    } finally {
+        await audioCtx.close();
+    }
+}
+
 interface TemplateComponent {
     type: string;
     text?: string;
@@ -189,16 +255,18 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream;
 
-            // Priority: mp4 (WhatsApp + all browsers) > ogg (WhatsApp + Firefox) > webm (fallback)
-            const mimeType = MediaRecorder.isTypeSupported('audio/mp4')
-                ? 'audio/mp4'
+            // Use whatever format the browser supports - we convert to WAV before sending
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm; codecs=opus')
+                ? 'audio/webm; codecs=opus'
                 : MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')
                     ? 'audio/ogg; codecs=opus'
-                    : MediaRecorder.isTypeSupported('audio/webm; codecs=opus')
-                        ? 'audio/webm; codecs=opus'
-                        : 'audio/webm';
+                    : MediaRecorder.isTypeSupported('audio/mp4')
+                        ? 'audio/mp4'
+                        : '';
 
-            const recorder = new MediaRecorder(stream, { mimeType });
+            const recorder = mimeType
+                ? new MediaRecorder(stream, { mimeType })
+                : new MediaRecorder(stream);
             mediaRecorderRef.current = recorder;
             audioChunksRef.current = [];
 
@@ -208,15 +276,10 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 }
             };
 
-            recorder.onstop = () => {
-                // Handled in stopAndSend
-            };
-
-            recorder.start(100); // Collect data every 100ms
+            recorder.start(250);
             setIsRecording(true);
             setRecordingDuration(0);
 
-            // Duration timer
             recordingTimerRef.current = setInterval(() => {
                 setRecordingDuration(prev => {
                     if (prev >= MAX_RECORDING_MS / 1000) {
@@ -264,32 +327,21 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 const chunks = audioChunksRef.current;
                 if (chunks.length === 0) { resolve(); return; }
 
-                const mimeType = recorder.mimeType || 'audio/ogg';
-                const blob = new Blob(chunks, { type: mimeType });
+                const rawBlob = new Blob(chunks, { type: recorder.mimeType });
                 audioChunksRef.current = [];
 
-                if (blob.size > MAX_FILE_SIZE) {
-                    alert('La nota de voz excede el límite de 16MB.');
-                    resolve();
-                    return;
-                }
-
-                // Convert to data URL and send
+                // Convert any recording format to WAV (universally playable + clean data URL)
                 setIsSending(true);
                 try {
-                    const cleanMime = mimeType.split(';')[0];
-                    const ext = cleanMime.includes('mp4') ? 'm4a'
-                        : cleanMime.includes('ogg') ? 'ogg'
-                        : 'webm';
-                    const dataUrl = await blobToDataUrl(blob);
-                    const fileName = `voice-note-${Date.now()}.${ext}`;
+                    const wavDataUrl = await convertToWavDataUrl(rawBlob);
+                    const fileName = `voice-note-${Date.now()}.wav`;
 
                     const result = await sendMediaMessage(
                         conversationId,
                         '',
-                        dataUrl,
+                        wavDataUrl,
                         'audio',
-                        cleanMime,
+                        'audio/wav',
                         fileName
                     );
 
