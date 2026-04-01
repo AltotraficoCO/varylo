@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const error = searchParams.get('error');
 
     const baseUrl = process.env.AUTH_URL || req.nextUrl.origin;
-    const settingsUrl = `${baseUrl}/es-CO/company/settings?tab=channels`;
+    const settingsUrl = `${baseUrl}/company/settings?tab=channels`;
 
     if (error || !code || !state) {
         console.error('[Instagram OAuth] Error or missing params:', error);

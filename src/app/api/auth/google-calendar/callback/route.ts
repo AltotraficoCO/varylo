@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const error = searchParams.get('error');
 
     const baseUrl = process.env.AUTH_URL || 'http://localhost:3000';
-    const settingsUrl = `${baseUrl}/es-CO/company/settings?tab=ai`;
+    const settingsUrl = `${baseUrl}/company/settings?tab=ai`;
 
     if (error) {
         console.error('[Google Calendar OAuth] Error from Google:', error);
