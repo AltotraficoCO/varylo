@@ -1,24 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, Key, Coins, Calendar, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Key, Calendar } from 'lucide-react';
 import { OpenAIKeyForm } from './openai-form';
 import { CreditBalanceCard } from './credit-balance-card';
 import { GoogleCalendarForm } from './google-calendar-form';
 import { EcommerceForm } from './ecommerce-form';
-
-type IntegrationItem = {
-    id: string;
-    name: string;
-    description: string;
-    icon: React.ComponentType<{ className?: string }>;
-    color: string;
-    badge: string;
-    badgeVariant: 'default' | 'secondary' | 'outline';
-};
 
 type IntegrationsSectionProps = {
     openai: {
@@ -49,47 +37,6 @@ export function IntegrationsSection({ openai, credits, googleCalendar, ecommerce
     const formatBalance = (balance: number) => {
         return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(balance);
     };
-
-    const integrations: IntegrationItem[] = [
-        {
-            id: 'openai',
-            name: 'OpenAI API Key',
-            description: 'Configura tu propia clave de OpenAI para usar GPT directamente.',
-            icon: Key,
-            color: 'bg-orange-50 text-orange-600 border-orange-200',
-            badge: openai.hasApiKey ? 'Configurada' : 'No configurada',
-            badgeVariant: openai.hasApiKey ? 'default' : 'secondary',
-        },
-        {
-            id: 'credits',
-            name: 'Créditos IA',
-            description: 'Recarga créditos para usar la IA de Varylo sin clave propia.',
-            icon: Coins,
-            color: 'bg-yellow-50 text-yellow-600 border-yellow-200',
-            badge: `Saldo: ${formatBalance(credits.balance)}`,
-            badgeVariant: credits.balance > 0 ? 'default' : 'secondary',
-        },
-        {
-            id: 'google-calendar',
-            name: 'Google Calendar',
-            description: 'Conecta Google Calendar para agendar citas desde el chat.',
-            icon: Calendar,
-            color: 'bg-blue-50 text-blue-600 border-blue-200',
-            badge: googleCalendar.isConnected ? 'Conectado' : 'No conectado',
-            badgeVariant: googleCalendar.isConnected ? 'default' : 'secondary',
-        },
-        {
-            id: 'ecommerce',
-            name: 'Tienda Online',
-            description: 'Conecta Shopify o WooCommerce para consultar productos e inventario.',
-            icon: ShoppingBag,
-            color: 'bg-purple-50 text-purple-600 border-purple-200',
-            badge: ecommerce.isConnected
-                ? `${ecommerce.platform === 'shopify' ? 'Shopify' : 'WooCommerce'}`
-                : 'No conectada',
-            badgeVariant: ecommerce.isConnected ? 'default' : 'secondary',
-        },
-    ];
 
     if (activeItem === 'openai') {
         return (
@@ -172,38 +119,92 @@ export function IntegrationsSection({ openai, credits, googleCalendar, ecommerce
         );
     }
 
+    const getUpdatedDaysAgo = () => {
+        if (!openai.updatedAt) return null;
+        const days = Math.floor((Date.now() - new Date(openai.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
+        if (days === 0) return 'Actualizado hoy';
+        if (days === 1) return 'Actualizado hace 1 día';
+        return `Actualizado hace ${days} días`;
+    };
+
     return (
-        <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-                Selecciona una integración para configurarla.
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {integrations.map((item) => (
-                    <Card
-                        key={item.id}
-                        className="transition-all cursor-pointer hover:shadow-md hover:border-primary/40"
-                        onClick={() => setActiveItem(item.id)}
-                    >
-                        <CardContent className="pt-6">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className={`p-2.5 rounded-lg border ${item.color}`}>
-                                    <item.icon className="h-5 w-5" />
-                                </div>
-                                <Badge variant={item.badgeVariant} className="text-xs">
-                                    {item.badge}
-                                </Badge>
-                            </div>
-                            <h3 className="font-semibold mb-1">{item.name}</h3>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                                {item.description}
-                            </p>
-                            <div className="mt-4 flex items-center text-sm text-primary font-medium gap-1">
-                                Configurar
-                                <ArrowRight className="h-3.5 w-3.5" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
+        <div
+            className="rounded-2xl border border-[#E4E4E7] bg-white p-6"
+            style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
+        >
+            {/* Section title */}
+            <h2 className="text-[15px] font-semibold text-[#09090B]">IA y Créditos</h2>
+
+            {/* API Key row */}
+            <div className="flex items-center gap-3 w-full">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#ECFDF5]">
+                    <Key className="h-5 w-5 text-[#10B981]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-medium text-[#09090B]">
+                        {openai.hasApiKey ? 'API Key configurada' : 'API Key no configurada'}
+                    </p>
+                    {openai.hasApiKey && getUpdatedDaysAgo() && (
+                        <p className="text-[13px] text-[#71717A]">{getUpdatedDaysAgo()}</p>
+                    )}
+                    {!openai.hasApiKey && (
+                        <p className="text-[13px] text-[#71717A]">Configura tu clave de OpenAI</p>
+                    )}
+                </div>
+                <button
+                    onClick={() => setActiveItem('openai')}
+                    className="text-[13px] font-medium text-[#10B981] hover:underline cursor-pointer bg-transparent border-none"
+                >
+                    {openai.hasApiKey ? 'Cambiar' : 'Configurar'}
+                </button>
+            </div>
+
+            {/* Divider */}
+            <div className="h-px w-full bg-[#F4F4F5]" />
+
+            {/* Credits row */}
+            <div className="flex items-center justify-between w-full">
+                <div className="flex items-baseline gap-2">
+                    <span className="text-[28px] font-bold text-[#09090B] leading-none">
+                        {formatBalance(credits.balance)}
+                    </span>
+                    <span className="text-[13px] text-[#71717A]">COP disponibles</span>
+                </div>
+                <button
+                    onClick={() => setActiveItem('credits')}
+                    className="bg-[#10B981] text-white text-[13px] font-medium rounded-lg px-4 py-2 hover:bg-[#059669] transition-colors cursor-pointer border-none"
+                >
+                    Recargar créditos
+                </button>
+            </div>
+
+            {/* Divider */}
+            <div className="h-px w-full bg-[#F4F4F5]" />
+
+            {/* Google Calendar row */}
+            <div className="flex items-center gap-3 w-full">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#EFF6FF]">
+                    <Calendar className="h-5 w-5 text-[#3B82F6]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-medium text-[#09090B]">
+                        {googleCalendar.isConnected ? 'Google Calendar conectado' : 'Google Calendar no conectado'}
+                    </p>
+                    {googleCalendar.isConnected && googleCalendar.email && (
+                        <p className="text-[13px] text-[#71717A] truncate">{googleCalendar.email}</p>
+                    )}
+                    {!googleCalendar.isConnected && (
+                        <p className="text-[13px] text-[#71717A]">Conecta para agendar citas</p>
+                    )}
+                </div>
+                <button
+                    onClick={() => setActiveItem('google-calendar')}
+                    className={`text-[13px] font-medium hover:underline cursor-pointer bg-transparent border-none ${
+                        googleCalendar.isConnected ? 'text-[#EF4444]' : 'text-[#3B82F6]'
+                    }`}
+                >
+                    {googleCalendar.isConnected ? 'Desconectar' : 'Conectar'}
+                </button>
             </div>
         </div>
     );
