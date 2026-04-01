@@ -187,8 +187,47 @@ export default function AnalyticsPage() {
                         </button>
                     </div>
                 </div>
-                <div className="bg-[#F4F4F5] rounded-lg h-[140px] flex items-center justify-center">
-                    <span className="text-[13px] text-[#A1A1AA]">Heatmap de conversaciones</span>
+                <div className="flex gap-2">
+                    {/* Day labels */}
+                    <div className="flex flex-col gap-[3px] pt-0 shrink-0">
+                        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
+                            <div key={day} className="h-[16px] flex items-center">
+                                <span className="text-[10px] text-[#71717A] w-8 text-right">{day}</span>
+                            </div>
+                        ))}
+                    </div>
+                    {/* Grid */}
+                    <div className="flex-1 flex flex-col gap-[3px]">
+                        {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => (
+                            <div key={dayIndex} className="flex gap-[3px]">
+                                {Array.from({ length: 24 }).map((_, hourIndex) => {
+                                    const count = data.heatmap[`${dayIndex}-${hourIndex}`] || 0;
+                                    const maxCount = Math.max(1, ...Object.values(data.heatmap as Record<string, number>));
+                                    const intensity = count / maxCount;
+                                    return (
+                                        <div
+                                            key={hourIndex}
+                                            className="flex-1 h-[16px] rounded-[2px]"
+                                            style={{
+                                                backgroundColor: count > 0
+                                                    ? `rgba(16, 185, 129, ${0.15 + intensity * 0.85})`
+                                                    : '#F4F4F5',
+                                            }}
+                                            title={`${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][dayIndex]} ${hourIndex}:00 — ${count} msgs`}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        ))}
+                        {/* Hour labels */}
+                        <div className="flex gap-[3px] mt-1">
+                            {Array.from({ length: 24 }).map((_, i) => (
+                                <div key={i} className="flex-1 text-center">
+                                    {i % 3 === 0 && <span className="text-[9px] text-[#A1A1AA]">{i}h</span>}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
 
