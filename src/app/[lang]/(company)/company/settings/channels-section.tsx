@@ -28,6 +28,7 @@ type ChannelsSectionProps = {
         hasAccessToken: boolean;
         channelId: string | null;
         automationPriority: string;
+        phoneDisplay?: string;
     };
     webchatConfig: {
         isActive: boolean;
@@ -147,11 +148,10 @@ export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig
                 </Button>
                 <WhatsAppConnectionForm
                     initialPhoneNumberId={whatsappConfig.phoneNumberId}
-                    initialVerifyToken={whatsappConfig.verifyToken}
-                    initialWabaId={whatsappConfig.wabaId}
                     hasAccessToken={whatsappConfig.hasAccessToken}
                     channelId={whatsappConfig.channelId}
                     automationPriority={whatsappConfig.automationPriority as any}
+                    phoneDisplay={whatsappConfig.phoneDisplay}
                 />
             </div>
         );

@@ -82,7 +82,7 @@ export default async function SettingsPage(props: {
     const googleCalendarConnectedAt = company?.googleCalendarConnectedAt?.toISOString() || null;
 
     // WhatsApp config
-    const whatsappConfig = whatsappChannel?.configJson as { phoneNumberId?: string; verifyToken?: string; accessToken?: string; appSecret?: string; wabaId?: string } | null;
+    const whatsappConfig = whatsappChannel?.configJson as { phoneNumberId?: string; verifyToken?: string; accessToken?: string; appSecret?: string; wabaId?: string; phoneDisplay?: string } | null;
 
     // WebChat config
     const webchatActive = webchatChannel?.status === 'CONNECTED';
@@ -172,6 +172,7 @@ export default async function SettingsPage(props: {
                                 hasAccessToken: !!whatsappConfig?.accessToken,
                                 channelId: whatsappChannel?.id || null,
                                 automationPriority: whatsappChannel?.automationPriority || 'CHATBOT_FIRST',
+                                phoneDisplay: whatsappConfig?.phoneDisplay,
                             }}
                             webchatConfig={{
                                 isActive: webchatActive,
