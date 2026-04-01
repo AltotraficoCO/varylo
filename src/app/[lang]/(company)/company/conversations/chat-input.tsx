@@ -179,12 +179,14 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream;
 
-            // Prefer ogg/opus for WhatsApp compatibility, fallback to webm
-            const mimeType = MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')
-                ? 'audio/ogg; codecs=opus'
-                : MediaRecorder.isTypeSupported('audio/webm; codecs=opus')
-                    ? 'audio/webm; codecs=opus'
-                    : 'audio/webm';
+            // Priority: mp4 (WhatsApp + all browsers) > ogg (WhatsApp + Firefox) > webm (fallback)
+            const mimeType = MediaRecorder.isTypeSupported('audio/mp4')
+                ? 'audio/mp4'
+                : MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')
+                    ? 'audio/ogg; codecs=opus'
+                    : MediaRecorder.isTypeSupported('audio/webm; codecs=opus')
+                        ? 'audio/webm; codecs=opus'
+                        : 'audio/webm';
 
             const recorder = new MediaRecorder(stream, { mimeType });
             mediaRecorderRef.current = recorder;
@@ -267,8 +269,11 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 try {
                     const buffer = await blob.arrayBuffer();
                     const base64 = Buffer.from(buffer).toString('base64');
-                    const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
-                    const dataUrl = `data:${mimeType};base64,${base64}`;
+                    const cleanMime = mimeType.split(';')[0]; // "audio/mp4" or "audio/ogg" or "audio/webm"
+                    const ext = cleanMime.includes('mp4') ? 'm4a'
+                        : cleanMime.includes('ogg') ? 'ogg'
+                        : 'webm';
+                    const dataUrl = `data:${cleanMime};base64,${base64}`;
                     const fileName = `voice-note-${Date.now()}.${ext}`;
 
                     const result = await sendMediaMessage(
@@ -276,7 +281,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                         '',
                         dataUrl,
                         'audio',
-                        mimeType.split(';')[0], // Clean mime: "audio/ogg"
+                        cleanMime,
                         fileName
                     );
 

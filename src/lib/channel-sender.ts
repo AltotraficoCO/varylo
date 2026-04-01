@@ -225,23 +225,33 @@ export async function sendChannelMessage({
             let payload: Record<string, any>;
 
             if (mediaUrl && mediaType && mimeType) {
-                // If we have a public Supabase URL, use link-based sending (more reliable)
-                if (storedMediaUrl && storedMediaUrl.startsWith('http')) {
+                const cleanMime = mimeType.split(';')[0];
+                // WhatsApp supported audio: aac, mp4, mpeg, amr, ogg
+                const waSupported = ['audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/amr', 'audio/ogg',
+                    'image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/3gpp',
+                    'application/pdf', 'application/msword'].some(t => cleanMime.startsWith(t.split('/')[0]) && cleanMime === t)
+                    || !cleanMime.startsWith('audio/'); // Non-audio formats are generally fine
+
+                // Strategy 1: Use Supabase public URL (WhatsApp downloads it)
+                if (storedMediaUrl && storedMediaUrl.startsWith('http') && waSupported) {
                     payload = buildWhatsAppMediaPayloadByUrl(contact.phone, content, storedMediaUrl, mediaType, fileName);
-                } else {
-                    // Fallback: try direct upload to WhatsApp media API
+                }
+                // Strategy 2: Upload directly to WhatsApp media API
+                else {
                     const waMediaId = await uploadMediaToWhatsApp(
                         config.phoneNumberId,
                         config.accessToken,
                         mediaUrl,
-                        mimeType.split(';')[0],
+                        cleanMime,
                         fileName || 'file',
                     );
 
                     if (waMediaId) {
                         payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, mediaType, fileName);
                     } else {
-                        throw new Error('No se pudo subir el archivo a WhatsApp. Intenta de nuevo.');
+                        // Audio in unsupported format (webm) — save in DB but skip WhatsApp send
+                        console.error(`[WhatsApp] Unsupported media format: ${cleanMime}. Message saved but not sent to WhatsApp.`);
+                        payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: '🎤 Nota de voz (abrir en plataforma)' } };
                     }
                 }
             } else {
