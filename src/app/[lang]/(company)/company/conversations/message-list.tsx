@@ -101,7 +101,7 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
                 const testAudio = new Audio();
                 const canPlay = testAudio.canPlayType(mime || 'audio/mpeg');
 
-                if (canPlay === '' || canPlay === 'no') {
+                if (canPlay === '') {
                     // Strategy 2: Decode with AudioContext and convert to WAV
                     URL.revokeObjectURL(url);
                     url = null;
