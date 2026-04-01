@@ -583,62 +583,59 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
 
     // Normal chat input
     return (
-        <div className="p-4 border-t bg-background">
+        <div className="bg-white py-3 px-5">
             {/* File preview */}
             {selectedFile && (
-                <div className="mb-2 flex items-center gap-2 p-2 rounded-lg bg-muted text-sm">
+                <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-[#F4F4F5] text-sm">
                     {filePreview ? (
                         <img src={filePreview} alt="Preview" className="h-12 w-12 rounded object-cover" />
                     ) : selectedFile.type.startsWith('image/') ? (
-                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                        <ImageIcon className="h-8 w-8 text-[#71717A]" />
                     ) : (
-                        <FileText className="h-8 w-8 text-muted-foreground" />
+                        <FileText className="h-8 w-8 text-[#71717A]" />
                     )}
                     <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium">{selectedFile.name}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="truncate font-medium text-[#09090B]">{selectedFile.name}</p>
+                        <p className="text-xs text-[#71717A]">
                             {(selectedFile.size / 1024).toFixed(0)} KB
                         </p>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={removeFile} className="h-6 w-6">
-                        <X className="h-4 w-4" />
-                    </Button>
+                    <button type="button" onClick={removeFile} className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-[#E4E4E7] transition-colors">
+                        <X className="h-4 w-4 text-[#71717A]" />
+                    </button>
                 </div>
             )}
 
             {/* Recording indicator */}
             {isRecording && (
-                <div className="mb-2 flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
+                <div className="mb-3 flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
                     <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
                     <span className="text-sm font-medium text-red-700 flex-1">
-                        Grabando nota de voz... {formatDuration(recordingDuration)}
+                        Grabando... {formatDuration(recordingDuration)}
                     </span>
-                    <Button
-                        variant="ghost"
-                        size="sm"
+                    <button
+                        type="button"
                         onClick={cancelRecording}
-                        className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-100"
+                        className="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-100"
                     >
-                        <X className="h-4 w-4 mr-1" />
                         Cancelar
-                    </Button>
-                    <Button
-                        size="sm"
+                    </button>
+                    <button
+                        type="button"
                         onClick={stopAndSendRecording}
                         disabled={isSending}
-                        className="h-7 px-3 bg-red-600 hover:bg-red-700 text-white"
+                        className="h-9 w-9 rounded-full bg-[#10B981] hover:bg-[#059669] flex items-center justify-center transition-colors disabled:opacity-50"
                     >
                         {isSending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                            <Loader2 className="h-[18px] w-[18px] animate-spin text-white" />
                         ) : (
-                            <Send className="h-3.5 w-3.5 mr-1" />
+                            <Send className="h-[18px] w-[18px] text-white" />
                         )}
-                        Enviar
-                    </Button>
+                    </button>
                 </div>
             )}
 
-            <form onSubmit={handleSend} className="flex gap-2">
+            <form onSubmit={handleSend} className="flex items-center gap-3">
                 <input
                     ref={fileInputRef}
                     type="file"
@@ -646,46 +643,49 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                     onChange={handleFileSelect}
                     className="hidden"
                 />
-                <Button
+
+                {/* Attach button - circular, bg #F4F4F5 */}
+                <button
                     type="button"
-                    variant="ghost"
-                    size="icon"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSending || isRecording}
-                    className="shrink-0"
+                    className="h-9 w-9 shrink-0 rounded-full bg-[#F4F4F5] flex items-center justify-center hover:bg-[#E4E4E7] transition-colors disabled:opacity-50"
                 >
-                    <Paperclip className="h-4 w-4" />
-                </Button>
-                <Input
+                    <Paperclip className="h-[18px] w-[18px] text-[#71717A]" />
+                </button>
+
+                {/* Input field - bg #FAFAFA, border #E4E4E7 */}
+                <input
                     value={message}
                     onChange={(e) => handleChange(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleSend(e); } }}
                     placeholder={selectedFile ? "Agrega un mensaje (opcional)..." : "Escribe un mensaje..."}
-                    className="flex-1"
+                    className="flex-1 bg-[#FAFAFA] border border-[#E4E4E7] rounded-lg py-2.5 px-3.5 text-[14px] text-[#09090B] placeholder:text-[#A1A1AA] outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]/20 transition-colors disabled:opacity-50"
                     disabled={isSending || isRecording}
                 />
-                {/* Mic button - shows when no text typed and no file selected */}
+
+                {/* Mic button - circular, bg #F4F4F5, shows when empty */}
                 {!message.trim() && !selectedFile && !isRecording && (
-                    <Button
+                    <button
                         type="button"
-                        variant="ghost"
-                        size="icon"
                         onClick={startRecording}
                         disabled={isSending}
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        className="h-9 w-9 shrink-0 rounded-full bg-[#F4F4F5] flex items-center justify-center hover:bg-[#E4E4E7] transition-colors disabled:opacity-50"
                         title="Grabar nota de voz"
                     >
-                        <Mic className="h-4 w-4" />
-                    </Button>
+                        <Mic className="h-[18px] w-[18px] text-[#71717A]" />
+                    </button>
                 )}
-                {/* Send button - shows when there's text or a file */}
+
+                {/* Send button - circular, green #10B981, shows when there's content */}
                 {(message.trim() || selectedFile) && (
-                    <Button
+                    <button
                         type="submit"
                         disabled={isSending || isRecording}
-                        size="icon"
+                        className="h-9 w-9 shrink-0 rounded-full bg-[#10B981] hover:bg-[#059669] flex items-center justify-center transition-colors disabled:opacity-50"
                     >
-                        <Send className="h-4 w-4" />
-                    </Button>
+                        <Send className="h-[18px] w-[18px] text-white" />
+                    </button>
                 )}
             </form>
         </div>
