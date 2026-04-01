@@ -3,16 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,13 +21,11 @@ import {
   Send,
   Trash2,
   Megaphone,
-  ListChecks,
   Loader2,
   CheckCircle2,
   XCircle,
   Clock,
   AlertCircle,
-  Eye,
   Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -135,13 +124,17 @@ export function BroadcastsClient({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <header>
-        <div className="flex items-center justify-between mb-4">
+      <div>
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Difusiones</h1>
-            <p className="text-sm text-muted-foreground mt-1">Envía plantillas de WhatsApp a listas de contactos</p>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#09090B', lineHeight: 1.2 }}>
+              Difusiones
+            </h1>
+            <p style={{ fontSize: 14, color: '#71717A', marginTop: 4 }}>
+              Envía plantillas de WhatsApp a listas de contactos
+            </p>
             {tierLabel && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 mt-2">
                 <Badge variant="outline" className={cn('text-[10px] px-2 h-5', qualityColor)}>
                   Tier: {tierLabel}
                 </Badge>
@@ -154,238 +147,344 @@ export function BroadcastsClient({
             )}
           </div>
           <div className="flex items-center gap-2">
-            {tab === 'lists' && (
-              <>
-                {contactLists.length > 0 && (
-                  <Button size="sm" variant="outline" onClick={() => setShowBroadcast(true)}>
-                    <Megaphone className="h-4 w-4 mr-1.5" />
-                    Enviar difusión
-                  </Button>
-                )}
-                <Button size="sm" onClick={() => setShowCreateList(true)}>
-                  <Plus className="h-4 w-4 mr-1.5" />
-                  Nueva difusión
-                </Button>
-              </>
-            )}
-            {tab === 'broadcasts' && contactLists.length > 0 && (
-              <Button size="sm" onClick={() => setShowBroadcast(true)}>
-                <Megaphone className="h-4 w-4 mr-1.5" />
-                Nueva difusión
-              </Button>
-            )}
+            <button
+              onClick={() => setTab('lists')}
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#3F3F46',
+                border: '1px solid #E4E4E7',
+                borderRadius: 8,
+                padding: '8px 16px',
+                background: 'transparent',
+                cursor: 'pointer',
+              }}
+            >
+              Listas
+            </button>
+            <button
+              onClick={() => setTab('broadcasts')}
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#3F3F46',
+                border: '1px solid #E4E4E7',
+                borderRadius: 8,
+                padding: '8px 16px',
+                background: 'transparent',
+                cursor: 'pointer',
+              }}
+            >
+              Historial
+            </button>
+            <button
+              onClick={() => {
+                if (tab === 'lists') {
+                  setShowCreateList(true);
+                } else {
+                  setShowBroadcast(true);
+                }
+              }}
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#FFFFFF',
+                backgroundColor: '#10B981',
+                border: 'none',
+                borderRadius: 8,
+                padding: '8px 16px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Nueva difusión
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="flex gap-4 border-b">
+      {/* Tab bar */}
+      <div style={{ borderBottom: '1px solid #E4E4E7', width: '100%' }}>
+        <div className="flex">
           <button
             onClick={() => setTab('lists')}
-            className={cn(
-              'pb-3 border-b-2 px-1 transition-colors text-sm flex items-center gap-1.5',
-              tab === 'lists'
-                ? 'border-primary text-primary font-medium'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
+            style={{
+              fontSize: 14,
+              fontWeight: tab === 'lists' ? 600 : 400,
+              color: tab === 'lists' ? '#09090B' : '#71717A',
+              padding: '12px 16px',
+              borderBottom: tab === 'lists' ? '2px solid #10B981' : '2px solid transparent',
+              background: 'transparent',
+              border: 'none',
+              borderBottomWidth: 2,
+              borderBottomStyle: 'solid',
+              borderBottomColor: tab === 'lists' ? '#10B981' : 'transparent',
+              cursor: 'pointer',
+              transition: 'color 0.15s, border-color 0.15s',
+            }}
           >
-            <ListChecks className="h-4 w-4" />
             Listas de contactos
-            <Badge variant="secondary" className="px-1.5 py-0 h-5 text-[10px] bg-muted">
-              {contactLists.length}
-            </Badge>
           </button>
           <button
             onClick={() => setTab('broadcasts')}
-            className={cn(
-              'pb-3 border-b-2 px-1 transition-colors text-sm flex items-center gap-1.5',
-              tab === 'broadcasts'
-                ? 'border-primary text-primary font-medium'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
+            style={{
+              fontSize: 14,
+              fontWeight: tab === 'broadcasts' ? 600 : 400,
+              color: tab === 'broadcasts' ? '#09090B' : '#71717A',
+              padding: '12px 16px',
+              background: 'transparent',
+              border: 'none',
+              borderBottomWidth: 2,
+              borderBottomStyle: 'solid',
+              borderBottomColor: tab === 'broadcasts' ? '#10B981' : 'transparent',
+              cursor: 'pointer',
+              transition: 'color 0.15s, border-color 0.15s',
+            }}
           >
-            <Megaphone className="h-4 w-4" />
             Historial de envíos
-            <Badge variant="secondary" className="px-1.5 py-0 h-5 text-[10px] bg-muted">
-              {broadcasts.length}
-            </Badge>
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
-        {tab === 'lists' && (
-          <>
-            {contactLists.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto pt-20">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                  <Users className="h-8 w-8 text-gray-400" />
+      {tab === 'lists' && (
+        <>
+          {contactLists.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto pt-20">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                <Users className="h-8 w-8 text-gray-400" />
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#09090B' }}>Sin listas de contactos</h2>
+              <p style={{ fontSize: 14, color: '#71717A' }}>
+                Crea tu primera lista para organizar contactos y enviar difusiones masivas.
+              </p>
+              <button
+                onClick={() => setShowCreateList(true)}
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: '#FFFFFF',
+                  backgroundColor: '#10B981',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Crear primera lista
+              </button>
+            </div>
+          ) : (
+            <div style={{ borderRadius: 12, border: '1px solid #E4E4E7', overflow: 'hidden' }}>
+              {/* Table header */}
+              <div
+                className="flex items-center"
+                style={{ backgroundColor: '#F4F4F5', padding: '12px 16px' }}
+              >
+                <div className="flex-1" style={{ fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  Nombre
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">Sin listas de contactos</h2>
-                <p className="text-muted-foreground">
-                  Crea tu primera lista para organizar contactos y enviar difusiones masivas.
-                </p>
-                <Button onClick={() => setShowCreateList(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear primera lista
-                </Button>
+                <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  Contactos
+                </div>
+                <div style={{ width: 160, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  Creada
+                </div>
+                <div style={{ width: 160, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  Acciones
+                </div>
               </div>
-            ) : (
-              <div className="max-w-5xl mx-auto">
-                <Card>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nombre</TableHead>
-                          <TableHead>Descripción</TableHead>
-                          <TableHead className="text-center">Contactos</TableHead>
-                          <TableHead>Creada</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {contactLists.map((list) => (
-                          <TableRow key={list.id}>
-                            <TableCell className="font-medium">{list.name}</TableCell>
-                            <TableCell className="text-muted-foreground text-sm">
-                              {list.description || '—'}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant="secondary" className="font-mono">
-                                {list._count.contacts}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {new Date(list.createdAt).toLocaleDateString('es-CO')}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 px-2 text-xs text-primary hover:text-primary"
-                                  onClick={() => {
-                                    setBroadcastListId(list.id);
-                                    setShowBroadcast(true);
-                                  }}
-                                >
-                                  <Send className="h-3.5 w-3.5 mr-1" />
-                                  Enviar
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                  onClick={() => setEditListId(list.id)}
-                                  title="Ver / Editar"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                  onClick={() => setDeleteListId(list.id)}
-                                  title="Eliminar"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </>
-        )}
+              {/* Table rows */}
+              {contactLists.map((list) => (
+                <div
+                  key={list.id}
+                  className="flex items-center"
+                  style={{ padding: '14px 16px', borderTop: '1px solid #E4E4E7' }}
+                >
+                  <div className="flex-1" style={{ fontSize: 14, fontWeight: 500, color: '#09090B' }}>
+                    {list.name}
+                  </div>
+                  <div style={{ width: 120, fontSize: 14, fontWeight: 400, color: '#3F3F46' }}>
+                    {list._count.contacts}
+                  </div>
+                  <div style={{ width: 160, fontSize: 14, fontWeight: 400, color: '#71717A' }}>
+                    {new Date(list.createdAt).toLocaleDateString('es-CO')}
+                  </div>
+                  <div style={{ width: 160, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button
+                      onClick={() => setEditListId(list.id)}
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#10B981',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setBroadcastListId(list.id);
+                        setShowBroadcast(true);
+                      }}
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#10B981',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      Enviar
+                    </button>
+                    <button
+                      onClick={() => setDeleteListId(list.id)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        color: '#71717A',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
-        {tab === 'broadcasts' && (
-          <>
-            {broadcasts.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto pt-20">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                  <Megaphone className="h-8 w-8 text-gray-400" />
+      {tab === 'broadcasts' && (
+        <>
+          {broadcasts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto pt-20">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                <Megaphone className="h-8 w-8 text-gray-400" />
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#09090B' }}>Sin difusiones</h2>
+              <p style={{ fontSize: 14, color: '#71717A' }}>
+                {contactLists.length === 0
+                  ? 'Primero crea una lista de contactos, luego podrás enviar difusiones.'
+                  : 'Envía tu primera difusión masiva a una lista de contactos.'}
+              </p>
+              {contactLists.length > 0 && (
+                <button
+                  onClick={() => setShowBroadcast(true)}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: '#FFFFFF',
+                    backgroundColor: '#10B981',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Megaphone className="h-4 w-4" />
+                  Crear difusión
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ borderRadius: 12, border: '1px solid #E4E4E7', overflow: 'hidden' }}>
+              {/* Table header */}
+              <div
+                className="flex items-center"
+                style={{ backgroundColor: '#F4F4F5', padding: '12px 16px' }}
+              >
+                <div className="flex-1" style={{ fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  Plantilla
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">Sin difusiones</h2>
-                <p className="text-muted-foreground">
-                  {contactLists.length === 0
-                    ? 'Primero crea una lista de contactos, luego podrás enviar difusiones.'
-                    : 'Envía tu primera difusión masiva a una lista de contactos.'}
-                </p>
-                {contactLists.length > 0 && (
-                  <Button onClick={() => setShowBroadcast(true)}>
-                    <Megaphone className="h-4 w-4 mr-2" />
-                    Crear difusión
-                  </Button>
-                )}
+                <div style={{ width: 140, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  Lista
+                </div>
+                <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  Estado
+                </div>
+                <div style={{ width: 100, fontSize: 12, fontWeight: 600, color: '#71717A', textAlign: 'center' }}>
+                  Enviados
+                </div>
+                <div style={{ width: 80, fontSize: 12, fontWeight: 600, color: '#71717A', textAlign: 'center' }}>
+                  Fallidos
+                </div>
+                <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  Creada por
+                </div>
+                <div style={{ width: 140, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  Fecha
+                </div>
               </div>
-            ) : (
-              <div className="max-w-5xl mx-auto">
-                <Card>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Plantilla</TableHead>
-                          <TableHead>Lista</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead className="text-center">Enviados</TableHead>
-                          <TableHead className="text-center">Fallidos</TableHead>
-                          <TableHead>Creada por</TableHead>
-                          <TableHead>Fecha</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {broadcasts.map((b) => {
-                          const status = STATUS_MAP[b.status] || STATUS_MAP.PENDING;
-                          const StatusIcon = status.icon;
-                          return (
-                            <TableRow key={b.id}>
-                              <TableCell className="font-medium">{b.templateName}</TableCell>
-                              <TableCell className="text-sm">{b.contactList.name}</TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="outline"
-                                  className={cn('text-xs flex items-center gap-1 w-fit', status.color)}
-                                >
-                                  <StatusIcon className={cn('h-3 w-3', b.status === 'IN_PROGRESS' && 'animate-spin')} />
-                                  {status.label}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-center font-mono text-sm text-green-600">
-                                {b.sentCount}/{b.totalContacts}
-                              </TableCell>
-                              <TableCell className="text-center font-mono text-sm text-red-500">
-                                {b.failedCount}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {b.createdBy?.name || '—'}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {new Date(b.createdAt).toLocaleDateString('es-CO', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </>
-        )}
-      </main>
+              {/* Table rows */}
+              {broadcasts.map((b) => {
+                const status = STATUS_MAP[b.status] || STATUS_MAP.PENDING;
+                const StatusIcon = status.icon;
+                return (
+                  <div
+                    key={b.id}
+                    className="flex items-center"
+                    style={{ padding: '14px 16px', borderTop: '1px solid #E4E4E7' }}
+                  >
+                    <div className="flex-1" style={{ fontSize: 14, fontWeight: 500, color: '#09090B' }}>
+                      {b.templateName}
+                    </div>
+                    <div style={{ width: 140, fontSize: 14, fontWeight: 400, color: '#3F3F46' }}>
+                      {b.contactList.name}
+                    </div>
+                    <div style={{ width: 120 }}>
+                      <Badge
+                        variant="outline"
+                        className={cn('text-xs flex items-center gap-1 w-fit', status.color)}
+                      >
+                        <StatusIcon className={cn('h-3 w-3', b.status === 'IN_PROGRESS' && 'animate-spin')} />
+                        {status.label}
+                      </Badge>
+                    </div>
+                    <div style={{ width: 100, fontSize: 14, fontWeight: 400, color: '#16a34a', textAlign: 'center', fontFamily: 'monospace' }}>
+                      {b.sentCount}/{b.totalContacts}
+                    </div>
+                    <div style={{ width: 80, fontSize: 14, fontWeight: 400, color: '#ef4444', textAlign: 'center', fontFamily: 'monospace' }}>
+                      {b.failedCount}
+                    </div>
+                    <div style={{ width: 120, fontSize: 14, fontWeight: 400, color: '#71717A' }}>
+                      {b.createdBy?.name || '—'}
+                    </div>
+                    <div style={{ width: 140, fontSize: 14, fontWeight: 400, color: '#71717A' }}>
+                      {new Date(b.createdAt).toLocaleDateString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Dialogs */}
       <CreateListDialog
