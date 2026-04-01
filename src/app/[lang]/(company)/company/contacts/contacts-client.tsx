@@ -185,40 +185,41 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                         );
                     })}
                 </div>
-                <div className="ml-auto flex items-center gap-2">
-                    {!selectMode ? (
-                        <Button variant="outline" size="sm" onClick={() => setSelectMode(true)} className="text-xs">
-                            <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
-                            Seleccionar
+                {/* Bulk selection bar */}
+                {selected.size > 0 && (
+                    <div className="ml-auto flex items-center gap-2">
+                        <Checkbox checked={selected.size === contactIds.length && contactIds.length > 0} onCheckedChange={toggleAll} />
+                        <span className="text-xs text-[#71717A]">{selected.size} seleccionados</span>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setShowDeleteDialog(true)}
+                            className="text-xs"
+                        >
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                            Eliminar ({selected.size})
                         </Button>
-                    ) : (
-                        <div className="flex items-center gap-2">
-                            <Checkbox checked={selected.size === contactIds.length && contactIds.length > 0} onCheckedChange={toggleAll} />
-                            <span className="text-xs text-muted-foreground">{selected.size} de {contacts.length}</span>
-                            {selected.size > 0 && (
-                                <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-xs">
-                                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                                    Eliminar ({selected.size})
-                                </Button>
-                            )}
-                            <Button variant="ghost" size="sm" onClick={() => { setSelectMode(false); setSelected(new Set()); }}>
-                                <X className="h-3.5 w-3.5" />
-                            </Button>
-                        </div>
-                    )}
-                </div>
+                        <button
+                            onClick={() => setSelected(new Set())}
+                            className="text-xs text-[#71717A] hover:text-[#09090B] px-2 py-1"
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Table */}
             <div className="rounded-xl border border-[#E4E4E7] overflow-hidden">
                 {/* Table Header */}
                 <div className="flex items-center bg-[#F4F4F5] py-3 px-4 text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">
-                    {selectMode && <div className="w-[40px] shrink-0" />}
-                    <div className="w-[220px] shrink-0">Nombre</div>
-                    <div className="w-[180px] shrink-0">Teléfono</div>
-                    <div className="w-[140px] shrink-0">Canal</div>
-                    <div className="w-[140px] shrink-0">Empresa</div>
+                    <div className="w-[36px] shrink-0" />
+                    <div className="w-[200px] shrink-0">Nombre</div>
+                    <div className="w-[170px] shrink-0">Teléfono</div>
+                    <div className="w-[130px] shrink-0">Canal</div>
+                    <div className="w-[130px] shrink-0">Empresa</div>
                     <div className="flex-1">Última actividad</div>
+                    <div className="w-[40px] shrink-0" />
                 </div>
 
                 {contacts.length === 0 ? (
@@ -240,44 +241,67 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                             const badge = channelBadge[channelType || ''];
                             const isSelected = selected.has(contact.id);
                             return (
-                                <Link
+                                <div
                                     key={contact.id}
-                                    href={`/${lang}/company/contacts/${contact.id}`}
                                     className={cn(
-                                        "flex items-center py-3 px-4 border-t border-[#E4E4E7] hover:bg-muted/20 transition-colors",
-                                        isSelected && "bg-primary/5"
+                                        "group flex items-center py-3 px-4 border-t border-[#E4E4E7] hover:bg-[#FAFAFA] transition-colors",
+                                        isSelected && "bg-[#ECFDF5]"
                                     )}
-                                    onClick={selectMode ? (e) => { e.preventDefault(); toggleOne(contact.id); } : undefined}
                                 >
-                                    {selectMode && (
-                                        <div className="w-[40px] shrink-0">
-                                            <Checkbox checked={isSelected} onCheckedChange={() => toggleOne(contact.id)} onClick={(e) => e.stopPropagation()} />
+                                    {/* Checkbox */}
+                                    <div className="w-[36px] shrink-0">
+                                        <Checkbox
+                                            checked={isSelected}
+                                            onCheckedChange={() => toggleOne(contact.id)}
+                                            className={cn(
+                                                "transition-opacity",
+                                                !isSelected && selected.size === 0 && "opacity-0 group-hover:opacity-100"
+                                            )}
+                                        />
+                                    </div>
+                                    <Link
+                                        href={`/${lang}/company/contacts/${contact.id}`}
+                                        className="flex items-center flex-1 min-w-0"
+                                    >
+                                        <div className="w-[200px] shrink-0 flex items-center gap-3">
+                                            <ContactAvatar name={contact.name} phone={contact.phone} className="h-8 w-8 shrink-0" />
+                                            <span className="text-[14px] font-medium text-[#09090B] truncate">{contact.name || contact.phone}</span>
                                         </div>
-                                    )}
-                                    <div className="w-[220px] shrink-0 flex items-center gap-3">
-                                        <ContactAvatar name={contact.name} phone={contact.phone} className="h-8 w-8 shrink-0" />
-                                        <span className="text-[14px] font-medium text-[#09090B] truncate">{contact.name || contact.phone}</span>
+                                        <div className="w-[170px] shrink-0 text-[14px] text-[#3F3F46] truncate">
+                                            {!contact.phone?.startsWith('web_') ? contact.phone : '-'}
+                                        </div>
+                                        <div className="w-[130px] shrink-0">
+                                            {badge ? (
+                                                <span className={`inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-xl font-medium ${badge.bg} ${badge.text}`}>
+                                                    <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
+                                                    {badge.label}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[14px] text-[#71717A]">-</span>
+                                            )}
+                                        </div>
+                                        <div className="w-[130px] shrink-0 text-[14px] text-[#3F3F46] truncate">
+                                            {contact.companyName || '-'}
+                                        </div>
+                                        <div className="flex-1 text-[14px] text-[#71717A]">
+                                            -
+                                        </div>
+                                    </Link>
+                                    {/* Delete button on hover */}
+                                    <div className="w-[40px] shrink-0 flex justify-center">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelected(new Set([contact.id]));
+                                                setShowDeleteDialog(true);
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#EF4444] hover:bg-[#FEF2F2] transition-all"
+                                            title="Eliminar contacto"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
                                     </div>
-                                    <div className="w-[180px] shrink-0 text-[14px] text-[#3F3F46] truncate">
-                                        {!contact.phone?.startsWith('web_') ? contact.phone : '-'}
-                                    </div>
-                                    <div className="w-[140px] shrink-0">
-                                        {badge ? (
-                                            <span className={`inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-xl font-medium ${badge.bg} ${badge.text}`}>
-                                                <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
-                                                {badge.label}
-                                            </span>
-                                        ) : (
-                                            <span className="text-[14px] text-[#71717A]">-</span>
-                                        )}
-                                    </div>
-                                    <div className="w-[140px] shrink-0 text-[14px] text-[#3F3F46] truncate">
-                                        {contact.companyName || '-'}
-                                    </div>
-                                    <div className="flex-1 text-[14px] text-[#71717A]">
-                                        -
-                                    </div>
-                                </Link>
+                                </div>
                             );
                         })}
                     </div>
