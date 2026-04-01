@@ -41,6 +41,7 @@ type ChannelsSectionProps = {
         hasAccessToken: boolean;
         channelId: string | null;
         automationPriority: string;
+        pageName?: string;
     };
     hasActiveSubscription: boolean;
 };
@@ -192,10 +193,10 @@ export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig
                 </Button>
                 <InstagramDMForm
                     initialPageId={instagramConfig.pageId}
-                    initialVerifyToken={instagramConfig.verifyToken}
                     hasAccessToken={instagramConfig.hasAccessToken}
                     channelId={instagramConfig.channelId}
                     automationPriority={instagramConfig.automationPriority}
+                    pageName={instagramConfig.pageName}
                 />
             </div>
         );

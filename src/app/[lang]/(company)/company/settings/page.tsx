@@ -90,7 +90,7 @@ export default async function SettingsPage(props: {
 
     // Instagram config
     const instagramConnected = instagramChannel?.status === 'CONNECTED';
-    const instagramConfigJson = instagramChannel?.configJson as { pageId?: string; accessToken?: string; verifyToken?: string } | null;
+    const instagramConfigJson = instagramChannel?.configJson as { pageId?: string; accessToken?: string; verifyToken?: string; pageName?: string } | null;
 
     return (
         <div className="w-full">
@@ -185,6 +185,7 @@ export default async function SettingsPage(props: {
                                 hasAccessToken: instagramConnected && !!instagramConfigJson?.accessToken,
                                 channelId: instagramConnected ? instagramChannel?.id || null : null,
                                 automationPriority: instagramChannel?.automationPriority || 'CHATBOT_FIRST',
+                                pageName: instagramConfigJson?.pageName,
                             }}
                             hasActiveSubscription={!!activeSubscription}
                         />

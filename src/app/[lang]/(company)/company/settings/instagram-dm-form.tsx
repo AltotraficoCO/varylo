@@ -1,56 +1,52 @@
 'use client';
 
-import { useActionState, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { saveInstagramCredentials } from './actions';
+import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2, Copy, Check } from "lucide-react";
-
-function generateVerifyToken(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = 'varylo_';
-    for (let i = 0; i < 24; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
+import { CheckCircle2, Instagram, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 
 export function InstagramDMForm({
     initialPageId,
-    initialVerifyToken,
     hasAccessToken,
     channelId,
     automationPriority,
+    pageName,
 }: {
     initialPageId?: string;
     initialVerifyToken?: string;
     hasAccessToken?: boolean;
     channelId?: string | null;
     automationPriority?: string;
+    pageName?: string;
 }) {
     const router = useRouter();
-    const [state, action, isPending] = useActionState(saveInstagramCredentials, undefined);
-    const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-    const [isTesting, setIsTesting] = useState(false);
+    const searchParams = useSearchParams();
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [priority, setPriority] = useState(automationPriority || 'CHATBOT_FIRST');
     const [isSavingPriority, setIsSavingPriority] = useState(false);
+    const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+    const [isTesting, setIsTesting] = useState(false);
 
-    const isSuccess = state?.startsWith('Success');
-    const isError = state?.startsWith('Error');
-    const isConnected = hasAccessToken || isSuccess;
-    const [copied, setCopied] = useState(false);
+    // Check for OAuth callback result
+    const igResult = searchParams.get('ig');
+    const igReason = searchParams.get('reason');
+    const igPage = searchParams.get('page');
 
-    // Generate a stable verify token per mount (or use existing one)
-    const verifyToken = useMemo(() => initialVerifyToken || generateVerifyToken(), [initialVerifyToken]);
+    const isConnected = hasAccessToken;
 
-    const handleCopy = (text: string) => {
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    const handlePriorityChange = async (newPriority: string) => {
+        if (!channelId) return;
+        setPriority(newPriority);
+        setIsSavingPriority(true);
+        try {
+            const { updateChannelPriority } = await import('./actions');
+            await updateChannelPriority(channelId, newPriority as 'CHATBOT_FIRST' | 'AI_FIRST');
+        } catch {
+            setPriority(priority);
+        } finally {
+            setIsSavingPriority(false);
+        }
     };
 
     const handleTestConnection = async () => {
@@ -67,23 +63,8 @@ export function InstagramDMForm({
         }
     };
 
-    const handlePriorityChange = async (newPriority: string) => {
-        if (!channelId) return;
-        setPriority(newPriority);
-        setIsSavingPriority(true);
-        try {
-            const { updateChannelPriority } = await import('./actions');
-            await updateChannelPriority(channelId, newPriority as 'CHATBOT_FIRST' | 'AI_FIRST');
-        } catch {
-            setPriority(priority);
-        } finally {
-            setIsSavingPriority(false);
-        }
-    };
-
     const handleDisconnect = async () => {
         if (!confirm('¿Estás seguro de que quieres desconectar Instagram? Dejarás de recibir DMs.')) return;
-
         setIsDisconnecting(true);
         try {
             const { disconnectInstagram } = await import('./actions');
@@ -100,187 +81,137 @@ export function InstagramDMForm({
         }
     };
 
+    // Connected state
     if (isConnected) {
         return (
-            <Card className="border-pink-200 bg-pink-50 dark:bg-pink-950/10">
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-6 w-6 text-pink-600" />
-                        <CardTitle className="text-pink-700">Instagram DM Configurado</CardTitle>
+            <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-[#FDF2F8] flex items-center justify-center">
+                        <Instagram className="h-5 w-5 text-[#EC4899]" />
                     </div>
-                    <CardDescription>
-                        Tu cuenta de Instagram está conectada y lista para recibir mensajes directos.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid gap-1">
-                        <Label className="text-xs text-muted-foreground">Page / Instagram ID</Label>
-                        <p className="font-mono text-sm">{initialPageId}</p>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-[15px] font-semibold text-[#09090B]">Instagram DM conectado</h3>
+                            <CheckCircle2 className="h-4 w-4 text-[#10B981]" />
+                        </div>
+                        <p className="text-[13px] text-[#71717A]">
+                            {pageName || initialPageId || 'Cuenta conectada'}
+                        </p>
                     </div>
+                </div>
 
-                    {channelId && (
-                        <div className="grid gap-1.5">
-                            <Label className="text-xs text-muted-foreground">Prioridad de automatización</Label>
-                            <select
-                                value={priority}
-                                onChange={(e) => handlePriorityChange(e.target.value)}
-                                disabled={isSavingPriority}
-                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            >
-                                <option value="CHATBOT_FIRST">Chatbot primero (recomendado)</option>
-                                <option value="AI_FIRST">Agente IA primero</option>
-                            </select>
-                            <p className="text-xs text-muted-foreground">
-                                {priority === 'CHATBOT_FIRST'
-                                    ? 'Los mensajes pasan primero por el chatbot, luego al agente IA si no es manejado.'
-                                    : 'Los mensajes pasan primero al agente IA, luego al chatbot si no es manejado.'}
-                            </p>
-                        </div>
-                    )}
+                {channelId && (
+                    <div className="space-y-1.5">
+                        <Label className="text-xs text-[#71717A]">Prioridad de automatización</Label>
+                        <select
+                            value={priority}
+                            onChange={(e) => handlePriorityChange(e.target.value)}
+                            disabled={isSavingPriority}
+                            className="flex h-9 w-full rounded-lg border border-[#E4E4E7] bg-white px-3 py-1 text-sm focus:outline-none focus:border-[#10B981]"
+                        >
+                            <option value="CHATBOT_FIRST">Chatbot primero (recomendado)</option>
+                            <option value="AI_FIRST">Agente IA primero</option>
+                        </select>
+                    </div>
+                )}
 
-                    {testResult && (
-                        <div className={`flex items-center gap-2 text-sm p-3 rounded-md bg-background border ${testResult.success ? 'text-green-600 border-green-200' : 'text-destructive border-red-200'}`}>
-                            {testResult.success ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                            {testResult.message}
-                        </div>
-                    )}
-                </CardContent>
-                <CardFooter className="flex gap-3 justify-end">
+                {testResult && (
+                    <div className={`flex items-center gap-2 text-sm p-3 rounded-lg ${testResult.success ? 'bg-[#ECFDF5] text-[#10B981]' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
+                        {testResult.success ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                        {testResult.message}
+                    </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
                     <Button
-                        type="button"
                         variant="outline"
                         onClick={handleTestConnection}
                         disabled={isTesting || isDisconnecting}
-                        className="bg-background"
+                        className="rounded-lg"
                     >
-                        {isTesting ? 'Probando...' : 'Probar Conexión'}
+                        {isTesting ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Probando...</> : 'Probar conexión'}
                     </Button>
                     <Button
-                        type="button"
                         variant="destructive"
                         onClick={handleDisconnect}
                         disabled={isDisconnecting || isTesting}
+                        className="rounded-lg"
                     >
                         {isDisconnecting ? 'Desconectando...' : 'Desconectar'}
                     </Button>
-                </CardFooter>
-            </Card>
+                </div>
+            </div>
         );
     }
 
+    // Not connected - show OAuth button
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Conexión de Instagram DM</CardTitle>
-                <CardDescription>
-                    Ingresa las credenciales de tu app de Meta para conectar los mensajes directos de Instagram.
-                </CardDescription>
-            </CardHeader>
-            <form action={action} className="flex flex-col gap-6">
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="pageId">Page ID / Instagram ID</Label>
-                        <Input
-                            id="pageId"
-                            name="pageId"
-                            placeholder="Ej. 17841400..."
-                            defaultValue={initialPageId}
-                            required
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            El ID de tu página de Facebook conectada a Instagram, o el Instagram Business Account ID.
-                        </p>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="accessToken">Access Token</Label>
-                        <Input
-                            id="accessToken"
-                            name="accessToken"
-                            type="password"
-                            placeholder="EAAG... o IGA..."
-                            required
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Token con permisos: <code className="text-[11px] bg-muted px-1 rounded">instagram_manage_messages</code>, <code className="text-[11px] bg-muted px-1 rounded">pages_messaging</code>
-                        </p>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="appSecret">App Secret</Label>
-                        <Input
-                            id="appSecret"
-                            name="appSecret"
-                            type="password"
-                            placeholder="Tu App Secret de Meta"
-                            required
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Meta for Developers → Tu App → Settings → Basic → App Secret
-                        </p>
-                    </div>
+        <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
+            <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#FDF2F8] flex items-center justify-center">
+                    <Instagram className="h-5 w-5 text-[#EC4899]" />
+                </div>
+                <div>
+                    <h3 className="text-[15px] font-semibold text-[#09090B]">Conectar Instagram DM</h3>
+                    <p className="text-[13px] text-[#71717A]">Recibe y responde mensajes directos de Instagram</p>
+                </div>
+            </div>
 
-                    {/* Hidden field to submit the auto-generated verify token */}
-                    <input type="hidden" name="verifyToken" value={verifyToken} />
+            {/* OAuth error message */}
+            {igResult === 'error' && (
+                <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-[#FEF2F2] text-[#EF4444]">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>
+                        {igReason === 'no_pages' ? 'No se encontraron páginas de Facebook. Asegúrate de tener una página con Instagram Business conectado.'
+                            : igReason === 'token_failed' ? 'Error al obtener el token de acceso. Intenta de nuevo.'
+                            : igReason === 'unauthorized' ? 'Sesión expirada. Inicia sesión y vuelve a intentar.'
+                            : 'Error al conectar Instagram. Intenta de nuevo.'}
+                    </span>
+                </div>
+            )}
 
-                    <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
-                        <h4 className="text-sm font-medium">Configuración del Webhook en Meta</h4>
-                        <p className="text-xs text-muted-foreground">
-                            Ve a Meta for Developers → Tu App → Webhooks → Instagram y configura:
-                        </p>
+            {/* Success message */}
+            {igResult === 'connected' && (
+                <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-[#ECFDF5] text-[#10B981]">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>Instagram conectado exitosamente{igPage ? ` (${igPage})` : ''}. Recarga la página para ver los cambios.</span>
+                </div>
+            )}
 
-                        <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">Callback URL</Label>
-                            <div className="flex items-center gap-2">
-                                <code className="text-xs bg-background px-2 py-1.5 rounded border block break-all flex-1">
-                                    {typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/instagram` : '/api/webhook/instagram'}
-                                </code>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 shrink-0"
-                                    onClick={() => handleCopy(typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/instagram` : '')}
-                                >
-                                    <Copy className="h-3.5 w-3.5" />
-                                </Button>
-                            </div>
-                        </div>
+            <div className="space-y-3">
+                <div className="bg-[#F4F4F5] rounded-lg p-4 space-y-2">
+                    <p className="text-[13px] text-[#3F3F46]">
+                        Al conectar, autorizarás a Varylo a:
+                    </p>
+                    <ul className="text-[13px] text-[#71717A] space-y-1">
+                        <li className="flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-[#71717A]" />
+                            Recibir mensajes directos de Instagram
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-[#71717A]" />
+                            Responder mensajes en tu nombre
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-[#71717A]" />
+                            Ver información básica de tu cuenta
+                        </li>
+                    </ul>
+                </div>
 
-                        <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">Verify Token</Label>
-                            <div className="flex items-center gap-2">
-                                <code className="text-xs bg-background px-2 py-1.5 rounded border block break-all flex-1 font-mono">
-                                    {verifyToken}
-                                </code>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 shrink-0"
-                                    onClick={() => handleCopy(verifyToken)}
-                                >
-                                    {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
-                                </Button>
-                            </div>
-                        </div>
+                <p className="text-[12px] text-[#A1A1AA]">
+                    Necesitas una página de Facebook con una cuenta de Instagram Business conectada.
+                </p>
+            </div>
 
-                        <p className="text-xs text-muted-foreground">
-                            Suscríbete al campo <code className="bg-muted px-1 rounded">messages</code>.
-                        </p>
-                    </div>
-
-                    {isError && (
-                        <div className="flex items-center gap-2 text-sm text-destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            {state}
-                        </div>
-                    )}
-                </CardContent>
-                <CardFooter>
-                    <Button type="submit" disabled={isPending} className="w-full">
-                        {isPending ? 'Guardando...' : 'Conectar Instagram'}
-                    </Button>
-                </CardFooter>
-            </form>
-        </Card>
+            <a
+                href="/api/auth/meta/instagram"
+                className="flex items-center justify-center gap-2 w-full rounded-lg bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] text-white font-semibold text-[14px] py-2.5 px-4 hover:opacity-90 transition-opacity"
+            >
+                <Instagram className="h-5 w-5" />
+                Conectar con Instagram
+                <ExternalLink className="h-3.5 w-3.5 ml-1 opacity-70" />
+            </a>
+        </div>
     );
 }
