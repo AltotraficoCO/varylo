@@ -33,8 +33,6 @@ async function verifyWebhookSignature(rawBody: string, signature: string | null)
     // Try global env var first (backwards compatible)
     const globalSecret = process.env.META_APP_SECRET;
     if (globalSecret) {
-        const expected = 'sha256=' + createHmac('sha256', globalSecret).update(rawBody).digest('hex');
-        console.log(`[Instagram Webhook] Global secret (${globalSecret.substring(0,4)}...): expected=${expected.substring(0,20)}, got=${signature.substring(0,20)}, match=${expected === signature}`);
         if (verifySignatureWithSecret(rawBody, signature, globalSecret)) return true;
     }
 
@@ -47,8 +45,6 @@ async function verifyWebhookSignature(rawBody: string, signature: string | null)
     for (const ch of channels) {
         const config = ch.configJson as { appSecret?: string } | null;
         if (config?.appSecret) {
-            const expected = 'sha256=' + createHmac('sha256', config.appSecret).update(rawBody).digest('hex');
-            console.log(`[Instagram Webhook] Channel secret (${config.appSecret.substring(0,4)}...): expected=${expected.substring(0,20)}, got=${signature.substring(0,20)}, match=${expected === signature}`);
             if (verifySignatureWithSecret(rawBody, signature, config.appSecret)) return true;
         }
     }

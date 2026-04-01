@@ -35,10 +35,7 @@ export default auth((req) => {
         );
     }
 
-    // 2. Extract locale for further logic if needed (e.g. /es/dashboard)
-    // const locale = pathname.split('/')[1];
-
-    // 3. Protect Roles (adapted for locale prefix)
+    // 2. Protect Roles (adapted for locale prefix)
     // Logic: Check if path segment after locale matches protected routes
     // /es/super-admin -> segments: ['', 'es', 'super-admin']
     const segments = pathname.split('/');

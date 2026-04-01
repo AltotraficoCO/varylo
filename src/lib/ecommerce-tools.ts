@@ -538,8 +538,6 @@ async function wooCreateOrder(
         quantity: Number(item.quantity) || 1,
     }));
 
-    console.log('[EcommerceTool] Creating WooCommerce order:', JSON.stringify({ customer: customer.name, lineItems }));
-
     const billingShipping = {
         first_name: firstName,
         last_name: lastName,
@@ -797,9 +795,6 @@ export async function executeEcommerceTool(
                     });
                 }
 
-                console.log('[EcommerceTool] create_order args:', JSON.stringify(args));
-                console.log('[EcommerceTool] create_order parsed items:', JSON.stringify(orderItems));
-
                 if (orderItems.length === 0) {
                     return JSON.stringify({ error: 'Se necesita al menos un producto para crear el pedido.' });
                 }
@@ -828,8 +823,6 @@ export async function executeEcommerceTool(
                     state: str('shipping_state') || undefined,
                     notes: str('order_notes') || undefined,
                 };
-
-                console.log('[EcommerceTool] create_order customer:', JSON.stringify(customer));
 
                 const result = isShopify
                     ? await shopifyCreateOrder(config, customer, orderItems)

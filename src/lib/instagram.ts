@@ -20,7 +20,6 @@ export async function sendInstagramMessage(to: string, text: string, conversatio
 
     // So for Instagram, we should definitely design it to take the token as input.
 
-    console.log(`[STUB] Sending Instagram message to ${to}: ${text}`);
     return { success: true };
 }
 
