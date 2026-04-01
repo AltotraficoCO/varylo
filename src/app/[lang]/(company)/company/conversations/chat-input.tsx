@@ -356,8 +356,9 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                         alert(result.message || 'Error al enviar nota de voz');
                     }
                 } catch (error) {
-                    console.error('Error sending voice note:', error);
-                    alert('Error al enviar la nota de voz.');
+                    const msg = error instanceof Error ? error.message : String(error);
+                    console.error('Error sending voice note:', msg, error);
+                    alert('Error nota de voz: ' + msg);
                 } finally {
                     setIsSending(false);
                 }
