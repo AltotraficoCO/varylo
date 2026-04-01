@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { exchangeCodeForTokens, getGoogleEmail, encryptRefreshToken } from '@/lib/google-calendar';
 import { decrypt } from '@/lib/encryption';
+import { auth } from '@/auth';
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
@@ -22,8 +23,20 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        // Verify user is authenticated
+        const session = await auth();
+        if (!session?.user?.companyId) {
+            return NextResponse.redirect(`${settingsUrl}&gcal=error`);
+        }
+
         // state = encrypted companyId
         const companyId = decrypt(state);
+
+        // Verify the authenticated user belongs to the company in the state
+        if (session.user.companyId !== companyId) {
+            console.warn('[Google Calendar OAuth] Company mismatch: session vs state');
+            return NextResponse.redirect(`${settingsUrl}&gcal=error`);
+        }
 
         // Verify company exists
         const company = await prisma.company.findUnique({

@@ -16,11 +16,16 @@ function getCorsHeaders(req?: NextRequest): Record<string, string> {
     const allowedOrigins = process.env.WEBCHAT_ALLOWED_ORIGINS?.split(',').map(o => o.trim());
     const origin = req?.headers.get('origin') || '';
 
-    // If WEBCHAT_ALLOWED_ORIGINS is set, validate origin; otherwise deny in production
+    // Strict CORS: require explicit allowed origins in production
     const isDev = process.env.NODE_ENV === 'development';
-    const allowedOrigin = allowedOrigins
-        ? (allowedOrigins.includes(origin) ? origin : allowedOrigins[0])
-        : (isDev ? '*' : origin || 'null');
+    let allowedOrigin: string;
+    if (allowedOrigins && allowedOrigins.length > 0) {
+        allowedOrigin = allowedOrigins.includes(origin) ? origin : 'null';
+    } else if (isDev) {
+        allowedOrigin = origin || '*';
+    } else {
+        allowedOrigin = 'null'; // Block all if not configured in production
+    }
 
     return {
         'Access-Control-Allow-Origin': allowedOrigin,
@@ -78,7 +83,8 @@ export async function POST(req: NextRequest) {
         if (visitorName && (typeof visitorName !== 'string' || visitorName.length > MAX_NAME_LENGTH)) {
             return NextResponse.json({ error: 'Invalid name' }, { status: 400, headers: getCorsHeaders(req) });
         }
-        if (visitorEmail && (typeof visitorEmail !== 'string' || visitorEmail.length > MAX_EMAIL_LENGTH || !visitorEmail.includes('@'))) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (visitorEmail && (typeof visitorEmail !== 'string' || visitorEmail.length > MAX_EMAIL_LENGTH || !emailRegex.test(visitorEmail))) {
             return NextResponse.json({ error: 'Invalid email' }, { status: 400, headers: getCorsHeaders(req) });
         }
 

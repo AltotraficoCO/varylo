@@ -1,8 +1,6 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { CreateAgentDialog } from './create-agent-dialog';
-import { EditAgentDialog } from './edit-agent-dialog';
-import { DeleteAgentDialog } from './delete-agent-dialog';
 import { ContactAvatar } from '@/components/contact-avatar';
 
 export default async function AgentsPage() {

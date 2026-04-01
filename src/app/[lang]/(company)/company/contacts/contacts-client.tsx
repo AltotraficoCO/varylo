@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ContactAvatar } from '@/components/contact-avatar';
-import { Badge } from '@/components/ui/badge';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -18,7 +17,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Send, Download, Plus } from 'lucide-react';
+import { Search, Trash2, CheckSquare, X, Users, Download, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { deleteContacts } from './actions';
 import { toast } from 'sonner';

@@ -101,18 +101,15 @@ export async function POST(req: NextRequest) {
     try {
         const rawBody = await req.text();
 
-        // Verify webhook signature from Meta (checks global secret + per-channel secrets)
-        // TODO: Re-enable signature verification once App Secret issue is resolved
+        // Verify webhook signature from Meta
         const signature = req.headers.get('x-hub-signature-256');
         const signatureValid = await verifyWebhookSignature(rawBody, signature);
         if (!signatureValid) {
-            console.warn('[Instagram Webhook] Signature verification failed — allowing temporarily for debugging');
+            console.warn('[Instagram Webhook] Signature verification failed — rejecting request');
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
         }
 
         const body = JSON.parse(rawBody);
-
-        // DEBUG: Log full payload to diagnose webhook delivery
-        console.log('[Instagram Webhook] Received payload:', JSON.stringify(body, null, 2));
 
         // Check format
         const entry = body.entry?.[0];
