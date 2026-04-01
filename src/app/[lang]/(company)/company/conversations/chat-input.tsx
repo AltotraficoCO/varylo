@@ -14,7 +14,7 @@ import { sendMessage, sendMediaMessage } from './actions';
 import { useRealtimeData } from './realtime-context';
 import { getWhatsAppTemplates, sendTemplateMessage } from '@/lib/template-actions';
 import { cn } from '@/lib/utils';
-import lamejs from 'lamejs';
+import { Mp3Encoder } from '@breezystack/lamejs';
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB (WhatsApp limit)
 const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -102,7 +102,7 @@ async function convertToMp3(blob: Blob): Promise<Blob> {
     }
 
     // Encode to MP3
-    const encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
+    const encoder = new Mp3Encoder(channels, sampleRate, kbps);
     const mp3Parts: Uint8Array[] = [];
     const blockSize = 1152;
 
