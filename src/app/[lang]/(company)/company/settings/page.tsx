@@ -22,7 +22,6 @@ const TABS = [
     { key: 'billing', label: 'Facturación', icon: CreditCard },
     { key: 'tags', label: 'Etiquetas', icon: Tag },
     { key: 'templates', label: 'Plantillas', icon: FileText },
-    { key: 'guides', label: 'Guías', icon: BookOpen },
 ];
 
 export default async function SettingsPage(props: {
@@ -98,9 +97,9 @@ export default async function SettingsPage(props: {
         <div className="w-full">
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
-                <p className="text-muted-foreground text-sm mt-1">
-                    Administra tu empresa, canales de comunicación y preferencias.
+                <h1 className="text-2xl font-semibold text-foreground">Configuración</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                    Administra tu empresa, canales y preferencias.
                 </p>
             </div>
 
@@ -229,9 +228,6 @@ export default async function SettingsPage(props: {
                         <TemplatesSection />
                     )}
 
-                    {activeTab === 'guides' && (
-                        <GuidesSection />
-                    )}
                 </div>
             </div>
         </div>

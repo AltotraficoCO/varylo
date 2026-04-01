@@ -186,7 +186,7 @@ export default async function ConversationsPage({
 
     return (
         <ConversationsRealtimeWrapper>
-        <div className="flex h-[calc(100vh-10rem)] flex-col md:flex-row border rounded-lg overflow-hidden bg-background">
+        <div className="flex h-[calc(100vh-5rem)] flex-col md:flex-row border rounded-xl overflow-hidden bg-background">
             {/* Sidebar List */}
             <div className="w-full md:w-[320px] lg:w-[380px] border-r flex flex-col bg-card">
                 {/* Header & Tabs */}

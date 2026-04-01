@@ -133,12 +133,13 @@ export function BroadcastsClient({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white">
+    <div className="space-y-6">
       {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="h-14 flex items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">Difusiones</h1>
+      <header>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Difusiones</h1>
+            <p className="text-sm text-muted-foreground mt-1">Envía plantillas de WhatsApp a listas de contactos</p>
             {tierLabel && (
               <div className="flex items-center gap-1.5">
                 <Badge variant="outline" className={cn('text-[10px] px-2 h-5', qualityColor)}>
@@ -156,20 +157,20 @@ export function BroadcastsClient({
             {tab === 'lists' && (
               <>
                 {contactLists.length > 0 && (
-                  <Button size="sm" variant="outline" onClick={() => setShowBroadcast(true)} className="h-8 px-3 text-xs">
-                    <Megaphone className="h-3.5 w-3.5 mr-1.5" />
+                  <Button size="sm" variant="outline" onClick={() => setShowBroadcast(true)}>
+                    <Megaphone className="h-4 w-4 mr-1.5" />
                     Enviar difusión
                   </Button>
                 )}
-                <Button size="sm" onClick={() => setShowCreateList(true)} className="h-8 px-3 text-xs">
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Nueva lista
+                <Button size="sm" onClick={() => setShowCreateList(true)}>
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Nueva difusión
                 </Button>
               </>
             )}
             {tab === 'broadcasts' && contactLists.length > 0 && (
-              <Button size="sm" onClick={() => setShowBroadcast(true)} className="h-8 px-3 text-xs">
-                <Megaphone className="h-3.5 w-3.5 mr-1.5" />
+              <Button size="sm" onClick={() => setShowBroadcast(true)}>
+                <Megaphone className="h-4 w-4 mr-1.5" />
                 Nueva difusión
               </Button>
             )}
@@ -177,7 +178,7 @@ export function BroadcastsClient({
         </div>
 
         {/* Tabs */}
-        <div className="flex px-6 gap-4">
+        <div className="flex gap-4 border-b">
           <button
             onClick={() => setTab('lists')}
             className={cn(
@@ -203,7 +204,7 @@ export function BroadcastsClient({
             )}
           >
             <Megaphone className="h-4 w-4" />
-            Historial de difusiones
+            Historial de envíos
             <Badge variant="secondary" className="px-1.5 py-0 h-5 text-[10px] bg-muted">
               {broadcasts.length}
             </Badge>

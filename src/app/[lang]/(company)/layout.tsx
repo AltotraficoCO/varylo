@@ -61,7 +61,7 @@ export default async function CompanyLayout({
                     userName={session?.user?.name || undefined}
                     userEmail={session?.user?.email || undefined}
                 />
-                <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+                <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:px-10 lg:py-8">
                     {children}
                 </main>
             </div>

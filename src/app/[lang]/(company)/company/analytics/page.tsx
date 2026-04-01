@@ -101,7 +101,8 @@ export default function AnalyticsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h3 className="text-2xl font-semibold tracking-tight text-foreground">Resumen</h3>
+                <h1 className="text-2xl font-semibold text-foreground">Analíticas</h1>
+                <p className="text-sm text-muted-foreground mt-1">Resumen de métricas de tu operación</p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
