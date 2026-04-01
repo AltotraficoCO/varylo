@@ -74,6 +74,7 @@ export default function AnalyticsPage() {
     const [loading, setLoading] = useState(true);
     const [heatmapDays, setHeatmapDays] = useState(7);
     const [heatmapLoading, setHeatmapLoading] = useState(false);
+    const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
 
     useEffect(() => {
         const load = async () => {
@@ -214,7 +215,19 @@ export default function AnalyticsPage() {
                         </button>
                     </div>
                 </div>
-                <div className={`flex gap-2 ${heatmapLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div
+                    className={`relative flex gap-2 ${heatmapLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                    onMouseLeave={() => setTooltip(null)}
+                >
+                    {/* Tooltip */}
+                    {tooltip && (
+                        <div
+                            className="fixed z-50 px-2.5 py-1.5 rounded-md bg-[#09090B] text-white text-[11px] font-medium pointer-events-none shadow-lg"
+                            style={{ left: tooltip.x + 12, top: tooltip.y - 32 }}
+                        >
+                            {tooltip.text}
+                        </div>
+                    )}
                     {/* Day labels */}
                     <div className="flex flex-col gap-[3px] pt-0 shrink-0">
                         {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
@@ -225,7 +238,9 @@ export default function AnalyticsPage() {
                     </div>
                     {/* Grid */}
                     <div className="flex-1 flex flex-col gap-[3px]">
-                        {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => (
+                        {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
+                            const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+                            return (
                             <div key={dayIndex} className="flex gap-[3px]">
                                 {Array.from({ length: 24 }).map((_, hourIndex) => {
                                     const count = data.heatmap[`${dayIndex}-${hourIndex}`] || 0;
@@ -234,18 +249,25 @@ export default function AnalyticsPage() {
                                     return (
                                         <div
                                             key={hourIndex}
-                                            className="flex-1 h-[16px] rounded-[2px]"
+                                            className="flex-1 h-[16px] rounded-[2px] cursor-pointer transition-transform hover:scale-125"
                                             style={{
                                                 backgroundColor: count > 0
                                                     ? `rgba(16, 185, 129, ${0.15 + intensity * 0.85})`
                                                     : '#F4F4F5',
                                             }}
-                                            title={`${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][dayIndex]} ${hourIndex}:00 — ${count} msgs`}
+                                            onMouseEnter={(e) => setTooltip({
+                                                x: e.clientX,
+                                                y: e.clientY,
+                                                text: `${dayNames[dayIndex]} ${hourIndex}:00–${hourIndex + 1}:00 · ${count} mensaje${count !== 1 ? 's' : ''}`,
+                                            })}
+                                            onMouseMove={(e) => setTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)}
+                                            onMouseLeave={() => setTooltip(null)}
                                         />
                                     );
                                 })}
                             </div>
-                        ))}
+                            );
+                        })}
                         {/* Hour labels */}
                         <div className="flex gap-[3px] mt-1">
                             {Array.from({ length: 24 }).map((_, i) => (
