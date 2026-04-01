@@ -82,9 +82,16 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
+                <Button
+                    className="text-white font-semibold text-sm"
+                    style={{
+                        backgroundColor: '#10B981',
+                        borderRadius: '8px',
+                        padding: '10px 20px',
+                    }}
+                >
                     <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Agente IA
+                    Nuevo agente IA
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">

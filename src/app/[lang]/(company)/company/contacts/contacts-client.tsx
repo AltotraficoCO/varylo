@@ -52,10 +52,10 @@ interface ContactsClientProps {
     lang: string;
 }
 
-const channelBadge: Record<string, { bg: string; text: string; label: string }> = {
-    WHATSAPP: { bg: 'bg-emerald-50', text: 'text-emerald-600', label: 'WhatsApp' },
-    INSTAGRAM: { bg: 'bg-pink-50', text: 'text-pink-600', label: 'Instagram' },
-    WEB_CHAT: { bg: 'bg-blue-50', text: 'text-blue-600', label: 'Web Chat' },
+const channelBadge: Record<string, { bg: string; dot: string; text: string; label: string }> = {
+    WHATSAPP: { bg: 'bg-[#ECFDF5]', dot: 'bg-[#10B981]', text: 'text-[#10B981]', label: 'WhatsApp' },
+    INSTAGRAM: { bg: 'bg-[#FDF2F8]', dot: 'bg-[#EC4899]', text: 'text-[#EC4899]', label: 'Instagram' },
+    WEB_CHAT: { bg: 'bg-[#EFF6FF]', dot: 'bg-[#3B82F6]', text: 'text-[#3B82F6]', label: 'Web Chat' },
 };
 
 function timeAgo(date: Date | string) {
@@ -135,19 +135,19 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold text-foreground">Contactos</h1>
-                    <p className="text-sm text-muted-foreground mt-1">Gestiona tus contactos y notas</p>
+                    <h1 className="text-[28px] font-bold text-[#09090B]">Contactos</h1>
+                    <p className="text-[14px] text-[#71717A] mt-1">Gestiona tus contactos y listas</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button
                         variant="outline"
-                        size="sm"
+                        className="rounded-lg px-4 py-2 text-[14px] font-medium text-[#3F3F46]"
                         onClick={() => setShowTemplateDialog(true)}
                     >
-                        <Send className="h-4 w-4 mr-1.5" />
+                        <Download className="h-4 w-4 mr-1.5" />
                         Exportar
                     </Button>
-                    <Button size="sm">
+                    <Button className="rounded-lg px-4 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-[14px] font-medium">
                         <Plus className="h-4 w-4 mr-1.5" />
                         Nuevo contacto
                     </Button>
@@ -211,15 +211,15 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
             </div>
 
             {/* Table */}
-            <div className="bg-card rounded-xl border overflow-hidden">
+            <div className="rounded-xl border border-[#E4E4E7] overflow-hidden">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 gap-4 px-5 py-3 border-b bg-muted/30 text-xs font-medium text-muted-foreground">
-                    {selectMode && <div className="col-span-1" />}
-                    <div className={selectMode ? "col-span-3" : "col-span-3"}>Nombre</div>
-                    <div className="col-span-2">Teléfono</div>
-                    <div className="col-span-2">Canal</div>
-                    <div className="col-span-2">Empresa</div>
-                    <div className={selectMode ? "col-span-2" : "col-span-3"}>Última actividad</div>
+                <div className="flex items-center bg-[#F4F4F5] py-3 px-4 text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">
+                    {selectMode && <div className="w-[40px] shrink-0" />}
+                    <div className="w-[220px] shrink-0">Nombre</div>
+                    <div className="w-[180px] shrink-0">Teléfono</div>
+                    <div className="w-[140px] shrink-0">Canal</div>
+                    <div className="w-[140px] shrink-0">Empresa</div>
+                    <div className="flex-1">Última actividad</div>
                 </div>
 
                 {contacts.length === 0 ? (
@@ -235,7 +235,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                         </p>
                     </div>
                 ) : (
-                    <div className="divide-y divide-border">
+                    <div>
                         {contacts.map((contact) => {
                             const channelType = contact.originChannel || contact.conversations?.[0]?.channel?.type;
                             const badge = channelBadge[channelType || ''];
@@ -245,36 +245,37 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                                     key={contact.id}
                                     href={`/${lang}/company/contacts/${contact.id}`}
                                     className={cn(
-                                        "grid grid-cols-12 gap-4 px-5 py-4 items-center hover:bg-muted/20 transition-colors",
+                                        "flex items-center py-3 px-4 border-t border-[#E4E4E7] hover:bg-muted/20 transition-colors",
                                         isSelected && "bg-primary/5"
                                     )}
                                     onClick={selectMode ? (e) => { e.preventDefault(); toggleOne(contact.id); } : undefined}
                                 >
                                     {selectMode && (
-                                        <div className="col-span-1">
+                                        <div className="w-[40px] shrink-0">
                                             <Checkbox checked={isSelected} onCheckedChange={() => toggleOne(contact.id)} onClick={(e) => e.stopPropagation()} />
                                         </div>
                                     )}
-                                    <div className={cn("flex items-center gap-3", selectMode ? "col-span-3" : "col-span-3")}>
+                                    <div className="w-[220px] shrink-0 flex items-center gap-3">
                                         <ContactAvatar name={contact.name} phone={contact.phone} className="h-8 w-8 shrink-0" />
-                                        <span className="text-sm font-medium text-foreground truncate">{contact.name || contact.phone}</span>
+                                        <span className="text-[14px] font-medium text-[#09090B] truncate">{contact.name || contact.phone}</span>
                                     </div>
-                                    <div className="col-span-2 text-sm text-muted-foreground truncate">
+                                    <div className="w-[180px] shrink-0 text-[14px] text-[#3F3F46] truncate">
                                         {!contact.phone?.startsWith('web_') ? contact.phone : '-'}
                                     </div>
-                                    <div className="col-span-2">
+                                    <div className="w-[140px] shrink-0">
                                         {badge ? (
-                                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${badge.bg} ${badge.text}`}>
+                                            <span className={`inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-xl font-medium ${badge.bg} ${badge.text}`}>
+                                                <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
                                                 {badge.label}
                                             </span>
                                         ) : (
-                                            <span className="text-xs text-muted-foreground">-</span>
+                                            <span className="text-[14px] text-[#71717A]">-</span>
                                         )}
                                     </div>
-                                    <div className="col-span-2 text-sm text-muted-foreground truncate">
+                                    <div className="w-[140px] shrink-0 text-[14px] text-[#3F3F46] truncate">
                                         {contact.companyName || '-'}
                                     </div>
-                                    <div className={cn("text-xs text-muted-foreground", selectMode ? "col-span-2" : "col-span-3")}>
+                                    <div className="flex-1 text-[14px] text-[#71717A]">
                                         -
                                     </div>
                                 </Link>

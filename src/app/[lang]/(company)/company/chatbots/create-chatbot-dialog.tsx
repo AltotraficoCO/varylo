@@ -17,13 +17,14 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { Plus, Loader2 } from "lucide-react";
+import { ReactNode } from "react";
 
 interface Channel {
     id: string;
     type: string;
 }
 
-export function CreateChatbotDialog({ channels }: { channels: Channel[] }) {
+export function CreateChatbotDialog({ channels, trigger }: { channels: Channel[]; trigger?: ReactNode }) {
     const [state, action, isPending] = useActionState(createChatbot, undefined);
     const [open, setOpen] = useState(false);
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
@@ -50,10 +51,12 @@ export function CreateChatbotDialog({ channels }: { channels: Channel[] }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Chatbot
-                </Button>
+                {trigger || (
+                    <Button className="bg-[#10B981] hover:bg-[#059669] text-white text-sm font-semibold rounded-lg px-5 py-2.5">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nuevo chatbot
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>

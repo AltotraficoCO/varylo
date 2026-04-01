@@ -2,7 +2,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import Link from 'next/link';
-import { CreditCard, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { CreditCard, ArrowRight } from 'lucide-react';
 import { ContactAvatar } from '@/components/contact-avatar';
 
 export default async function CompanyDashboard({
@@ -45,9 +45,9 @@ export default async function CompanyDashboard({
     ]);
 
     const channelBadgeColor: Record<string, string> = {
-        WHATSAPP: 'bg-emerald-50 text-emerald-600',
-        INSTAGRAM: 'bg-pink-light text-pink',
-        WEB_CHAT: 'bg-info-light text-info',
+        WHATSAPP: 'bg-[#ECFDF5] text-[#10B981]',
+        INSTAGRAM: 'bg-[#FDF2F8] text-[#EC4899]',
+        WEB_CHAT: 'bg-[#EFF6FF] text-[#3B82F6]',
     };
 
     const channelLabel: Record<string, string> = {
@@ -68,11 +68,11 @@ export default async function CompanyDashboard({
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-                <p className="text-sm text-muted-foreground mt-1">Resumen general de tu empresa</p>
+            <div className="flex flex-col gap-1">
+                <h1 className="text-[28px] font-bold text-foreground">Dashboard</h1>
+                <p className="text-sm text-muted-foreground">Resumen general de tu empresa</p>
             </div>
 
             {/* Subscription Alert */}
@@ -96,41 +96,39 @@ export default async function CompanyDashboard({
                 <StatCard
                     label="Conversaciones abiertas"
                     value={openConversations}
-                    change="+12% vs. ayer"
-                    trend="up"
+                    change="+12% vs ayer"
+                    changeColor="text-[#10B981]"
                 />
                 <StatCard
                     label="Pendientes"
                     value={unassignedConversations}
-                    subtitle={unassignedConversations > 0 ? `${unassignedConversations} sin asignar` : 'Todas asignadas'}
-                    change=""
-                    trend="neutral"
+                    change={unassignedConversations > 0 ? `${unassignedConversations} sin asignar` : 'Todas asignadas'}
+                    changeColor="text-[#EF4444]"
                 />
                 <StatCard
                     label="Agentes en línea"
                     value={onlineAgents}
-                    subtitle={`de ${totalAgents} activos`}
-                    change=""
-                    trend="neutral"
+                    change={`de ${totalAgents} activos`}
+                    changeColor="text-[#71717A]"
                 />
                 <StatCard
                     label="Tiempo promedio resp."
                     value="2.4m"
-                    change="+18% vs. semana pasada"
-                    trend="down"
+                    change="-18% vs semana pasada"
+                    changeColor="text-[#10B981]"
                 />
             </div>
 
             {/* Recent Conversations */}
             <div>
-                <h2 className="text-base font-semibold text-foreground mb-4">Conversaciones recientes</h2>
+                <h2 className="text-lg font-semibold text-foreground mb-4">Conversaciones recientes</h2>
                 <div className="bg-card rounded-xl border overflow-hidden">
                     {recentConversations.length === 0 ? (
                         <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
                             No hay conversaciones aún
                         </div>
                     ) : (
-                        <div className="divide-y divide-border">
+                        <div className="divide-y divide-[#F4F4F5]">
                             {recentConversations.map((conv) => {
                                 const lastMsg = conv.messages[0];
                                 const channelType = conv.channel?.type || 'WEB_CHAT';
@@ -142,13 +140,13 @@ export default async function CompanyDashboard({
                                     >
                                         <ContactAvatar
                                             name={conv.contact?.name || 'Sin nombre'}
-                                            className="h-9 w-9"
+                                            className="h-10 w-10"
                                         />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium text-foreground truncate">
                                                 {conv.contact?.name || 'Sin nombre'}
                                             </p>
-                                            <p className="text-sm text-muted-foreground truncate">
+                                            <p className="text-[13px] text-muted-foreground truncate">
                                                 {lastMsg?.content || 'Sin mensajes'}
                                             </p>
                                         </div>
@@ -169,26 +167,18 @@ export default async function CompanyDashboard({
     );
 }
 
-function StatCard({ label, value, subtitle, change, trend }: {
+function StatCard({ label, value, change, changeColor }: {
     label: string;
     value: string | number;
-    subtitle?: string;
     change: string;
-    trend: 'up' | 'down' | 'neutral';
+    changeColor: string;
 }) {
     return (
-        <div className="bg-card rounded-xl border p-5">
-            <p className="text-xs text-muted-foreground font-medium mb-3">{label}</p>
-            <p className="text-3xl font-semibold text-foreground">{value}</p>
-            {subtitle && (
-                <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-            )}
+        <div className="bg-card rounded-xl border p-5 space-y-2.5">
+            <p className="text-[13px] text-[#71717A]">{label}</p>
+            <p className="text-[32px] font-bold text-[#09090B]">{value}</p>
             {change && (
-                <div className={`flex items-center gap-1 mt-2 text-xs ${trend === 'up' ? 'text-emerald-600' : trend === 'down' ? 'text-danger' : 'text-muted-foreground'}`}>
-                    {trend === 'up' && <TrendingUp className="h-3 w-3" />}
-                    {trend === 'down' && <TrendingDown className="h-3 w-3" />}
-                    <span>{change}</span>
-                </div>
+                <p className={`text-xs ${changeColor}`}>{change}</p>
             )}
         </div>
     );

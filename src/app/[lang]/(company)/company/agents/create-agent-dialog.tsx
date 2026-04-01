@@ -30,9 +30,9 @@ export function CreateAgentDialog() {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
+                <Button className="bg-[#10B981] hover:bg-[#059669] text-white text-sm font-semibold rounded-lg px-5 py-2.5">
                     <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Agente
+                    Invitar agente
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
