@@ -54,6 +54,16 @@ function formatDuration(seconds: number): string {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+/** Convert a Blob/File to a base64 data URL using browser-native FileReader */
+function blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
 interface TemplateComponent {
     type: string;
     text?: string;
@@ -264,16 +274,14 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                     return;
                 }
 
-                // Convert to base64 and send
+                // Convert to data URL and send
                 setIsSending(true);
                 try {
-                    const buffer = await blob.arrayBuffer();
-                    const base64 = Buffer.from(buffer).toString('base64');
-                    const cleanMime = mimeType.split(';')[0]; // "audio/mp4" or "audio/ogg" or "audio/webm"
+                    const cleanMime = mimeType.split(';')[0];
                     const ext = cleanMime.includes('mp4') ? 'm4a'
                         : cleanMime.includes('ogg') ? 'ogg'
                         : 'webm';
-                    const dataUrl = `data:${cleanMime};base64,${base64}`;
+                    const dataUrl = await blobToDataUrl(blob);
                     const fileName = `voice-note-${Date.now()}.${ext}`;
 
                     const result = await sendMediaMessage(
@@ -314,9 +322,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
             let result: any;
 
             if (selectedFile) {
-                const buffer = await selectedFile.arrayBuffer();
-                const base64 = Buffer.from(buffer).toString('base64');
-                const dataUrl = `data:${selectedFile.type};base64,${base64}`;
+                const dataUrl = await blobToDataUrl(selectedFile);
                 const mediaType = getMediaType(selectedFile.type);
 
                 result = await sendMediaMessage(conversationId, message, dataUrl, mediaType, selectedFile.type, selectedFile.name);

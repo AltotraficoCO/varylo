@@ -91,12 +91,21 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
                 const res = await fetch(src);
                 if (!res.ok) throw new Error('fetch failed');
                 const arrayBuffer = await res.arrayBuffer();
-
                 const mime = (mimeType?.split(';')[0] || '').toLowerCase();
 
-                // Try AudioContext decode → WAV conversion first (works for all formats)
-                // This is the most reliable approach across browsers
-                try {
+                // Strategy 1: Create blob with correct mime and try native <audio> playback
+                const blob = new Blob([arrayBuffer], { type: mime || 'audio/mpeg' });
+                url = URL.createObjectURL(blob);
+
+                // Test if the browser can actually play this format
+                const testAudio = new Audio();
+                const canPlay = testAudio.canPlayType(mime || 'audio/mpeg');
+
+                if (canPlay === '' || canPlay === 'no') {
+                    // Strategy 2: Decode with AudioContext and convert to WAV
+                    URL.revokeObjectURL(url);
+                    url = null;
+
                     const audioCtx = new AudioContext();
                     try {
                         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
@@ -105,10 +114,6 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
                     } finally {
                         await audioCtx.close();
                     }
-                } catch {
-                    // Fallback: use blob directly (works for native formats like mp3, aac)
-                    const blob = new Blob([arrayBuffer], { type: mime || 'audio/mpeg' });
-                    url = URL.createObjectURL(blob);
                 }
 
                 if (!cancelled && url) {
