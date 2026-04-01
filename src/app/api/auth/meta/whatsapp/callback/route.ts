@@ -69,26 +69,23 @@ export async function GET(req: NextRequest) {
         );
         const debugData = await debugRes.json();
 
+        // debug_token returns WABA IDs in granular_scopes (NOT phone number IDs)
         let wabaId: string | null = null;
-        let phoneNumberId: string | null = null;
 
         const granularScopes = debugData?.data?.granular_scopes || [];
         for (const scope of granularScopes) {
             if (scope.scope === 'whatsapp_business_management' && scope.target_ids?.length > 0) {
                 wabaId = scope.target_ids[0];
-            }
-            if (scope.scope === 'whatsapp_business_messaging' && scope.target_ids?.length > 0) {
-                phoneNumberId = scope.target_ids[0];
+                break;
             }
         }
 
-        // Step 4: If no WABA from debug_token, try listing businesses
+        // If no WABA from debug_token, try listing businesses
         if (!wabaId) {
             const bizRes = await fetch(`${META_GRAPH}/me/businesses?access_token=${accessToken}`);
             const bizData = await bizRes.json();
 
             if (bizData.data?.length > 0) {
-                // Get WABAs for the first business
                 for (const biz of bizData.data) {
                     const wabaRes = await fetch(
                         `${META_GRAPH}/${biz.id}/owned_whatsapp_business_accounts?access_token=${accessToken}`
@@ -102,19 +99,22 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // Step 5: Get phone numbers from WABA
-        if (wabaId && !phoneNumberId) {
-            const phonesRes = await fetch(
-                `${META_GRAPH}/${wabaId}/phone_numbers?access_token=${accessToken}`
-            );
-            const phonesData = await phonesRes.json();
-            if (phonesData.data?.length > 0) {
-                phoneNumberId = phonesData.data[0].id;
-            }
+        if (!wabaId) {
+            return NextResponse.redirect(`${settingsUrl}&wa=error&reason=no_waba`);
         }
 
-        if (!wabaId && !phoneNumberId) {
-            return NextResponse.redirect(`${settingsUrl}&wa=error&reason=no_waba`);
+        // Get phone numbers from WABA (this is the REAL phone number ID)
+        let phoneNumberId: string | null = null;
+        const phonesRes = await fetch(
+            `${META_GRAPH}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${accessToken}`
+        );
+        const phonesData = await phonesRes.json();
+        if (phonesData.data?.length > 0) {
+            phoneNumberId = phonesData.data[0].id;
+        }
+
+        if (!phoneNumberId) {
+            return NextResponse.redirect(`${settingsUrl}&wa=error&reason=no_phone`);
         }
 
         // Step 6: Get phone display name
