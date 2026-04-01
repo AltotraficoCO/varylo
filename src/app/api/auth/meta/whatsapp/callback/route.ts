@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { decrypt, encrypt } from '@/lib/encryption';
+import { decrypt } from '@/lib/encryption';
 import { ChannelType } from '@prisma/client';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
@@ -143,7 +143,7 @@ export async function GET(req: NextRequest) {
 
         const configJson = {
             phoneNumberId,
-            accessToken: encrypt(accessToken),
+            accessToken,
             appSecret,
             verifyToken,
             wabaId,
