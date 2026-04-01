@@ -17,7 +17,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, Trash2, CheckSquare, X, Users, Download, Plus } from 'lucide-react';
+import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Download, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { deleteContacts } from './actions';
 import { toast } from 'sonner';
