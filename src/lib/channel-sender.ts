@@ -97,6 +97,7 @@ async function uploadMediaToWhatsApp(
 
 /**
  * Download a file from URL and upload to WhatsApp media API.
+ * Adds Supabase auth if the URL is from Supabase Storage.
  */
 async function uploadUrlToWhatsApp(
     phoneNumberId: string,
@@ -106,9 +107,15 @@ async function uploadUrlToWhatsApp(
     fileName: string,
 ): Promise<string | null> {
     try {
-        const res = await fetch(fileUrl);
+        // Add Supabase auth for Supabase Storage URLs (bucket may not be public)
+        const headers: Record<string, string> = {};
+        if (fileUrl.includes('supabase') && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            headers['Authorization'] = `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
+        }
+
+        const res = await fetch(fileUrl, { headers });
         if (!res.ok) {
-            console.error(`[WhatsApp] Failed to download file: ${res.status}`);
+            console.error(`[WhatsApp] Failed to download file: ${res.status} ${fileUrl}`);
             return null;
         }
         const buffer = Buffer.from(await res.arrayBuffer());
@@ -289,7 +296,7 @@ export async function sendChannelMessage({
                     if (waMediaId) {
                         payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, 'audio');
                     } else {
-                        // Try 2: upload as audio/mpeg
+                        // Try 2: upload as document (guaranteed to arrive)
                         waMediaId = await uploadUrlToWhatsApp(
                             config.phoneNumberId,
                             config.accessToken,
@@ -298,16 +305,10 @@ export async function sendChannelMessage({
                             (fileName || 'audio').replace(/\.\w+$/, '.mp3'),
                         );
                         if (waMediaId) {
-                            payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, 'audio');
+                            payload = buildWhatsAppMediaPayloadById(contact.phone, content || '🎤 Nota de voz', waMediaId, 'document', fileName);
                         } else {
-                            // Try 3: send as document (guaranteed to arrive)
-                            payload = buildWhatsAppMediaPayloadByUrl(
-                                contact.phone,
-                                content || '🎤 Nota de voz',
-                                fileUrl,
-                                'document',
-                                (fileName || 'nota-de-voz.webm'),
-                            );
+                            // All uploads failed - send text notification
+                            payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: '🎤 [Nota de voz - escuchar en plataforma]' } };
                         }
                     }
                 }
