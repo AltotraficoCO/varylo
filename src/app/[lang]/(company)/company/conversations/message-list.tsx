@@ -92,13 +92,11 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
                 if (!res.ok) throw new Error('fetch failed');
                 const arrayBuffer = await res.arrayBuffer();
 
-                // Check if it's OGG/Opus or WebM/Opus (needs conversion for Safari)
                 const mime = (mimeType?.split(';')[0] || '').toLowerCase();
-                const needsConversion = mime.includes('ogg') || mime.includes('opus') || mime.includes('webm') || src.endsWith('.ogg') || src.endsWith('.webm');
 
-                if (needsConversion) {
-                    // Decode with AudioContext (supports OGG Opus in all browsers)
-                    // then convert to WAV which is universally playable
+                // Try AudioContext decode → WAV conversion first (works for all formats)
+                // This is the most reliable approach across browsers
+                try {
                     const audioCtx = new AudioContext();
                     try {
                         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
@@ -107,8 +105,8 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
                     } finally {
                         await audioCtx.close();
                     }
-                } else {
-                    // Non-OGG: use blob directly
+                } catch {
+                    // Fallback: use blob directly (works for native formats like mp3, aac)
                     const blob = new Blob([arrayBuffer], { type: mime || 'audio/mpeg' });
                     url = URL.createObjectURL(blob);
                 }
