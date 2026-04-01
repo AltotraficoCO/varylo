@@ -83,14 +83,21 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    // Check 5: Get phone number info
-    if (config.phoneNumberId) {
+    // Check 5: List phone numbers from WABA
+    if (config.wabaId) {
         try {
-            const phoneRes = await fetch(`${META_GRAPH}/${config.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating,is_official_business_account&access_token=${accessToken}`);
-            const phoneData = await phoneRes.json();
-            results.phoneInfo = phoneRes.ok ? phoneData : phoneData.error;
+            const phonesRes = await fetch(`${META_GRAPH}/${config.wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating&access_token=${accessToken}`);
+            const phonesData = await phonesRes.json();
+            results.phoneNumbers = phonesData;
+
+            // If we found phones and the stored phoneNumberId is wrong, show the correct one
+            if (phonesData.data?.length > 0) {
+                const correctPhoneId = phonesData.data[0].id;
+                results.correctPhoneNumberId = correctPhoneId;
+                results.storedPhoneNumberIdMatches = config.phoneNumberId === correctPhoneId;
+            }
         } catch (e: any) {
-            results.phoneError = e.message;
+            results.phonesError = e.message;
         }
     }
 
