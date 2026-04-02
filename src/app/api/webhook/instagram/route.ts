@@ -149,6 +149,14 @@ export async function POST(req: NextRequest) {
                 channel = await prisma.channel.findFirst({
                     where: {
                         type: ChannelType.INSTAGRAM,
+                        configJson: { path: ['igAccountId'], equals: recipientId },
+                    },
+                });
+            }
+            if (!channel) {
+                channel = await prisma.channel.findFirst({
+                    where: {
+                        type: ChannelType.INSTAGRAM,
                         configJson: { path: ['instagramId'], equals: recipientId },
                     },
                 });
