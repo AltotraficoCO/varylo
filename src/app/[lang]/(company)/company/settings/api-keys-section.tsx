@@ -5,8 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Key, Plus, Copy, Trash2, Eye, EyeOff, Check, AlertTriangle, Globe } from 'lucide-react';
+import { Key, Plus, Copy, Trash2, Eye, EyeOff, Check, AlertTriangle, Globe, BookOpen } from 'lucide-react';
 import { createApiKey, listApiKeys, revokeApiKey, deleteApiKey } from './api-keys-actions';
+import Link from 'next/link';
 
 type ApiKeyItem = {
     id: string;
@@ -240,43 +241,27 @@ export function ApiKeysSection() {
                 </div>
             )}
 
-            {/* API Documentation quick reference */}
+            {/* API Documentation link */}
             <Card>
                 <CardContent className="pt-4">
-                    <h3 className="text-sm font-semibold mb-3">Referencia rapida de la API</h3>
-                    <div className="space-y-2 text-xs font-mono">
-                        <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs shrink-0 w-14 justify-center">GET</Badge>
-                            <span className="text-muted-foreground">/api/v1/auth</span>
-                            <span className="text-muted-foreground ml-auto">Validar API key</span>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-sm font-semibold flex items-center gap-2">
+                                <BookOpen className="h-4 w-4" />
+                                Documentacion de la API
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Endpoints, ejemplos, webhooks y codigos de error.
+                            </p>
                         </div>
-                        <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs shrink-0 w-14 justify-center">GET</Badge>
-                            <span className="text-muted-foreground">/api/v1/status</span>
-                            <span className="text-muted-foreground ml-auto">Estado conexion WhatsApp</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs shrink-0 w-14 justify-center">GET</Badge>
-                            <span className="text-muted-foreground">/api/v1/templates</span>
-                            <span className="text-muted-foreground ml-auto">Plantillas aprobadas</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs shrink-0 w-14 justify-center bg-green-50 text-green-700 border-green-200">POST</Badge>
-                            <span className="text-muted-foreground">/api/v1/messages</span>
-                            <span className="text-muted-foreground ml-auto">Enviar mensaje</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs shrink-0 w-14 justify-center">GET</Badge>
-                            <span className="text-muted-foreground">/api/v1/messages/status</span>
-                            <span className="text-muted-foreground ml-auto">Estado de entrega</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs shrink-0 w-14 justify-center bg-green-50 text-green-700 border-green-200">POST</Badge>
-                            <span className="text-muted-foreground">/api/v1/webhooks</span>
-                            <span className="text-muted-foreground ml-auto">Registrar webhook</span>
-                        </div>
+                        <Link href="/company/api-docs">
+                            <Button variant="outline" size="sm" className="gap-2">
+                                Ver documentacion
+                                <BookOpen className="h-3.5 w-3.5" />
+                            </Button>
+                        </Link>
                     </div>
-                    <div className="mt-4 p-3 bg-muted/50 rounded-md">
+                    <div className="mt-3 p-3 bg-muted/50 rounded-md">
                         <p className="text-xs text-muted-foreground mb-1">Header de autenticacion:</p>
                         <code className="text-xs font-mono">Authorization: Bearer vk_live_tu_api_key</code>
                     </div>
