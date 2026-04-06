@@ -8,6 +8,7 @@ import { markWhatsAppMessageAsRead } from '@/lib/channel-sender';
 import { rateLimitResponse } from '@/lib/rate-limit';
 import { extractMediaFromMessage, getWhatsAppMediaUrl, downloadWhatsAppMedia } from '@/lib/whatsapp-media';
 import { uploadToStorage, buildMediaPath } from '@/lib/storage';
+import { dispatchWebhookEvent } from '@/lib/api-webhooks';
 
 const MAX_MESSAGE_LENGTH = 4096;
 
@@ -105,6 +106,31 @@ export async function POST(req: NextRequest) {
         const entry = body.entry?.[0];
         const changes = entry?.changes?.[0];
         const value = changes?.value;
+
+        // Handle delivery/read status updates
+        if (value?.statuses) {
+            const status = value.statuses[0];
+            const phoneNumberId = value.metadata?.phone_number_id;
+            if (status && phoneNumberId) {
+                const channel = await prisma.channel.findFirst({
+                    where: {
+                        type: ChannelType.WHATSAPP,
+                        configJson: { path: ['phoneNumberId'], equals: phoneNumberId },
+                    },
+                    select: { companyId: true },
+                });
+
+                if (channel) {
+                    dispatchWebhookEvent(channel.companyId, 'message.status', {
+                        providerMessageId: status.id,
+                        status: status.status, // sent, delivered, read, failed
+                        recipientId: status.recipient_id,
+                        timestamp: status.timestamp,
+                        errors: status.errors || null,
+                    });
+                }
+            }
+        }
 
         if (value?.messages) {
             const message = value.messages[0];
@@ -312,6 +338,17 @@ export async function POST(req: NextRequest) {
                 await prisma.conversation.update({
                     where: { id: conversation.id },
                     data: { lastMessageAt: new Date(), lastInboundAt: new Date() }
+                });
+
+                // Dispatch to external API webhooks (fire and forget)
+                dispatchWebhookEvent(companyId, 'message.received', {
+                    conversationId: conversation.id,
+                    contactId: contact.id,
+                    from,
+                    content,
+                    mediaUrl,
+                    mediaType,
+                    timestamp: new Date().toISOString(),
                 });
 
                 // Automation pipeline — run after response so Vercel keeps function alive

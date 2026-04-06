@@ -233,7 +233,10 @@ export async function sendTemplateMessage(params: {
 
         await prisma.conversation.update({
             where: { id: conversation.id },
-            data: { lastMessageAt: new Date() },
+            data: {
+                lastMessageAt: new Date(),
+                lastInboundAt: new Date(), // Template opens a 24h business-initiated window
+            },
         });
 
         return { success: true, conversationId: conversation.id };

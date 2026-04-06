@@ -3,13 +3,14 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Building2, Plug, Brain, Tag, FileText, CreditCard } from "lucide-react";
+import { Building2, Plug, Brain, Tag, FileText, CreditCard, Key } from "lucide-react";
 import { TagsSection } from "./tags-section";
 import { TemplatesSection } from "./templates-section";
 import { GeneralSection } from "./general-section";
 import { ChannelsSection } from "./channels-section";
 import { IntegrationsSection } from "./integrations-section";
 import { BillingSection } from "./billing-section";
+import { ApiKeysSection } from "./api-keys-section";
 import { getActiveSubscription, getPaymentSources, getBillingHistory, getAvailablePlans } from "./billing-actions";
 import { getWompiConfig } from "@/lib/wompi-config";
 import { Role } from '@prisma/client';
@@ -19,6 +20,7 @@ const TABS = [
     { key: 'channels', label: 'Canales', icon: Plug },
     { key: 'ai', label: 'IA y Créditos', icon: Brain },
     { key: 'billing', label: 'Facturación', icon: CreditCard },
+    { key: 'api', label: 'API', icon: Key },
     { key: 'tags', label: 'Etiquetas', icon: Tag },
     { key: 'templates', label: 'Plantillas', icon: FileText },
 ];
@@ -219,6 +221,10 @@ export default async function SettingsPage(props: {
 
                     {activeTab === 'billing' && (
                         <BillingTabContent companyId={companyId} companyEmail={userEmail} />
+                    )}
+
+                    {activeTab === 'api' && (
+                        <ApiKeysSection />
                     )}
 
                     {activeTab === 'tags' && (
