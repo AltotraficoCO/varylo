@@ -152,6 +152,7 @@ model Company {
   ecommerceIntegration EcommerceIntegration?
   contactLists       ContactList[]
   broadcasts         Broadcast[]
+  apiKeys            ApiKey[]
 }
 
 model Channel {
@@ -560,6 +561,30 @@ model BroadcastLog {
 
   broadcast    Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
   contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  companyId   String
+  name        String    // e.g. "Production", "Testing"
+  key         String    @unique // "vk_live_..." prefix + random
+  hashedKey   String    @unique // SHA-256 hash for lookups
+  lastFour    String    // last 4 chars for display
+  scopes      String[]  @default(["contacts:read", "conversations:read", "messages:read"])
+  rateLimit   Int       @default(60) // requests per minute
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  active        Boolean   @default(true)
+  webhookUrl    String?
+  webhookEvents String[]  @default([])
+  webhookSecret String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([hashedKey])
+  @@index([companyId])
 }
 
 model TrustedLogo {
