@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { BroadcastsClient } from './broadcasts-client';
+import { SubscriptionGate } from '@/components/subscription-gate';
 
 export default async function BroadcastsPage({
   params: routeParams,
@@ -43,11 +44,13 @@ export default async function BroadcastsPage({
   }
 
   return (
-    <BroadcastsClient
-      contactLists={contactLists}
-      broadcasts={broadcasts}
-      contacts={contacts}
-      lang={lang}
-    />
+    <SubscriptionGate featureName="Difusiones">
+      <BroadcastsClient
+        contactLists={contactLists}
+        broadcasts={broadcasts}
+        contacts={contacts}
+        lang={lang}
+      />
+    </SubscriptionGate>
   );
 }

@@ -268,3 +268,16 @@ async function pollTransactionStatus(
 
     console.log(`[Subscription] Polling: gave up after 3 attempts for transaction ${wompiTransactionId}`);
 }
+
+/**
+ * Check if a company has an active, non-expired subscription.
+ * Returns true if the company can use premium features.
+ */
+export async function hasActiveSubscription(companyId: string): Promise<boolean> {
+    const sub = await prisma.subscription.findFirst({
+        where: { companyId, status: { in: ['ACTIVE', 'TRIAL'] } },
+        select: { currentPeriodEnd: true },
+    });
+    if (!sub) return false;
+    return sub.currentPeriodEnd > new Date();
+}

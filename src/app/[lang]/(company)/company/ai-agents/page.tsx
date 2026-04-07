@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { SubscriptionGate } from '@/components/subscription-gate';
 import {
     Table,
     TableBody,
@@ -44,6 +45,7 @@ export default async function AiAgentsPage() {
     const hasEcommerce = !!ecommerceIntegration?.active;
 
     return (
+        <SubscriptionGate featureName="Agentes IA">
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -135,5 +137,6 @@ export default async function AiAgentsPage() {
                 </Table>
             </CardContent>
         </Card>
+        </SubscriptionGate>
     );
 }
