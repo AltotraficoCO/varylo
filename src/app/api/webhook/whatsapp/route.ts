@@ -317,7 +317,7 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
-                // Deduplicate: skip if this message was already processed
+                // Deduplicate at DB level using unique constraint on (providerMessageId, companyId)
                 if (messageId) {
                     const existing = await prisma.message.findFirst({
                         where: { providerMessageId: messageId, companyId },
@@ -329,21 +329,29 @@ export async function POST(req: NextRequest) {
                 }
 
                 // Save Message with media fields
-                await prisma.message.create({
-                    data: {
-                        companyId,
-                        conversationId: conversation.id,
-                        direction: MessageDirection.INBOUND,
-                        from: from,
-                        to: phoneNumberId,
-                        content,
-                        providerMessageId: messageId,
-                        mediaUrl,
-                        mediaType,
-                        mimeType,
-                        fileName,
+                try {
+                    await prisma.message.create({
+                        data: {
+                            companyId,
+                            conversationId: conversation.id,
+                            direction: MessageDirection.INBOUND,
+                            from: from,
+                            to: phoneNumberId,
+                            content,
+                            providerMessageId: messageId,
+                            mediaUrl,
+                            mediaType,
+                            mimeType,
+                            fileName,
+                        }
+                    });
+                } catch (err: any) {
+                    // Unique constraint violation = duplicate message (race condition)
+                    if (err?.code === 'P2002') {
+                        return NextResponse.json({ status: 'duplicate' });
                     }
-                });
+                    throw err;
+                }
 
                 // Update conversation timestamps
                 await prisma.conversation.update({
