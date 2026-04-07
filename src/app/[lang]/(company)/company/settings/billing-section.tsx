@@ -42,15 +42,25 @@ export function BillingSection({
 }: BillingSectionProps) {
     const [activeItem, setActiveItem] = useState<string | null>(null);
 
+    const isExpired = subscription?.currentPeriodEnd
+        && new Date(subscription.currentPeriodEnd).getTime() < Date.now()
+        && (subscription.status === 'ACTIVE' || subscription.status === 'TRIAL');
+
     const items: BillingItem[] = [
         {
             id: 'subscription',
             name: 'Suscripción',
             description: 'Gestiona tu plan actual, cambia de plan o cancela tu suscripción.',
             icon: Crown,
-            color: 'bg-purple-50 text-purple-600 border-purple-200',
-            badge: subscription ? 'Activa' : 'Sin suscripción',
-            badgeVariant: subscription ? 'default' : 'secondary',
+            color: isExpired
+                ? 'bg-red-50 text-red-600 border-red-200'
+                : 'bg-purple-50 text-purple-600 border-purple-200',
+            badge: subscription
+                ? isExpired ? 'Vencida' : 'Activa'
+                : 'Sin suscripción',
+            badgeVariant: subscription
+                ? isExpired ? 'outline' : 'default'
+                : 'secondary',
         },
         {
             id: 'payment-methods',

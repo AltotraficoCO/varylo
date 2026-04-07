@@ -3,6 +3,8 @@ import { DashboardHeader } from '@/components/dashboard/header';
 import { Locale } from '@/lib/dictionary';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
 
 export default async function CompanyLayout({
     children,
@@ -16,10 +18,11 @@ export default async function CompanyLayout({
 
     let tags: any[] = [];
     let userStatus: 'ONLINE' | 'BUSY' | 'OFFLINE' = 'OFFLINE';
+    let subscriptionExpired = false;
 
     if (session?.user?.companyId) {
         try {
-            const [fetchedTags, user] = await Promise.all([
+            const [fetchedTags, user, activeSub] = await Promise.all([
                 prisma.tag.findMany({
                     where: {
                         companyId: session.user.companyId,
@@ -31,9 +34,26 @@ export default async function CompanyLayout({
                     where: { id: session.user.id },
                     select: { status: true },
                 }) : null,
+                prisma.subscription.findFirst({
+                    where: { companyId: session.user.companyId, status: { in: ['ACTIVE', 'TRIAL'] } },
+                    select: { currentPeriodEnd: true },
+                }),
             ]);
             tags = fetchedTags;
             userStatus = (user?.status as typeof userStatus) || 'OFFLINE';
+
+            // Check if subscription is expired
+            if (activeSub && activeSub.currentPeriodEnd < new Date()) {
+                subscriptionExpired = true;
+            }
+            // No active subscription at all (CANCELLED or none)
+            if (!activeSub) {
+                const anySub = await prisma.subscription.findFirst({
+                    where: { companyId: session.user.companyId },
+                    select: { id: true },
+                });
+                if (anySub) subscriptionExpired = true;
+            }
 
             // Auto-set to ONLINE if currently OFFLINE (user just loaded dashboard)
             if (session.user.id && userStatus === 'OFFLINE') {
@@ -61,6 +81,22 @@ export default async function CompanyLayout({
                     userName={session?.user?.name || undefined}
                     userEmail={session?.user?.email || undefined}
                 />
+                {subscriptionExpired && (
+                    <div className="bg-red-50 border-b border-red-200 px-4 py-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 text-red-700 text-sm">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span>
+                                Tu suscripción ha vencido. Algunas funciones están limitadas.
+                            </span>
+                        </div>
+                        <Link
+                            href={`/${lang}/company/settings?tab=billing`}
+                            className="text-sm font-medium text-red-700 hover:text-red-800 underline whitespace-nowrap"
+                        >
+                            Renovar plan
+                        </Link>
+                    </div>
+                )}
                 <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
                     {children}
                 </main>

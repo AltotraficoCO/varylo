@@ -46,7 +46,16 @@ const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secon
     TRIAL: { label: 'Prueba', variant: 'secondary' },
     PAST_DUE: { label: 'Pago pendiente', variant: 'destructive' },
     CANCELLED: { label: 'Cancelada', variant: 'outline' },
+    EXPIRED: { label: 'Vencida', variant: 'destructive' },
 };
+
+function getEffectiveStatus(sub: ActiveSubscription): string {
+    if (!sub) return '';
+    if ((sub.status === 'ACTIVE' || sub.status === 'TRIAL') && sub.currentPeriodEnd) {
+        if (new Date(sub.currentPeriodEnd).getTime() < Date.now()) return 'EXPIRED';
+    }
+    return sub.status;
+}
 
 export function SubscriptionCard({
     subscription,
@@ -85,7 +94,9 @@ export function SubscriptionCard({
     }
 
     if (subscription) {
-        const status = STATUS_LABELS[subscription.status] || STATUS_LABELS.ACTIVE;
+        const effectiveStatus = getEffectiveStatus(subscription);
+        const status = STATUS_LABELS[effectiveStatus] || STATUS_LABELS.ACTIVE;
+        const isExpired = effectiveStatus === 'EXPIRED';
         return (
             <Card>
                 <CardHeader>
@@ -104,24 +115,34 @@ export function SubscriptionCard({
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2 text-sm">
                         <div>
-                            <span className="text-muted-foreground">Período actual:</span>{' '}
+                            <span className="text-muted-foreground">Período:</span>{' '}
                             {new Date(subscription.currentPeriodStart).toLocaleDateString('es-CO')} —{' '}
                             {new Date(subscription.currentPeriodEnd).toLocaleDateString('es-CO')}
                         </div>
-                        {subscription.paymentSource.lastFour && (
+                        {subscription.paymentSource.lastFour && subscription.paymentSource.brand !== 'CORTESIA' && (
                             <div>
                                 <span className="text-muted-foreground">Tarjeta:</span>{' '}
                                 {subscription.paymentSource.brand} •••• {subscription.paymentSource.lastFour}
                             </div>
                         )}
                     </div>
+                    {isExpired && (
+                        <div className="flex items-center gap-2 text-red-700 text-sm bg-red-50 p-3 rounded-lg">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span>
+                                Tu suscripción venció el{' '}
+                                <strong>{new Date(subscription.currentPeriodEnd).toLocaleDateString('es-CO')}</strong>.
+                                Renueva tu plan para seguir usando todas las funciones.
+                            </span>
+                        </div>
+                    )}
                     {subscription.status === 'PAST_DUE' && (
                         <div className="flex items-center gap-2 text-amber-700 text-sm">
                             <AlertTriangle className="h-4 w-4" />
                             <span>Hay un problema con tu pago. Actualiza tu tarjeta.</span>
                         </div>
                     )}
-                    {subscription.cancelledAt && subscription.status !== 'CANCELLED' && (
+                    {subscription.cancelledAt && subscription.status !== 'CANCELLED' && !isExpired && (
                         <div className="flex items-center gap-2 text-amber-700 text-sm bg-amber-50 p-3 rounded-lg">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             <span>
@@ -134,7 +155,7 @@ export function SubscriptionCard({
                     {error && <p className="text-sm text-red-500">{error}</p>}
                 </CardContent>
                 <CardFooter>
-                    {!subscription.cancelledAt && (
+                    {!subscription.cancelledAt && !isExpired && (
                         <Button
                             variant="destructive"
                             size="sm"
