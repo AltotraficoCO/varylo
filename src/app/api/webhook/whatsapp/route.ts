@@ -317,6 +317,17 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
+                // Deduplicate: skip if this message was already processed
+                if (messageId) {
+                    const existing = await prisma.message.findFirst({
+                        where: { providerMessageId: messageId, companyId },
+                        select: { id: true },
+                    });
+                    if (existing) {
+                        return NextResponse.json({ status: 'duplicate' });
+                    }
+                }
+
                 // Save Message with media fields
                 await prisma.message.create({
                     data: {
