@@ -315,7 +315,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                                             -
                                         </div>
                                     </Link>
-                                    {/* Action buttons on hover */}
+                                    {/* Action buttons - always visible */}
                                     <div className="w-[70px] shrink-0 flex justify-center gap-1">
                                         <button
                                             onClick={(e) => {
@@ -323,7 +323,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                                                 e.stopPropagation();
                                                 setShowTemplateDialog(true);
                                             }}
-                                            className="opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#10B981] hover:bg-[#ECFDF5] transition-all"
+                                            className="h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#10B981] hover:bg-[#ECFDF5] transition-all"
                                             title="Enviar mensaje"
                                         >
                                             <Send className="h-3.5 w-3.5" />
@@ -335,7 +335,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                                                 setSelected(new Set([contact.id]));
                                                 setShowDeleteDialog(true);
                                             }}
-                                            className="opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#EF4444] hover:bg-[#FEF2F2] transition-all"
+                                            className="h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#EF4444] hover:bg-[#FEF2F2] transition-all"
                                             title="Eliminar contacto"
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
