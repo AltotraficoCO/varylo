@@ -242,18 +242,36 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
-                // Save Message
-                await prisma.message.create({
-                    data: {
-                        companyId,
-                        conversationId: conversation.id,
-                        direction: MessageDirection.INBOUND,
-                        from: senderId,
-                        to: recipientId,
-                        content: text,
-                        providerMessageId: messageId,
+                // Deduplicate: skip if already processed
+                if (messageId) {
+                    const existing = await prisma.message.findFirst({
+                        where: { providerMessageId: messageId, companyId },
+                        select: { id: true },
+                    });
+                    if (existing) {
+                        return NextResponse.json({ status: 'duplicate' });
                     }
-                });
+                }
+
+                // Save Message
+                try {
+                    await prisma.message.create({
+                        data: {
+                            companyId,
+                            conversationId: conversation.id,
+                            direction: MessageDirection.INBOUND,
+                            from: senderId,
+                            to: recipientId,
+                            content: text,
+                            providerMessageId: messageId,
+                        }
+                    });
+                } catch (err: any) {
+                    if (err?.code === 'P2002') {
+                        return NextResponse.json({ status: 'duplicate' });
+                    }
+                    throw err;
+                }
 
                 // Update conversation timestamps
                 await prisma.conversation.update({
