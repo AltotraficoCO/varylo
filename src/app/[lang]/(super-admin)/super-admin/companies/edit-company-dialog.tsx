@@ -40,7 +40,6 @@ import { Company } from '@prisma/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
 import { CalendarDays, Clock, CreditCard } from "lucide-react"
 
 interface CompanyWithUsers extends Company {
@@ -80,12 +79,18 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
     const [selectedPricingId, setSelectedPricingId] = useState('');
     const [selectedPlanSlug, setSelectedPlanSlug] = useState<string>(company.plan);
     const [manualDays, setManualDays] = useState(30);
+    const [extensionDays, setExtensionDays] = useState(30);
     const router = useRouter();
 
     const sub = company.subscriptions?.[0] || null;
 
     // Initialize subStatus from subscription data
-    const currentSubStatus = subStatus ?? sub?.status ?? null;
+    const rawStatus = subStatus ?? sub?.status ?? null;
+
+    // Effective status: if ACTIVE/TRIAL but period ended, it's EXPIRED
+    const isExpired = sub?.currentPeriodEnd && (rawStatus === 'ACTIVE' || rawStatus === 'TRIAL')
+        && new Date(sub.currentPeriodEnd).getTime() < Date.now();
+    const currentSubStatus = isExpired ? 'EXPIRED' : rawStatus;
 
     // Load plan pricings when dialog opens (for creating manual subscriptions)
     useEffect(() => {
@@ -253,10 +258,12 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                             <Badge variant={
                                                 currentSubStatus === 'ACTIVE' ? 'default' :
                                                 currentSubStatus === 'TRIAL' ? 'secondary' :
+                                                currentSubStatus === 'EXPIRED' ? 'destructive' :
                                                 currentSubStatus === 'PAST_DUE' ? 'destructive' : 'outline'
                                             }>
                                                 {currentSubStatus === 'ACTIVE' ? 'Activa' :
                                                  currentSubStatus === 'TRIAL' ? 'Prueba' :
+                                                 currentSubStatus === 'EXPIRED' ? 'Vencida' :
                                                  currentSubStatus === 'PAST_DUE' ? 'Pago pendiente' :
                                                  currentSubStatus === 'CANCELLED' ? 'Cancelada' : currentSubStatus}
                                             </Badge>
@@ -315,36 +322,89 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                         })()}
                                     </div>
 
-                                    {/* Toggle active/inactive */}
-                                    <div className="rounded-lg border p-4">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm font-medium">Suscripción activa</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Activar o desactivar manualmente la suscripción
-                                                </p>
-                                            </div>
-                                            <Switch
-                                                checked={currentSubStatus === 'ACTIVE' || currentSubStatus === 'TRIAL'}
-                                                disabled={subLoading}
-                                                onCheckedChange={async (checked) => {
-                                                    setSubLoading(true);
-                                                    const newStatus = checked ? 'ACTIVE' : 'CANCELLED';
-                                                    const result = await toggleSubscriptionStatus({
-                                                        subscriptionId: sub.id,
-                                                        newStatus,
-                                                    });
-                                                    if (result.success) {
-                                                        setSubStatus(newStatus);
-                                                        toast.success(checked ? 'Suscripción activada' : 'Suscripción desactivada');
-                                                        router.refresh();
-                                                    } else {
-                                                        toast.error(result.error || 'Error al cambiar estado');
-                                                    }
-                                                    setSubLoading(false);
-                                                }}
-                                            />
-                                        </div>
+                                    {/* Actions based on effective status */}
+                                    <div className="rounded-lg border p-4 space-y-3">
+                                        {(currentSubStatus === 'EXPIRED' || currentSubStatus === 'CANCELLED' || currentSubStatus === 'PAST_DUE') ? (
+                                            <>
+                                                <div>
+                                                    <p className="text-sm font-medium">Reactivar suscripción</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Activa la suscripción y extiende el período.
+                                                    </p>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-medium">Días de extensión</label>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        value={extensionDays}
+                                                        onChange={(e) => setExtensionDays(Number(e.target.value))}
+                                                        placeholder="30"
+                                                    />
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Nuevo vencimiento: {new Date(Date.now() + extensionDays * 86400000).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    onClick={async () => {
+                                                        if (extensionDays < 1) { toast.error('Mínimo 1 día'); return; }
+                                                        setSubLoading(true);
+                                                        const result = await toggleSubscriptionStatus({
+                                                            subscriptionId: sub.id,
+                                                            newStatus: 'ACTIVE',
+                                                            extensionDays,
+                                                        });
+                                                        if (result.success) {
+                                                            setSubStatus('ACTIVE');
+                                                            toast.success(`Suscripción reactivada por ${extensionDays} días`);
+                                                            router.refresh();
+                                                        } else {
+                                                            toast.error(result.error || 'Error al reactivar');
+                                                        }
+                                                        setSubLoading(false);
+                                                    }}
+                                                    disabled={subLoading}
+                                                    className="w-full"
+                                                >
+                                                    {subLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Reactivar suscripción
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-sm font-medium">Cancelar suscripción</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            La suscripción se cancelará inmediatamente.
+                                                        </p>
+                                                    </div>
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        disabled={subLoading}
+                                                        onClick={async () => {
+                                                            setSubLoading(true);
+                                                            const result = await toggleSubscriptionStatus({
+                                                                subscriptionId: sub.id,
+                                                                newStatus: 'CANCELLED',
+                                                            });
+                                                            if (result.success) {
+                                                                setSubStatus('CANCELLED');
+                                                                toast.success('Suscripción cancelada');
+                                                                router.refresh();
+                                                            } else {
+                                                                toast.error(result.error || 'Error al cancelar');
+                                                            }
+                                                            setSubLoading(false);
+                                                        }}
+                                                    >
+                                                        {subLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                        Cancelar
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
 
                                     {sub.cancelledAt && (

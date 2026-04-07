@@ -30,7 +30,17 @@ const SUB_STATUS_LABELS: Record<string, { label: string; variant: 'default' | 's
     TRIAL: { label: 'Prueba', variant: 'secondary' },
     PAST_DUE: { label: 'Pago pendiente', variant: 'destructive' },
     CANCELLED: { label: 'Cancelada', variant: 'outline' },
+    EXPIRED: { label: 'Vencida', variant: 'destructive' },
 };
+
+function getEffectiveSubStatus(sub: any): string {
+    if (!sub) return '';
+    if ((sub.status === 'ACTIVE' || sub.status === 'TRIAL') && sub.currentPeriodEnd) {
+        const isExpired = new Date(sub.currentPeriodEnd).getTime() < Date.now();
+        if (isExpired) return 'EXPIRED';
+    }
+    return sub.status;
+}
 
 function formatCOP(amount: number): string {
     return new Intl.NumberFormat('es-CO', {
@@ -152,7 +162,8 @@ export default async function CompaniesPage() {
                             ) : (
                                 companies.map((company) => {
                                     const sub = company.subscriptions?.[0];
-                                    const subStatus = sub ? SUB_STATUS_LABELS[sub.status] : null;
+                                    const effectiveStatus = sub ? getEffectiveSubStatus(sub) : null;
+                                    const subStatus = effectiveStatus ? SUB_STATUS_LABELS[effectiveStatus] : null;
                                     return (
                                         <TableRow key={company.id}>
                                             <TableCell>
@@ -177,13 +188,11 @@ export default async function CompaniesPage() {
                                                         <span className="text-xs text-muted-foreground">
                                                             {sub.planPricing?.landingPlan?.name || '-'}
                                                         </span>
-                                                        {sub.currentPeriodEnd && (
+                                                        {sub.currentPeriodEnd && effectiveStatus !== 'EXPIRED' && effectiveStatus !== 'CANCELLED' && (
                                                             <span className="text-xs text-muted-foreground">
                                                                 {(() => {
                                                                     const daysLeft = Math.ceil((new Date(sub.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                                                                    return daysLeft > 0
-                                                                        ? `${daysLeft} días restantes`
-                                                                        : 'Vencida';
+                                                                    return daysLeft > 0 ? `${daysLeft} días restantes` : '';
                                                                 })()}
                                                             </span>
                                                         )}
