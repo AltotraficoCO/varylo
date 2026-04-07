@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Building2, Plug, Coins, Tag, FileText, CreditCard, Key } from "lucide-react";
+import { Building2, Plug, Coins, Tag, FileText, CreditCard, Key, Puzzle } from "lucide-react";
 import { TagsSection } from "./tags-section";
 import { TemplatesSection } from "./templates-section";
 import { GeneralSection } from "./general-section";
@@ -11,6 +11,7 @@ import { ChannelsSection } from "./channels-section";
 import { CreditBalanceCard } from "./credit-balance-card";
 import { BillingSection } from "./billing-section";
 import { ApiKeysSection } from "./api-keys-section";
+import { IntegrationsClient } from "../integrations/integrations-client";
 import { getActiveSubscription, getPaymentSources, getBillingHistory, getAvailablePlans } from "./billing-actions";
 import { getWompiConfig } from "@/lib/wompi-config";
 import { Role } from '@prisma/client';
@@ -18,6 +19,7 @@ import { Role } from '@prisma/client';
 const TABS = [
     { key: 'general', label: 'General', icon: Building2 },
     { key: 'channels', label: 'Canales', icon: Plug },
+    { key: 'integrations', label: 'Integraciones', icon: Puzzle },
     { key: 'ai', label: 'Créditos', icon: Coins },
     { key: 'billing', label: 'Facturación', icon: CreditCard },
     { key: 'api', label: 'API', icon: Key },
@@ -36,7 +38,7 @@ export default async function SettingsPage(props: {
     if (!companyId) return null;
 
     // Fetch all data in parallel
-    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceIntegration, activeSubscription] = await Promise.all([
+    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceStores, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -64,9 +66,10 @@ export default async function SettingsPage(props: {
             select: { id: true, name: true, email: true },
             orderBy: { name: 'asc' },
         }),
-        prisma.ecommerceIntegration.findFirst({
+        prisma.ecommerceIntegration.findMany({
             where: { companyId },
-            select: { platform: true, storeUrl: true, active: true },
+            select: { id: true, name: true, platform: true, storeUrl: true, active: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
         }),
         prisma.subscription.findFirst({
             where: { companyId, status: { in: ['ACTIVE', 'TRIAL'] } },
@@ -191,6 +194,24 @@ export default async function SettingsPage(props: {
                                 pageName: instagramConfigJson?.pageName,
                             }}
                             hasActiveSubscription={!!activeSubscription}
+                        />
+                    )}
+
+                    {activeTab === 'integrations' && (
+                        <IntegrationsClient
+                            openai={{
+                                hasApiKey: hasOpenAIKey,
+                                updatedAt: openaiKeyUpdatedAt,
+                            }}
+                            googleCalendar={{
+                                isConnected: hasGoogleCalendar,
+                                email: googleCalendarEmail,
+                                connectedAt: googleCalendarConnectedAt,
+                            }}
+                            ecommerceStores={ecommerceStores.map(s => ({
+                                ...s,
+                                createdAt: s.createdAt.toISOString(),
+                            }))}
                         />
                     )}
 
