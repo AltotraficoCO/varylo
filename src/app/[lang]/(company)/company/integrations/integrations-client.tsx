@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Key, Calendar, ShoppingBag, Plus, Settings2, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Key, Calendar, ShoppingBag, Globe, Settings2, Trash2, Loader2 } from 'lucide-react';
 import { OpenAIKeyForm } from '../settings/openai-form';
 import { GoogleCalendarForm } from '../settings/google-calendar-form';
 import { EcommerceForm } from '../settings/ecommerce-form';
@@ -38,6 +38,9 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores }: 
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const router = useRouter();
 
+    const shopifyStores = ecommerceStores.filter(s => s.platform === 'shopify');
+    const wooStores = ecommerceStores.filter(s => s.platform === 'woocommerce');
+
     async function handleDeleteStore(storeId: string) {
         if (!confirm('Desconectar esta tienda?')) return;
         setDeletingId(storeId);
@@ -49,6 +52,36 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores }: 
             toast.error(result.error || 'Error');
         }
         setDeletingId(null);
+    }
+
+    function StoreList({ stores }: { stores: EcommerceStore[] }) {
+        if (stores.length === 0) return null;
+        return (
+            <div className="space-y-2 mt-4">
+                {stores.map((store) => (
+                    <div key={store.id} className="flex items-center justify-between rounded-lg border border-[#E4E4E7] px-4 py-3">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[14px] font-medium text-[#09090B]">{store.name}</span>
+                                {store.active ? (
+                                    <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
+                                ) : (
+                                    <span className="h-2 w-2 rounded-full bg-[#A1A1AA]" />
+                                )}
+                            </div>
+                            <p className="text-[13px] text-[#71717A]">{store.storeUrl}</p>
+                        </div>
+                        <button
+                            onClick={() => handleDeleteStore(store.id)}
+                            disabled={deletingId === store.id}
+                            className="text-[#A1A1AA] hover:text-[#EF4444] transition-colors p-1.5 rounded-md hover:bg-red-50"
+                        >
+                            {deletingId === store.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        </button>
+                    </div>
+                ))}
+            </div>
+        );
     }
 
     // Drill-down views
@@ -78,21 +111,29 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores }: 
         );
     }
 
-    if (activeView === 'add-ecommerce') {
+    if (activeView === 'add-shopify') {
         return (
             <div className="space-y-4">
                 <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
                     <ArrowLeft className="h-4 w-4" /> Volver a integraciones
                 </Button>
-                <EcommerceForm isConnected={false} platform={null} storeUrl={null} />
+                <StoreList stores={shopifyStores} />
+                <EcommerceForm isConnected={false} platform="shopify" storeUrl={null} />
             </div>
         );
     }
 
-    const platformLabel: Record<string, string> = {
-        shopify: 'Shopify',
-        woocommerce: 'WooCommerce',
-    };
+    if (activeView === 'add-woocommerce') {
+        return (
+            <div className="space-y-4">
+                <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
+                    <ArrowLeft className="h-4 w-4" /> Volver a integraciones
+                </Button>
+                <StoreList stores={wooStores} />
+                <EcommerceForm isConnected={false} platform="woocommerce" storeUrl={null} />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -153,64 +194,52 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores }: 
                     </Button>
                 </div>
 
-                {/* Ecommerce header */}
-                <div className="px-5 py-4">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                            <div className="h-11 w-11 rounded-lg bg-[#F5F3FF] flex items-center justify-center shrink-0">
-                                <ShoppingBag className="h-5 w-5 text-[#8B5CF6]" />
-                            </div>
-                            <div>
-                                <span className="text-[15px] font-medium text-[#09090B]">Tiendas online</span>
-                                <p className="text-[13px] text-[#71717A] mt-0.5">
-                                    Conecta Shopify o WooCommerce para que el agente IA consulte productos y precios.
-                                </p>
-                            </div>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => setActiveView('add-ecommerce')} className="shrink-0">
-                            <Plus className="h-3.5 w-3.5 mr-1.5" />
-                            Agregar tienda
-                        </Button>
+                {/* Shopify */}
+                <div className="flex items-center gap-4 px-5 py-4">
+                    <div className="h-11 w-11 rounded-lg bg-[#F0FDF4] flex items-center justify-center shrink-0">
+                        <ShoppingBag className="h-5 w-5 text-[#16A34A]" />
                     </div>
-
-                    {/* Connected stores */}
-                    {ecommerceStores.length > 0 ? (
-                        <div className="ml-14 space-y-2">
-                            {ecommerceStores.map((store) => (
-                                <div key={store.id} className="flex items-center justify-between rounded-lg border border-[#E4E4E7] px-4 py-3">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[14px] font-medium text-[#09090B]">{store.name}</span>
-                                                <span className="text-[12px] text-[#71717A] bg-[#F4F4F5] rounded px-1.5 py-0.5">
-                                                    {platformLabel[store.platform] || store.platform}
-                                                </span>
-                                                {store.active ? (
-                                                    <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
-                                                ) : (
-                                                    <span className="h-2 w-2 rounded-full bg-[#A1A1AA]" />
-                                                )}
-                                            </div>
-                                            <p className="text-[13px] text-[#71717A] truncate">{store.storeUrl}</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => handleDeleteStore(store.id)}
-                                        disabled={deletingId === store.id}
-                                        className="text-[#A1A1AA] hover:text-[#EF4444] transition-colors p-1.5 rounded-md hover:bg-red-50"
-                                    >
-                                        {deletingId === store.id ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Trash2 className="h-4 w-4" />
-                                        )}
-                                    </button>
-                                </div>
-                            ))}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[15px] font-medium text-[#09090B]">Shopify</span>
+                            {shopifyStores.length > 0 && (
+                                <Badge variant="default" className="text-[11px] px-2 py-0">{shopifyStores.length} conectada{shopifyStores.length > 1 ? 's' : ''}</Badge>
+                            )}
                         </div>
-                    ) : (
-                        <p className="ml-14 text-[13px] text-[#A1A1AA]">No hay tiendas conectadas.</p>
-                    )}
+                        <p className="text-[13px] text-[#71717A] mt-0.5">
+                            {shopifyStores.length > 0
+                                ? shopifyStores.map(s => s.storeUrl).join(', ')
+                                : 'Conecta tu tienda Shopify para consultar productos y precios.'}
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setActiveView('add-shopify')} className="shrink-0">
+                        <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                        {shopifyStores.length > 0 ? 'Gestionar' : 'Conectar'}
+                    </Button>
+                </div>
+
+                {/* WordPress / WooCommerce */}
+                <div className="flex items-center gap-4 px-5 py-4">
+                    <div className="h-11 w-11 rounded-lg bg-[#EFF6FF] flex items-center justify-center shrink-0">
+                        <Globe className="h-5 w-5 text-[#2563EB]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[15px] font-medium text-[#09090B]">WordPress</span>
+                            {wooStores.length > 0 && (
+                                <Badge variant="default" className="text-[11px] px-2 py-0">{wooStores.length} conectada{wooStores.length > 1 ? 's' : ''}</Badge>
+                            )}
+                        </div>
+                        <p className="text-[13px] text-[#71717A] mt-0.5">
+                            {wooStores.length > 0
+                                ? wooStores.map(s => s.storeUrl).join(', ')
+                                : 'Conecta tu WooCommerce para consultar productos y precios.'}
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setActiveView('add-woocommerce')} className="shrink-0">
+                        <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                        {wooStores.length > 0 ? 'Gestionar' : 'Conectar'}
+                    </Button>
                 </div>
             </div>
         </div>
