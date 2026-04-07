@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, Copy, Globe, Loader2, RefreshCw, Check } from "lucide-react";
+import { CheckCircle2, Copy, Loader2, RefreshCw, Check } from "lucide-react";
+import { WebChatLogo } from "@/components/channel-logos";
 import { activateWebChat, deactivateWebChat, regenerateWebChatKey, updateChannelPriority } from './actions';
 import { toast } from 'sonner';
 
@@ -197,7 +198,7 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
         <Card>
             <CardHeader>
                 <div className="flex items-center gap-2">
-                    <Globe className="h-5 w-5" />
+                    <WebChatLogo className="h-5 w-5" />
                     <CardTitle>Web Chat</CardTitle>
                 </div>
                 <CardDescription>

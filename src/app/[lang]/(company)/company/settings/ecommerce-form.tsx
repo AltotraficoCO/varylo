@@ -110,56 +110,64 @@ export function EcommerceForm({ isConnected, platform, storeUrl }: EcommerceForm
                         <ShoppingBag className="h-5 w-5" />
                     </div>
                     <div>
-                        <CardTitle className="text-lg">Conectar Tienda Online</CardTitle>
+                        <CardTitle className="text-lg">
+                            {platform === 'shopify' ? 'Conectar Shopify' : platform === 'woocommerce' ? 'Conectar WordPress' : 'Conectar Tienda Online'}
+                        </CardTitle>
                         <CardDescription>
-                            Conecta tu tienda de Shopify o WooCommerce para que el agente de IA pueda consultar productos, precios e inventario.
+                            {platform === 'shopify'
+                                ? 'Conecta tu tienda Shopify para que el agente IA consulte productos, precios e inventario.'
+                                : platform === 'woocommerce'
+                                ? 'Conecta tu WooCommerce para que el agente IA consulte productos, precios e inventario.'
+                                : 'Conecta tu tienda para que el agente IA consulte productos, precios e inventario.'}
                         </CardDescription>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
                 <form action={formAction} className="space-y-5">
-                    {/* Platform selection */}
-                    <div className="space-y-2">
-                        <Label>Plataforma</Label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setSelectedPlatform('shopify')}
-                                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                                    selectedPlatform === 'shopify'
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-muted hover:border-muted-foreground/30'
-                                }`}
-                            >
-                                <div className="font-semibold text-sm">Shopify</div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                    Admin API Access Token
-                                </div>
-                                {selectedPlatform === 'shopify' && (
-                                    <Check className="h-4 w-4 text-primary mt-2" />
-                                )}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedPlatform('woocommerce')}
-                                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                                    selectedPlatform === 'woocommerce'
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-muted hover:border-muted-foreground/30'
-                                }`}
-                            >
-                                <div className="font-semibold text-sm">WooCommerce</div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                    WordPress + WooCommerce
-                                </div>
-                                {selectedPlatform === 'woocommerce' && (
-                                    <Check className="h-4 w-4 text-primary mt-2" />
-                                )}
-                            </button>
+                    {/* Platform selection - only show if not pre-selected */}
+                    {!platform && (
+                        <div className="space-y-2">
+                            <Label>Plataforma</Label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedPlatform('shopify')}
+                                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                                        selectedPlatform === 'shopify'
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-muted hover:border-muted-foreground/30'
+                                    }`}
+                                >
+                                    <div className="font-semibold text-sm">Shopify</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                        Admin API Access Token
+                                    </div>
+                                    {selectedPlatform === 'shopify' && (
+                                        <Check className="h-4 w-4 text-primary mt-2" />
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedPlatform('woocommerce')}
+                                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                                        selectedPlatform === 'woocommerce'
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-muted hover:border-muted-foreground/30'
+                                    }`}
+                                >
+                                    <div className="font-semibold text-sm">WooCommerce</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                        WordPress + WooCommerce
+                                    </div>
+                                    {selectedPlatform === 'woocommerce' && (
+                                        <Check className="h-4 w-4 text-primary mt-2" />
+                                    )}
+                                </button>
+                            </div>
                         </div>
-                        <input type="hidden" name="platform" value={selectedPlatform} />
-                    </div>
+                    )}
+                    <input type="hidden" name="platform" value={selectedPlatform} />
 
                     {selectedPlatform && (
                         <>

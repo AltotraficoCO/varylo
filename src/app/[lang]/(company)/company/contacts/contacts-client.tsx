@@ -17,7 +17,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Download, Plus } from 'lucide-react';
+import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Download, Plus, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { deleteContacts } from './actions';
 import { toast } from 'sonner';
@@ -141,10 +141,38 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                     <Button
                         variant="outline"
                         className="rounded-lg px-4 py-2 text-[14px] font-medium text-[#3F3F46]"
-                        onClick={() => setShowTemplateDialog(true)}
+                        onClick={() => {
+                            const header = 'Nombre,Telefono,Email,Canal,Empresa';
+                            const rows = contacts.map(c => {
+                                const ch = c.originChannel || c.conversations?.[0]?.channel?.type || '';
+                                return [
+                                    (c.name || '').replace(/,/g, ' '),
+                                    c.phone || '',
+                                    c.email || '',
+                                    ch,
+                                    (c.companyName || '').replace(/,/g, ' '),
+                                ].join(',');
+                            });
+                            const csv = [header, ...rows].join('\n');
+                            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `contactos-${new Date().toISOString().slice(0, 10)}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                        }}
                     >
                         <Download className="h-4 w-4 mr-1.5" />
                         Exportar
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="rounded-lg px-4 py-2 text-[14px] font-medium text-[#3F3F46]"
+                        onClick={() => setShowTemplateDialog(true)}
+                    >
+                        <Send className="h-4 w-4 mr-1.5" />
+                        Enviar mensaje
                     </Button>
                     <Button className="rounded-lg px-4 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-[14px] font-medium">
                         <Plus className="h-4 w-4 mr-1.5" />
@@ -287,10 +315,22 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                                             -
                                         </div>
                                     </Link>
-                                    {/* Delete button on hover */}
-                                    <div className="w-[40px] shrink-0 flex justify-center">
+                                    {/* Action buttons on hover */}
+                                    <div className="w-[70px] shrink-0 flex justify-center gap-1">
                                         <button
                                             onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setShowTemplateDialog(true);
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#10B981] hover:bg-[#ECFDF5] transition-all"
+                                            title="Enviar mensaje"
+                                        >
+                                            <Send className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
                                                 e.stopPropagation();
                                                 setSelected(new Set([contact.id]));
                                                 setShowDeleteDialog(true);

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, MessageSquare, AlertCircle, Loader2, ExternalLink } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, ExternalLink } from "lucide-react";
+import { WhatsAppLogo } from "@/components/channel-logos";
 
 export function WhatsAppConnectionForm({
     initialPhoneNumberId,
@@ -82,7 +83,7 @@ export function WhatsAppConnectionForm({
             <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
-                        <MessageSquare className="h-5 w-5 text-[#10B981]" />
+                        <WhatsAppLogo className="h-6 w-6" />
                     </div>
                     <div className="flex-1">
                         <div className="flex items-center gap-2">
@@ -134,7 +135,7 @@ export function WhatsAppConnectionForm({
         <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
             <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
-                    <MessageSquare className="h-5 w-5 text-[#10B981]" />
+                    <WhatsAppLogo className="h-6 w-6" />
                 </div>
                 <div>
                     <h3 className="text-[15px] font-semibold text-[#09090B]">Conectar WhatsApp Business</h3>
@@ -187,7 +188,7 @@ export function WhatsAppConnectionForm({
                 href="/api/auth/meta/whatsapp/redirect"
                 className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#25D366] hover:bg-[#20BD5A] text-white font-semibold text-[14px] py-2.5 px-4 transition-colors"
             >
-                <MessageSquare className="h-5 w-5" />
+                <WhatsAppLogo className="h-5 w-5" />
                 Conectar con WhatsApp
                 <ExternalLink className="h-3.5 w-3.5 ml-1 opacity-70" />
             </a>

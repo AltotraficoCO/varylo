@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Instagram, AlertCircle, Loader2, ExternalLink } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, ExternalLink } from "lucide-react";
+import { InstagramLogo } from "@/components/channel-logos";
 
 export function InstagramDMForm({
     initialPageId,
@@ -87,7 +88,7 @@ export function InstagramDMForm({
             <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-[#FDF2F8] flex items-center justify-center">
-                        <Instagram className="h-5 w-5 text-[#EC4899]" />
+                        <InstagramLogo className="h-6 w-6" />
                     </div>
                     <div className="flex-1">
                         <div className="flex items-center gap-2">
@@ -149,7 +150,7 @@ export function InstagramDMForm({
         <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
             <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-[#FDF2F8] flex items-center justify-center">
-                    <Instagram className="h-5 w-5 text-[#EC4899]" />
+                    <InstagramLogo className="h-6 w-6" />
                 </div>
                 <div>
                     <h3 className="text-[15px] font-semibold text-[#09090B]">Conectar Instagram DM</h3>
@@ -208,7 +209,7 @@ export function InstagramDMForm({
                 href="/api/auth/meta/instagram"
                 className="flex items-center justify-center gap-2 w-full rounded-lg bg-gradient-to-r from-[#833AB4] via-[#E1306C] to-[#F77737] text-white font-semibold text-[14px] py-2.5 px-4 hover:opacity-90 transition-opacity"
             >
-                <Instagram className="h-5 w-5" />
+                <InstagramLogo className="h-5 w-5" />
                 Conectar con Instagram
                 <ExternalLink className="h-3.5 w-3.5 ml-1 opacity-70" />
             </a>
