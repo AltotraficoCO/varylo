@@ -598,17 +598,10 @@ export async function saveEcommerceIntegration(prevState: string | undefined, fo
         const encryptedKey = encrypt(apiKey);
         const encryptedSecret = apiSecret ? encrypt(apiSecret) : null;
 
-        await prisma.ecommerceIntegration.upsert({
-            where: { companyId },
-            create: {
+        await prisma.ecommerceIntegration.create({
+            data: {
                 companyId,
-                platform,
-                storeUrl: cleanUrl,
-                apiKey: encryptedKey,
-                apiSecret: encryptedSecret,
-                active: true,
-            },
-            update: {
+                name: platform === 'shopify' ? `Shopify - ${cleanUrl}` : `WooCommerce - ${cleanUrl}`,
                 platform,
                 storeUrl: cleanUrl,
                 apiKey: encryptedKey,
@@ -618,6 +611,7 @@ export async function saveEcommerceIntegration(prevState: string | undefined, fo
         });
 
         revalidatePath('/[lang]/company/settings', 'page');
+        revalidatePath('/[lang]/company/integrations', 'page');
         return 'Success: Tienda online conectada correctamente.';
     } catch (error) {
         console.error('Failed to save ecommerce integration:', error);
@@ -689,7 +683,7 @@ export async function testEcommerceIntegration() {
     }
 
     try {
-        const integration = await prisma.ecommerceIntegration.findUnique({
+        const integration = await prisma.ecommerceIntegration.findFirst({
             where: { companyId: session.user.companyId },
         });
 

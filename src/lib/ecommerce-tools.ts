@@ -208,8 +208,8 @@ interface InventoryInfo {
 // --- Get config for company ---
 
 async function getEcommerceConfig(companyId: string): Promise<EcommerceConfig | null> {
-    const integration = await prisma.ecommerceIntegration.findUnique({
-        where: { companyId },
+    const integration = await prisma.ecommerceIntegration.findFirst({
+        where: { companyId, active: true },
     });
 
     if (!integration || !integration.active) return null;

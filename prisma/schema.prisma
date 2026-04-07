@@ -149,7 +149,7 @@ model Company {
   aiUsageLogs        AiUsageLog[]
   paymentSources     PaymentSource[]
   subscriptions      Subscription[]
-  ecommerceIntegration EcommerceIntegration?
+  ecommerceIntegrations EcommerceIntegration[]
   contactLists       ContactList[]
   broadcasts         Broadcast[]
   apiKeys            ApiKey[]
@@ -485,7 +485,8 @@ model CapturedData {
 
 model EcommerceIntegration {
   id            String   @id @default(cuid())
-  companyId     String   @unique
+  companyId     String
+  name          String   @default("Mi tienda") // user-friendly label
   platform      String   // "shopify" | "woocommerce"
   storeUrl      String   // e.g. "mystore.myshopify.com" or "mystore.com"
   apiKey        String   // encrypted - Shopify Admin API access token or WooCommerce consumer key
@@ -495,6 +496,8 @@ model EcommerceIntegration {
   updatedAt     DateTime @updatedAt
 
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model SiteConfig {

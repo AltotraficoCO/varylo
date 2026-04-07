@@ -181,8 +181,8 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                 }).then(c => !!c?.googleCalendarRefreshToken)
                 : Promise.resolve(false),
             aiAgent.ecommerceEnabled
-                ? prisma.ecommerceIntegration.findUnique({
-                    where: { companyId: conversation.companyId },
+                ? prisma.ecommerceIntegration.findFirst({
+                    where: { companyId: conversation.companyId, active: true },
                     select: { active: true },
                 }).then(i => !!i?.active)
                 : Promise.resolve(false),

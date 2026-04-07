@@ -19,6 +19,7 @@ import {
     UserCircle,
     Globe,
     Megaphone,
+    Puzzle,
 } from 'lucide-react';
 import { SidebarUnreadBadge } from './unread-badge';
 
@@ -101,6 +102,7 @@ export function Sidebar({ role, lang, tags, className, onLinkClick }: SidebarPro
                 {
                     label: 'GESTIÓN', items: [
                         { title: 'Equipo', href: '/company/agents', icon: UsersRound },
+                        { title: 'Integraciones', href: '/company/integrations', icon: Puzzle },
                         { title: 'Analíticas', href: '/company/analytics', icon: BarChart3 },
                     ]
                 },

@@ -3,12 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Building2, Plug, Brain, Tag, FileText, CreditCard, Key } from "lucide-react";
+import { Building2, Plug, Coins, Tag, FileText, CreditCard, Key } from "lucide-react";
 import { TagsSection } from "./tags-section";
 import { TemplatesSection } from "./templates-section";
 import { GeneralSection } from "./general-section";
 import { ChannelsSection } from "./channels-section";
-import { IntegrationsSection } from "./integrations-section";
+import { CreditBalanceCard } from "./credit-balance-card";
 import { BillingSection } from "./billing-section";
 import { ApiKeysSection } from "./api-keys-section";
 import { getActiveSubscription, getPaymentSources, getBillingHistory, getAvailablePlans } from "./billing-actions";
@@ -18,7 +18,7 @@ import { Role } from '@prisma/client';
 const TABS = [
     { key: 'general', label: 'General', icon: Building2 },
     { key: 'channels', label: 'Canales', icon: Plug },
-    { key: 'ai', label: 'IA y Créditos', icon: Brain },
+    { key: 'ai', label: 'Créditos', icon: Coins },
     { key: 'billing', label: 'Facturación', icon: CreditCard },
     { key: 'api', label: 'API', icon: Key },
     { key: 'tags', label: 'Etiquetas', icon: Tag },
@@ -64,7 +64,7 @@ export default async function SettingsPage(props: {
             select: { id: true, name: true, email: true },
             orderBy: { name: 'asc' },
         }),
-        prisma.ecommerceIntegration.findUnique({
+        prisma.ecommerceIntegration.findFirst({
             where: { companyId },
             select: { platform: true, storeUrl: true, active: true },
         }),
@@ -195,27 +195,11 @@ export default async function SettingsPage(props: {
                     )}
 
                     {activeTab === 'ai' && (
-                        <IntegrationsSection
-                            openai={{
-                                hasApiKey: hasOpenAIKey,
-                                updatedAt: openaiKeyUpdatedAt,
-                            }}
-                            credits={{
-                                balance: creditBalance,
-                                hasOwnKey: hasOpenAIKey,
-                                companyId,
-                                companyEmail: userEmail,
-                            }}
-                            googleCalendar={{
-                                isConnected: hasGoogleCalendar,
-                                email: googleCalendarEmail,
-                                connectedAt: googleCalendarConnectedAt,
-                            }}
-                            ecommerce={{
-                                isConnected: !!ecommerceIntegration?.active,
-                                platform: ecommerceIntegration?.platform || null,
-                                storeUrl: ecommerceIntegration?.storeUrl || null,
-                            }}
+                        <CreditBalanceCard
+                            balance={creditBalance}
+                            hasOwnKey={hasOpenAIKey}
+                            companyId={companyId}
+                            companyEmail={userEmail}
                         />
                     )}
 

@@ -38,7 +38,7 @@ export default async function AiAgentsPage() {
             where: { id: session.user.companyId },
             select: { googleCalendarRefreshToken: true },
         }),
-        prisma.ecommerceIntegration.findUnique({
+        prisma.ecommerceIntegration.findFirst({
             where: { companyId: session.user.companyId },
             select: { active: true },
         }),
