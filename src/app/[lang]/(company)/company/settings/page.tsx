@@ -38,7 +38,10 @@ export default async function SettingsPage(props: {
     if (!companyId) return null;
 
     // Fetch all data in parallel
-    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceStores, n8nWebhooks, activeSubscription] = await Promise.all([
+    let n8nWebhooks: any[] = [];
+    try { n8nWebhooks = await prisma.webhookIntegration.findMany({ where: { companyId, platform: 'n8n' }, select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true }, orderBy: { createdAt: 'desc' } }); } catch { n8nWebhooks = []; }
+
+    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceStores, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -71,11 +74,6 @@ export default async function SettingsPage(props: {
             select: { id: true, name: true, platform: true, storeUrl: true, active: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
         }),
-        prisma.webhookIntegration.findMany({
-            where: { companyId, platform: 'n8n' },
-            select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true },
-            orderBy: { createdAt: 'desc' },
-        }).catch(() => [] as any[]),
         prisma.subscription.findFirst({
             where: { companyId, status: { in: ['ACTIVE', 'TRIAL'] } },
             select: { id: true },

@@ -7,7 +7,10 @@ export default async function IntegrationsPage() {
     if (!session?.user?.companyId) return null;
     const companyId = session.user.companyId;
 
-    const [company, ecommerceStores, webhookIntegrations] = await Promise.all([
+    let n8nWebhooks: any[] = [];
+    try { n8nWebhooks = await prisma.webhookIntegration.findMany({ where: { companyId }, select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true }, orderBy: { createdAt: 'desc' } }); } catch { n8nWebhooks = []; }
+
+    const [company, ecommerceStores] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -23,11 +26,6 @@ export default async function IntegrationsPage() {
             select: { id: true, name: true, platform: true, storeUrl: true, active: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
         }),
-        prisma.webhookIntegration.findMany({
-            where: { companyId },
-            select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true },
-            orderBy: { createdAt: 'desc' },
-        }).catch(() => [] as any[]),
     ]);
 
     return (
@@ -45,7 +43,7 @@ export default async function IntegrationsPage() {
                 ...s,
                 createdAt: s.createdAt.toISOString(),
             }))}
-            n8nIntegrations={webhookIntegrations.filter(w => w.platform === 'n8n').map(w => ({
+            n8nIntegrations={n8nWebhooks.filter((w: any) => w.platform === 'n8n').map((w: any) => ({
                 ...w,
                 lastUsedAt: w.lastUsedAt?.toISOString() || null,
                 createdAt: w.createdAt.toISOString(),
