@@ -259,6 +259,29 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores }: 
                         {wooStores.length > 0 ? 'Gestionar' : 'Conectar'}
                     </Button>
                 </div>
+
+                {/* n8n */}
+                <div className="flex items-center gap-4 px-5 py-4">
+                    <div className="h-11 w-11 rounded-lg bg-[#FFF1F0] flex items-center justify-center shrink-0 overflow-hidden">
+                        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#EA4B71"/>
+                            <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="sans-serif">n8n</text>
+                        </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[15px] font-medium text-[#09090B]">n8n</span>
+                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-[#FFF7ED] text-[#F97316] font-medium">Proximamente</span>
+                        </div>
+                        <p className="text-[13px] text-[#71717A] mt-0.5">
+                            Automatiza flujos de trabajo conectando Varylo con miles de apps.
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" disabled className="shrink-0 opacity-50">
+                        <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                        Conectar
+                    </Button>
+                </div>
             </div>
         </div>
     );

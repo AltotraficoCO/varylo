@@ -20,7 +20,8 @@ interface NewAgentFlowProps {
     lang: string;
     channels: Channel[];
     hasGoogleCalendar: boolean;
-    hasEcommerce: boolean;
+    hasShopify: boolean;
+    hasWooCommerce: boolean;
 }
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -31,7 +32,7 @@ const CHANNEL_LABELS: Record<string, string> = {
     TELEGRAM: 'Telegram',
 };
 
-export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasEcommerce }: NewAgentFlowProps) {
+export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, hasWooCommerce }: NewAgentFlowProps) {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2>(1);
     const [selectedType, setSelectedType] = useState<AiAgentType | null>(null);
@@ -47,7 +48,8 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasEcommerce }
     const [transferKeywords, setTransferKeywords] = useState('humano, agente, persona');
     const [dataCaptureEnabled, setDataCaptureEnabled] = useState(true);
     const [calendarEnabled, setCalendarEnabled] = useState(false);
-    const [ecommerceEnabled, setEcommerceEnabled] = useState(false);
+    const [shopifyEnabled, setShopifyEnabled] = useState(false);
+    const [woocommerceEnabled, setWoocommerceEnabled] = useState(false);
     const [webhookEnabled, setWebhookEnabled] = useState(false);
     const [webhookUrl, setWebhookUrl] = useState('');
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
@@ -68,7 +70,8 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasEcommerce }
         setSystemPrompt(config.defaultPrompt);
         setDataCaptureEnabled(config.suggestedCapabilities.dataCaptureEnabled);
         setCalendarEnabled(config.suggestedCapabilities.calendarEnabled && hasGoogleCalendar);
-        setEcommerceEnabled(config.suggestedCapabilities.ecommerceEnabled && hasEcommerce);
+        setShopifyEnabled(config.suggestedCapabilities.ecommerceEnabled && hasShopify);
+        setWoocommerceEnabled(config.suggestedCapabilities.ecommerceEnabled && hasWooCommerce);
         setWebhookEnabled(config.suggestedCapabilities.webhookEnabled);
         setStep(2);
     }
@@ -249,7 +252,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasEcommerce }
                 <input type="hidden" name="dataCaptureEnabled" value={dataCaptureEnabled ? 'on' : 'off'} />
                 <input type="hidden" name="calendarEnabled" value={calendarEnabled ? 'on' : 'off'} />
                 <input type="hidden" name="calendarId" value="primary" />
-                <input type="hidden" name="ecommerceEnabled" value={ecommerceEnabled ? 'on' : 'off'} />
+                <input type="hidden" name="ecommerceEnabled" value={(shopifyEnabled || woocommerceEnabled) ? 'on' : 'off'} />
                 {webhookEnabled && webhookUrl && <input type="hidden" name="webhookUrl" value={webhookUrl} />}
                 {selectedChannels.map(id => (
                     <input key={id} type="hidden" name="channelIds" value={id} />
@@ -389,23 +392,43 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasEcommerce }
                             />
                         </div>
 
-                        {/* Ecommerce */}
+                        {/* Shopify */}
                         <div className="flex items-center justify-between px-6 py-4">
                             <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-lg bg-[#F5F3FF] flex items-center justify-center">
-                                    <ShoppingBag className="h-4 w-4 text-[#8B5CF6]" />
+                                <div className="h-9 w-9 rounded-lg bg-[#F0FDF4] flex items-center justify-center">
+                                    <ShoppingBag className="h-4 w-4 text-[#16A34A]" />
                                 </div>
                                 <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">Tienda online</p>
+                                    <p className="text-[14px] font-medium text-[#09090B]">Shopify</p>
                                     <p className="text-[12px] text-[#71717A]">
-                                        {hasEcommerce ? 'Consulta productos, precios e inventario' : 'Conecta tu tienda en Integraciones primero'}
+                                        {hasShopify ? 'Consulta productos, precios e inventario' : 'Conecta Shopify en Integraciones primero'}
                                     </p>
                                 </div>
                             </div>
                             <Switch
-                                checked={ecommerceEnabled}
-                                onCheckedChange={setEcommerceEnabled}
-                                disabled={!hasEcommerce}
+                                checked={shopifyEnabled}
+                                onCheckedChange={setShopifyEnabled}
+                                disabled={!hasShopify}
+                            />
+                        </div>
+
+                        {/* WordPress / WooCommerce */}
+                        <div className="flex items-center justify-between px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-lg bg-[#EFF6FF] flex items-center justify-center">
+                                    <ShoppingBag className="h-4 w-4 text-[#2563EB]" />
+                                </div>
+                                <div>
+                                    <p className="text-[14px] font-medium text-[#09090B]">WordPress</p>
+                                    <p className="text-[12px] text-[#71717A]">
+                                        {hasWooCommerce ? 'Consulta productos de WooCommerce' : 'Conecta WordPress en Integraciones primero'}
+                                    </p>
+                                </div>
+                            </div>
+                            <Switch
+                                checked={woocommerceEnabled}
+                                onCheckedChange={setWoocommerceEnabled}
+                                disabled={!hasWooCommerce}
                             />
                         </div>
 

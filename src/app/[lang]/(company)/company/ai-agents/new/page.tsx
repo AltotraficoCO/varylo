@@ -7,7 +7,7 @@ export default async function NewAgentPage({ params }: { params: Promise<{ lang:
     const session = await auth();
     if (!session?.user?.companyId) return null;
 
-    const [channels, company, ecommerceIntegration] = await Promise.all([
+    const [channels, company, ecommerceStores] = await Promise.all([
         prisma.channel.findMany({
             where: { companyId: session.user.companyId },
             select: { id: true, type: true },
@@ -16,9 +16,9 @@ export default async function NewAgentPage({ params }: { params: Promise<{ lang:
             where: { id: session.user.companyId },
             select: { googleCalendarRefreshToken: true },
         }),
-        prisma.ecommerceIntegration.findFirst({
+        prisma.ecommerceIntegration.findMany({
             where: { companyId: session.user.companyId, active: true },
-            select: { id: true },
+            select: { platform: true },
         }),
     ]);
 
@@ -27,7 +27,8 @@ export default async function NewAgentPage({ params }: { params: Promise<{ lang:
             lang={lang}
             channels={channels.map(c => ({ id: c.id, type: c.type }))}
             hasGoogleCalendar={!!company?.googleCalendarRefreshToken}
-            hasEcommerce={!!ecommerceIntegration}
+            hasShopify={ecommerceStores.some(s => s.platform === 'shopify')}
+            hasWooCommerce={ecommerceStores.some(s => s.platform === 'woocommerce')}
         />
     );
 }
