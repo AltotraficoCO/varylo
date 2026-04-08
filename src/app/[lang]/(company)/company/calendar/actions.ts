@@ -5,13 +5,19 @@ import { getAccessTokenForCompany, listEvents, createEvent, updateEvent, type Ca
 
 const TIMEZONE = 'America/Bogota';
 
+function toISO(dateStr: string): string {
+    // FullCalendar may send "2026-04-07" or "2026-04-07T00:00:00" — ensure full ISO with timezone
+    if (dateStr.includes('T')) return new Date(dateStr).toISOString();
+    return new Date(dateStr + 'T00:00:00').toISOString();
+}
+
 export async function getCalendarEvents(start: string, end: string) {
     const session = await auth();
     if (!session?.user?.companyId) return { success: false, error: 'No autorizado', events: [] };
 
     try {
         const accessToken = await getAccessTokenForCompany(session.user.companyId);
-        const events = await listEvents(accessToken, 'primary', start, end);
+        const events = await listEvents(accessToken, 'primary', toISO(start), toISO(end));
         return {
             success: true,
             events: events.map(e => ({
