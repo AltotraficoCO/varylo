@@ -129,7 +129,7 @@ export async function listEvents(
         timeMax,
         singleEvents: 'true',
         orderBy: 'startTime',
-        maxResults: '20',
+        maxResults: '250',
     });
 
     const res = await fetch(
