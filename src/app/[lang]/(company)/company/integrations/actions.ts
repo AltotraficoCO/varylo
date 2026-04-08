@@ -26,17 +26,6 @@ export async function disconnectEcommerceById(storeId: string) {
 
 // ===== n8n / Webhook Integrations =====
 
-const AVAILABLE_EVENTS = [
-    { key: 'message.received', label: 'Mensaje recibido' },
-    { key: 'message.sent', label: 'Mensaje enviado' },
-    { key: 'conversation.created', label: 'Conversacion creada' },
-    { key: 'conversation.closed', label: 'Conversacion cerrada' },
-    { key: 'data.captured', label: 'Datos capturados' },
-    { key: 'contact.created', label: 'Contacto creado' },
-];
-
-export { AVAILABLE_EVENTS };
-
 export async function createWebhookIntegration(data: {
     platform: string;
     name: string;

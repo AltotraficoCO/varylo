@@ -11,7 +11,8 @@ import Image from 'next/image';
 import { OpenAIKeyForm } from '../settings/openai-form';
 import { GoogleCalendarForm } from '../settings/google-calendar-form';
 import { EcommerceForm } from '../settings/ecommerce-form';
-import { disconnectEcommerceById, createWebhookIntegration, deleteWebhookIntegration, testWebhookIntegration, AVAILABLE_EVENTS } from './actions';
+import { disconnectEcommerceById, createWebhookIntegration, deleteWebhookIntegration, testWebhookIntegration } from './actions';
+import { AVAILABLE_EVENTS } from './constants';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
