@@ -6,6 +6,7 @@ import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { CALENDAR_TOOLS, executeCalendarTool } from '@/lib/calendar-tools';
 import { ECOMMERCE_TOOLS, executeEcommerceTool } from '@/lib/ecommerce-tools';
 import { mapFieldToContact, validateCapturedValue, inferValidationType } from '@/lib/data-capture-utils';
+import { autoCreateDeal, moveDealByStage, closeDeal } from '@/lib/crm-auto';
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
@@ -364,7 +365,6 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                             break;
 
                         case 'create_deal': {
-                            const { autoCreateDeal } = await import('@/lib/crm-auto');
                             await autoCreateDeal(conversation.companyId, conversation.contactId, conversation.id, args.title);
                             // If value provided, update it
                             if (args.value) {
@@ -376,14 +376,12 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                         }
 
                         case 'move_deal_stage': {
-                            const { moveDealByStage } = await import('@/lib/crm-auto');
                             const moveResult = await moveDealByStage(conversation.companyId, conversation.contactId, args.stage_name);
                             result = JSON.stringify(moveResult);
                             break;
                         }
 
                         case 'close_deal': {
-                            const { closeDeal } = await import('@/lib/crm-auto');
                             const closeResult = await closeDeal(conversation.companyId, conversation.contactId, args.won, args.value);
                             result = JSON.stringify(closeResult);
                             break;
@@ -465,19 +463,20 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
 
         // CRM: auto-create deal if none exists + move to Contactado
         if (aiAgent.crmEnabled) {
-            import('@/lib/crm-auto').then(async ({ autoCreateDeal, moveDealByStage }) => {
-                // Auto-create deal if this contact doesn't have one yet
+            try {
+                console.log(`[CRM] Creating deal for contact ${conversation.contactId}...`);
                 await autoCreateDeal(
                     conversation.companyId,
                     conversation.contactId,
                     conversationId,
                     inboundMessage,
                 );
-                // Then move to Contactado
+                console.log(`[CRM] Moving deal to Contactado...`);
                 await moveDealByStage(conversation.companyId, conversation.contactId, 'Contactado');
-            }).catch(err => {
+                console.log(`[CRM] Deal created and moved successfully`);
+            } catch (err) {
                 console.error('[CRM] Auto-deal error:', err);
-            });
+            }
         }
 
         return { handled: true };
