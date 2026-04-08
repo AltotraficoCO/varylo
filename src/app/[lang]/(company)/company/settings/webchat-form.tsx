@@ -9,6 +9,7 @@ import { CheckCircle2, Copy, Loader2, RefreshCw, Check } from "lucide-react";
 import { WebChatLogo } from "@/components/channel-logos";
 import { activateWebChat, deactivateWebChat, regenerateWebChatKey, updateChannelPriority } from './actions';
 import { toast } from 'sonner';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface WebChatFormProps {
     isActive: boolean;
@@ -24,6 +25,11 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
     const [copied, setCopied] = useState<string | null>(null);
     const [priority, setPriority] = useState(automationPriority);
     const [isSavingPriority, setIsSavingPriority] = useState(false);
+
+    const dict = useDictionary();
+    const t = dict.settingsUI?.webchatForm || {};
+    const st = dict.settingsUI || {};
+    const ui = dict.ui || {};
 
     const apiUrl = typeof window !== 'undefined'
         ? `${window.location.origin}/api/webchat`
@@ -48,7 +54,7 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
     };
 
     const handleDeactivate = async () => {
-        if (!confirm('¿Desactivar Web Chat? Las conversaciones existentes se mantendrán pero no se recibirán nuevos mensajes.')) return;
+        if (!confirm(t.deactivateConfirm || '¿Desactivar Web Chat? Las conversaciones existentes se mantendrán pero no se recibirán nuevos mensajes.')) return;
         setLoading(true);
         try {
             const result = await deactivateWebChat();
@@ -67,7 +73,7 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
     };
 
     const handleRegenerate = async () => {
-        if (!confirm('¿Regenerar la API Key? La clave anterior dejará de funcionar inmediatamente.')) return;
+        if (!confirm(t.regenerateConfirm || '¿Regenerar la API Key? La clave anterior dejará de funcionar inmediatamente.')) return;
         setLoading(true);
         try {
             const result = await regenerateWebChatKey();
@@ -87,7 +93,7 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
     const handleCopy = (text: string, label: string) => {
         navigator.clipboard.writeText(text);
         setCopied(label);
-        toast.success('Copiado al portapapeles');
+        toast.success(ui.copied || 'Copiado al portapapeles');
         setTimeout(() => setCopied(null), 2000);
     };
 
@@ -110,10 +116,10 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-6 w-6 text-green-600" />
-                        <CardTitle className="text-green-700">Web Chat Activo</CardTitle>
+                        <CardTitle className="text-green-700">{t.active || 'Web Chat Activo'}</CardTitle>
                     </div>
                     <CardDescription>
-                        Tu canal de Web Chat está activo. Usa estas credenciales para conectar el chat de tu sitio web.
+                        {t.activeDesc || 'Tu canal de Web Chat está activo. Usa estas credenciales para conectar el chat de tu sitio web.'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -149,21 +155,21 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
 
                     {channelId && (
                         <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">Prioridad de automatización</Label>
+                            <Label className="text-xs text-muted-foreground">{st.automationPriority || 'Prioridad de automatización'}</Label>
                             <select
                                 value={priority}
                                 onChange={(e) => handlePriorityChange(e.target.value)}
                                 disabled={isSavingPriority}
                                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
-                                <option value="CHATBOT_FIRST">Chatbot primero (recomendado)</option>
-                                <option value="AI_FIRST">Agente IA primero</option>
+                                <option value="CHATBOT_FIRST">{st.chatbotFirstRecommended || 'Chatbot primero (recomendado)'}</option>
+                                <option value="AI_FIRST">{st.aiFirstLabel || 'Agente IA primero'}</option>
                             </select>
                         </div>
                     )}
 
                     <div className="p-3 rounded-md bg-background border text-xs text-muted-foreground space-y-1">
-                        <p className="font-medium text-foreground">Integración rápida:</p>
+                        <p className="font-medium text-foreground">{t.quickIntegration || 'Integración rápida:'}</p>
                         <p>1. En tu sitio web, envía mensajes con <code className="bg-muted px-1 rounded">POST {apiUrl}</code></p>
                         <p>2. Header: <code className="bg-muted px-1 rounded">x-webchat-key: {currentKey.slice(0, 12)}...</code></p>
                         <p>3. Body: <code className="bg-muted px-1 rounded">{`{"action":"start_session"}`}</code> para iniciar</p>
@@ -179,7 +185,7 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
                         className="gap-1 bg-background"
                     >
                         <RefreshCw className="h-3.5 w-3.5" />
-                        Regenerar Key
+                        {t.regenerateKey || 'Regenerar Key'}
                     </Button>
                     <Button
                         variant="destructive"
@@ -187,7 +193,7 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
                         disabled={loading}
                     >
                         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Desactivar
+                        {ui.deactivate || 'Desactivar'}
                     </Button>
                 </CardFooter>
             </Card>
@@ -202,18 +208,18 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
                     <CardTitle>Web Chat</CardTitle>
                 </div>
                 <CardDescription>
-                    Conecta el chat de tu sitio web con Varylo. Los mensajes de tus visitantes llegarán aquí y podrás responder con IA o agentes humanos.
+                    {t.notConnectedDesc || 'Conecta el chat de tu sitio web con Varylo. Los mensajes de tus visitantes llegarán aquí y podrás responder con IA o agentes humanos.'}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <p className="text-sm text-muted-foreground">
-                    Al activar se generará una API Key que debes configurar en tu sitio web para enviar y recibir mensajes.
+                    {t.activateDesc || 'Al activar se generará una API Key que debes configurar en tu sitio web para enviar y recibir mensajes.'}
                 </p>
             </CardContent>
             <CardFooter>
                 <Button onClick={handleActivate} disabled={loading} className="w-full">
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Activar Web Chat
+                    {t.activateButton || 'Activar Web Chat'}
                 </Button>
             </CardFooter>
         </Card>

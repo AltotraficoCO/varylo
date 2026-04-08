@@ -16,12 +16,16 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { reopenConversation } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 export function ReopenBanner({ conversationId }: { conversationId: string }) {
     const [isReopening, setIsReopening] = useState(false);
     const router = useRouter();
     const params = useParams();
     const lang = params.lang as string;
+    const dict = useDictionary();
+    const t = dict.conversations || {};
+    const ui = dict.ui || {};
 
     const handleReopen = async () => {
         setIsReopening(true);
@@ -31,10 +35,10 @@ export function ReopenBanner({ conversationId }: { conversationId: string }) {
                 router.push(`/${lang}/company/conversations?filter=mine&conversationId=${conversationId}`);
                 router.refresh();
             } else {
-                alert(result.message || 'Error al reabrir la conversación');
+                alert(result.message || t.errorReopening);
             }
         } catch {
-            alert('Error inesperado al reabrir');
+            alert(t.unexpectedErrorReopen);
         } finally {
             setIsReopening(false);
         }
@@ -45,26 +49,26 @@ export function ReopenBanner({ conversationId }: { conversationId: string }) {
             <div className="flex items-center justify-between gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-center gap-2 text-sm text-amber-800">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span>Esta conversación está finalizada. Reabre la conversación para enviar mensajes.</span>
+                    <span>{t.closedBanner}</span>
                 </div>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-amber-300 text-amber-800 hover:bg-amber-100" disabled={isReopening}>
                             {isReopening ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                            Reabrir
+                            {t.reopen}
                         </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>¿Reabrir conversación?</AlertDialogTitle>
+                            <AlertDialogTitle>{t.reopenConfirm}</AlertDialogTitle>
                             <AlertDialogDescription>
-                                Reabrir esta conversación puede generar un costo en Meta si la ventana de 24 horas ha expirado. Se requerirá enviar una plantilla para iniciar contacto.
+                                {t.reopenConfirmDesc}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogCancel>{ui.cancel}</AlertDialogCancel>
                             <AlertDialogAction onClick={handleReopen} disabled={isReopening}>
-                                {isReopening ? 'Reabriendo...' : 'Reabrir'}
+                                {isReopening ? t.reopening : t.reopen}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>

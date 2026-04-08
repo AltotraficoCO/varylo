@@ -27,6 +27,7 @@ import Dagre from '@dagrejs/dagre';
 import type { ChatbotFlow, ChatbotFlowNode, ChatbotFlowOption, WebhookConfig } from '@/types/chatbot';
 import { ChatbotNode } from './chatbot-node';
 import { NodeEditPanel } from './node-edit-panel';
+import { useDictionary } from '@/lib/i18n-context';
 
 function generateId() {
     return `paso_${Math.random().toString(36).substring(2, 8)}`;
@@ -130,63 +131,65 @@ function reactFlowToChatbotFlow(
     return flow;
 }
 
-const NODE_TEMPLATES: {
+function getNodeTemplates(t: Record<string, any>): {
     type: string;
     label: string;
     icon: typeof MessageCircle;
     defaultLabel: string;
     create: (id: string) => ChatbotFlowNode;
-}[] = [
-    {
-        type: 'message',
-        label: 'Mensaje con opciones',
-        icon: MessageCircle,
-        defaultLabel: 'Nuevo paso',
-        create: (id) => ({ id, message: '', options: [] }),
-    },
-    {
-        type: 'data_capture',
-        label: 'Captura de dato',
-        icon: FileInput,
-        defaultLabel: 'Captura de dato',
-        create: (id) => ({ id, message: '', dataCapture: { fieldName: '', fieldLabel: '', nextNodeId: '', validation: 'text' as const } }),
-    },
-    {
-        type: 'document_capture',
-        label: 'Captura de documento',
-        icon: Paperclip,
-        defaultLabel: 'Captura de documento',
-        create: (id) => ({ id, message: 'Por favor envia tu documento:', dataCapture: { fieldName: 'documento', fieldLabel: 'Documento', nextNodeId: '', validation: 'document' as const } }),
-    },
-    {
-        type: 'transfer_human',
-        label: 'Transferir a agente',
-        icon: User,
-        defaultLabel: 'Transferir a agente',
-        create: (id) => ({ id, message: '', action: { type: 'transfer_to_human' } }),
-    },
-    {
-        type: 'transfer_ai',
-        label: 'Transferir a IA',
-        icon: Bot,
-        defaultLabel: 'Transferir a IA',
-        create: (id) => ({ id, message: '', action: { type: 'transfer_to_ai_agent' } }),
-    },
-    {
-        type: 'send_webhook',
-        label: 'Enviar datos a webhook',
-        icon: Send,
-        defaultLabel: 'Enviar a ERP',
-        create: (id) => ({ id, message: 'Gracias, tus datos han sido enviados correctamente.', action: { type: 'send_to_webhook' } }),
-    },
-    {
-        type: 'end',
-        label: 'Finalizar conversacion',
-        icon: XCircle,
-        defaultLabel: 'Fin conversacion',
-        create: (id) => ({ id, message: '', action: { type: 'end_conversation' } }),
-    },
-];
+}[] {
+    return [
+        {
+            type: 'message',
+            label: t.messageWithOptions || 'Mensaje con opciones',
+            icon: MessageCircle,
+            defaultLabel: t.newStep || 'Nuevo paso',
+            create: (id) => ({ id, message: '', options: [] }),
+        },
+        {
+            type: 'data_capture',
+            label: t.dataCapture || 'Captura de dato',
+            icon: FileInput,
+            defaultLabel: t.dataCapture || 'Captura de dato',
+            create: (id) => ({ id, message: '', dataCapture: { fieldName: '', fieldLabel: '', nextNodeId: '', validation: 'text' as const } }),
+        },
+        {
+            type: 'document_capture',
+            label: t.documentCapture || 'Captura de documento',
+            icon: Paperclip,
+            defaultLabel: t.documentCapture || 'Captura de documento',
+            create: (id) => ({ id, message: t.sendDocumentMsg || 'Por favor envia tu documento:', dataCapture: { fieldName: 'documento', fieldLabel: 'Documento', nextNodeId: '', validation: 'document' as const } }),
+        },
+        {
+            type: 'transfer_human',
+            label: t.transferToAgent || 'Transferir a agente',
+            icon: User,
+            defaultLabel: t.transferToAgent || 'Transferir a agente',
+            create: (id) => ({ id, message: '', action: { type: 'transfer_to_human' } }),
+        },
+        {
+            type: 'transfer_ai',
+            label: t.transferToAi || 'Transferir a IA',
+            icon: Bot,
+            defaultLabel: t.transferToAi || 'Transferir a IA',
+            create: (id) => ({ id, message: '', action: { type: 'transfer_to_ai_agent' } }),
+        },
+        {
+            type: 'send_webhook',
+            label: t.sendDataToWebhook || 'Enviar datos a webhook',
+            icon: Send,
+            defaultLabel: t.sendToErp || 'Enviar a ERP',
+            create: (id) => ({ id, message: '', action: { type: 'send_to_webhook' } }),
+        },
+        {
+            type: 'end',
+            label: t.endConversation || 'Finalizar conversacion',
+            icon: XCircle,
+            defaultLabel: t.endConvo || 'Fin conversacion',
+            create: (id) => ({ id, message: '', action: { type: 'end_conversation' } }),
+        },
+    ];
+}
 
 // --- Inner canvas component (has access to useReactFlow) ---
 
@@ -199,6 +202,9 @@ function FlowCanvas({
     initialFlow: ChatbotFlow;
     backHref: string;
 }) {
+    const dict = useDictionary();
+    const t = dict.chatbots || {};
+    const ui = dict.ui || {};
     const { screenToFlowPosition, fitView } = useReactFlow();
     const canvasRef = useRef<HTMLDivElement>(null);
     const [isPending, startTransition] = useTransition();
@@ -211,18 +217,19 @@ function FlowCanvas({
         const labels: Record<string, string> = {};
         Object.keys(initialFlow.nodes).forEach((id, i) => {
             if (id === initialFlow.startNodeId) {
-                labels[id] = 'Bienvenida';
+                labels[id] = t.welcome || 'Bienvenida';
             } else {
                 const node = initialFlow.nodes[id];
-                if (node.action?.type === 'transfer_to_human') labels[id] = 'Transferir a agente';
-                else if (node.action?.type === 'transfer_to_ai_agent') labels[id] = 'Transferir a IA';
-                else if (node.action?.type === 'end_conversation') labels[id] = 'Fin conversacion';
-                else labels[id] = node.message?.substring(0, 30) || `Paso ${i + 1}`;
+                if (node.action?.type === 'transfer_to_human') labels[id] = t.transferToAgent || 'Transferir a agente';
+                else if (node.action?.type === 'transfer_to_ai_agent') labels[id] = t.transferToAi || 'Transferir a IA';
+                else if (node.action?.type === 'end_conversation') labels[id] = t.endConvo || 'Fin conversacion';
+                else labels[id] = node.message?.substring(0, 30) || `${t.newStep || 'Paso'} ${i + 1}`;
             }
         });
         return labels;
     });
     const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
+    const nodeTemplates = useMemo(() => getNodeTemplates(t), [t]);
 
     const handleUpdateNode = useCallback((nodeId: string, updates: Partial<ChatbotFlowNode>) => {
         setFlow(prev => ({
@@ -317,7 +324,7 @@ function FlowCanvas({
     }, []);
 
     const addNode = useCallback((templateIndex: number) => {
-        const template = NODE_TEMPLATES[templateIndex];
+        const template = nodeTemplates[templateIndex];
         const id = generateId();
         const newNode = template.create(id);
 
@@ -365,7 +372,7 @@ function FlowCanvas({
             setSelectedNodeId(id);
             fitView({ padding: 0.3, duration: 300 });
         }, 50);
-    }, [nodes, fitView]);
+    }, [nodes, fitView, nodeTemplates]);
 
     const autoLayout = useCallback(() => {
         const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
@@ -411,7 +418,7 @@ function FlowCanvas({
                 <Link href={backHref}>
                     <Button variant="ghost" size="sm">
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver
+                        {t.backBtn || ui.back}
                     </Button>
                 </Link>
                 <div className="flex items-center gap-3">
@@ -423,7 +430,7 @@ function FlowCanvas({
                     )}
                     <Button onClick={handleSave} disabled={isPending} size="sm">
                         <Save className="mr-2 h-4 w-4" />
-                        {isPending ? 'Guardando...' : 'Guardar'}
+                        {isPending ? (t.saving || ui.saving) : (ui.save || 'Save')}
                     </Button>
                 </div>
             </div>
@@ -461,8 +468,8 @@ function FlowCanvas({
                                 <div className="relative">
                                     {showAddMenu && (
                                         <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-background border rounded-xl shadow-xl p-2 w-[220px] space-y-1">
-                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium px-2 py-1">Tipo de paso</p>
-                                            {NODE_TEMPLATES.map((tpl, i) => {
+                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium px-2 py-1">{t.stepType}</p>
+                                            {nodeTemplates.map((tpl, i) => {
                                                 const Icon = tpl.icon;
                                                 return (
                                                     <button
@@ -479,12 +486,12 @@ function FlowCanvas({
                                     )}
                                     <Button onClick={() => setShowAddMenu(prev => !prev)} className="shadow-lg">
                                         <Plus className="mr-2 h-4 w-4" />
-                                        Agregar paso
+                                        {t.addStep}
                                     </Button>
                                 </div>
                                 <Button onClick={autoLayout} variant="outline" className="shadow-lg bg-background">
                                     <LayoutGrid className="mr-2 h-4 w-4" />
-                                    Auto-ordenar
+                                    {t.autoLayout}
                                 </Button>
                             </div>
                         </Panel>

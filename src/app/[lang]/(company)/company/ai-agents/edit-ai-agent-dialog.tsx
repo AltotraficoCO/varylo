@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Pencil } from "lucide-react";
 import { AGENT_TYPE_CONFIGS, AI_AGENT_TYPES } from '@/lib/ai-agent-types';
 import type { AiAgentType } from '@/lib/ai-agent-types';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface AiAgentData {
     id: string;
@@ -51,6 +52,9 @@ interface Channel {
 }
 
 export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcommerce }: { agent: AiAgentData; channels: Channel[]; hasGoogleCalendar: boolean; hasEcommerce: boolean }) {
+    const dict = useDictionary();
+    const t = dict.aiAgents || {};
+    const ui = dict.ui || {};
     const [state, action, isPending] = useActionState(updateAiAgent, undefined);
     const [open, setOpen] = useState(false);
     const [selectedChannels, setSelectedChannels] = useState<string[]>(agent.channelIds);
@@ -73,7 +77,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
 
         // Only replace prompt if the type has a default and user confirms
         if (config.defaultPrompt && type !== 'CUSTOM') {
-            if (confirm('¿Quieres reemplazar el prompt actual con el del tipo seleccionado?')) {
+            if (confirm(t.replacePromptConfirm)) {
                 setSystemPrompt(config.defaultPrompt);
             }
         }
@@ -98,14 +102,14 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
             <DialogTrigger asChild>
                 <Button variant="ghost" size="sm">
                     <Pencil className="mr-2 h-4 w-4" />
-                    Editar
+                    {t.editBtn || ui.edit}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Editar Agente IA</DialogTitle>
+                    <DialogTitle>{t.editAgentTitle}</DialogTitle>
                     <DialogDescription>
-                        Modifica la configuración del agente IA.
+                        {t.editAgentDesc}
                     </DialogDescription>
                 </DialogHeader>
                 <form action={action} className="grid gap-4 py-4">
@@ -114,7 +118,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
 
                     {/* Agent Type Selector */}
                     <div className="space-y-2">
-                        <Label>Tipo de Agente</Label>
+                        <Label>{t.agentTypeLabel}</Label>
                         <Select value={agentType} onValueChange={(v) => handleTypeChange(v as AiAgentType)}>
                             <SelectTrigger className="w-full">
                                 <SelectValue />
@@ -133,7 +137,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="edit-name">Nombre</Label>
+                        <Label htmlFor="edit-name">{ui.name}</Label>
                         <Input
                             id="edit-name"
                             name="name"
@@ -143,7 +147,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="edit-systemPrompt">Prompt del Sistema</Label>
+                        <Label htmlFor="edit-systemPrompt">{t.systemPrompt}</Label>
                         <Textarea
                             id="edit-systemPrompt"
                             name="systemPrompt"
@@ -155,7 +159,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="edit-contextInfo">Información de Contexto</Label>
+                        <Label htmlFor="edit-contextInfo">{t.contextInfo}</Label>
                         <Textarea
                             id="edit-contextInfo"
                             name="contextInfo"
@@ -166,20 +170,20 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="edit-model">Modelo</Label>
+                            <Label htmlFor="edit-model">{t.model}</Label>
                             <Select name="model" defaultValue={agent.model}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="gpt-4o-mini">GPT-4o Mini (Rápido)</SelectItem>
-                                    <SelectItem value="gpt-4o">GPT-4o (Inteligente)</SelectItem>
+                                    <SelectItem value="gpt-4o-mini">{t.modelFast}</SelectItem>
+                                    <SelectItem value="gpt-4o">{t.modelSmart}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="edit-temperature">Temperatura</Label>
+                            <Label htmlFor="edit-temperature">{t.temperature}</Label>
                             <Input
                                 id="edit-temperature"
                                 name="temperature"
@@ -193,7 +197,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="edit-transferKeywords">Keywords de Transferencia</Label>
+                        <Label htmlFor="edit-transferKeywords">{t.transferKeywords}</Label>
                         <Input
                             id="edit-transferKeywords"
                             name="transferKeywords"
@@ -201,7 +205,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                             placeholder="humano, agente, persona"
                         />
                         <p className="text-xs text-muted-foreground">
-                            Separadas por coma. Si el cliente escribe alguna, se transfiere a un humano.
+                            {t.transferKeywordsHint}
                         </p>
                     </div>
 
@@ -209,9 +213,9 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="edit-dataCaptureEnabled" className="flex flex-col gap-1">
-                                <span>Captura de Datos</span>
+                                <span>{t.dataCaptureLabel}</span>
                                 <span className="font-normal text-xs text-muted-foreground">
-                                    Permite al agente capturar automáticamente datos del cliente (nombre, email, teléfono, documentos).
+                                    {t.dataCaptureDesc}
                                 </span>
                             </Label>
                             <Switch
@@ -227,11 +231,11 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="edit-calendarEnabled" className="flex flex-col gap-1">
-                                <span>Google Calendar</span>
+                                <span>{t.googleCalendar}</span>
                                 <span className="font-normal text-xs text-muted-foreground">
                                     {hasGoogleCalendar
-                                        ? 'Permite al agente consultar disponibilidad y agendar reuniones.'
-                                        : 'Conecta Google Calendar en Settings > IA y Créditos primero.'}
+                                        ? t.googleCalendarConnected
+                                        : t.googleCalendarDisconnected}
                                 </span>
                             </Label>
                             <Switch
@@ -244,7 +248,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                         <input type="hidden" name="calendarEnabled" value={calendarEnabled ? 'on' : 'off'} />
                         {calendarEnabled && (
                             <div className="space-y-2 mt-2">
-                                <Label htmlFor="edit-calendarId">Calendar ID</Label>
+                                <Label htmlFor="edit-calendarId">{t.calendarIdLabel}</Label>
                                 <Input
                                     id="edit-calendarId"
                                     name="calendarId"
@@ -252,7 +256,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                                     placeholder="primary"
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    Usa &quot;primary&quot; para el calendario principal o el ID de otro calendario.
+                                    {t.calendarIdHint}
                                 </p>
                             </div>
                         )}
@@ -262,11 +266,11 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="edit-ecommerceEnabled" className="flex flex-col gap-1">
-                                <span>Tienda Online</span>
+                                <span>{t.onlineStore}</span>
                                 <span className="font-normal text-xs text-muted-foreground">
                                     {hasEcommerce
-                                        ? 'Permite al agente consultar productos, precios e inventario.'
-                                        : 'Conecta tu tienda en Settings > IA y Créditos primero.'}
+                                        ? t.onlineStoreConnected
+                                        : t.onlineStoreDisconnected}
                                 </span>
                             </Label>
                             <Switch
@@ -283,9 +287,9 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="edit-webhookEnabled" className="flex flex-col gap-1">
-                                <span>Webhook (ERP/CRM)</span>
+                                <span>{t.webhookErp}</span>
                                 <span className="font-normal text-xs text-muted-foreground">
-                                    Envía los datos capturados a un sistema externo cuando el agente lo decida.
+                                    {t.webhookErpDesc}
                                 </span>
                             </Label>
                             <Switch
@@ -297,7 +301,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                         {webhookEnabled && (
                             <div className="space-y-3 mt-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-webhookUrl">URL del Webhook</Label>
+                                    <Label htmlFor="edit-webhookUrl">{t.webhookUrlLabel}</Label>
                                     <Input
                                         id="edit-webhookUrl"
                                         name="webhookUrl"
@@ -307,16 +311,16 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-webhookSecret">Secret (opcional)</Label>
+                                    <Label htmlFor="edit-webhookSecret">{t.webhookSecretLabel}</Label>
                                     <Input
                                         id="edit-webhookSecret"
                                         name="webhookSecret"
                                         defaultValue={agent.webhookConfigJson?.secret || ''}
-                                        placeholder="Clave secreta para firmar payloads (HMAC-SHA256)"
+                                        placeholder={t.webhookSecretPlaceholder}
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-webhookHeaders">Headers personalizados (opcional)</Label>
+                                    <Label htmlFor="edit-webhookHeaders">{t.webhookHeadersLabel}</Label>
                                     <Textarea
                                         id="edit-webhookHeaders"
                                         name="webhookHeaders"
@@ -325,7 +329,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                                         rows={2}
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                        JSON con headers adicionales. Ej: {`{"Authorization": "Bearer key"}`}
+                                        {t.webhookHeadersHint} {`{"Authorization": "Bearer key"}`}
                                     </p>
                                 </div>
                             </div>
@@ -334,7 +338,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
 
                     {/* Channels */}
                     <div className="space-y-2">
-                        <Label>Canales</Label>
+                        <Label>{t.channels}</Label>
                         <div className="space-y-2 rounded-md border p-3">
                             {channels.map(channel => (
                                 <div key={channel.id} className="flex items-center gap-2">
@@ -366,7 +370,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                     <DialogFooter>
                         <Button type="submit" disabled={isPending}>
                             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Guardar Cambios
+                            {t.saveChanges}
                         </Button>
                     </DialogFooter>
                 </form>

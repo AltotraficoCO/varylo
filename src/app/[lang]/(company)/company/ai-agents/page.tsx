@@ -6,6 +6,8 @@ import { AGENT_TYPE_CONFIGS } from '@/lib/ai-agent-types';
 import type { AiAgentType } from '@/lib/ai-agent-types';
 import { Sparkles, Bot, Plus, Pencil } from 'lucide-react';
 import Link from 'next/link';
+import { getDictionary } from '@/lib/dictionary';
+import type { Locale } from '@/lib/dictionary';
 
 // Rotating color palette for agent icon backgrounds
 const ICON_COLORS = [
@@ -46,6 +48,8 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
 
     const hasGoogleCalendar = !!company?.googleCalendarRefreshToken;
     const hasEcommerce = !!ecommerceIntegration?.active;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.aiAgents || {} as Record<string, any>;
 
     const channelLabel: Record<string, string> = {
         WHATSAPP: 'WhatsApp',
@@ -58,15 +62,15 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold" style={{ color: '#09090B' }}>Agentes IA</h1>
-                    <p className="text-sm mt-1" style={{ color: '#71717A' }}>Configura agentes inteligentes que responden por ti</p>
+                    <h1 className="text-2xl font-bold" style={{ color: '#09090B' }}>{t.title}</h1>
+                    <p className="text-sm mt-1" style={{ color: '#71717A' }}>{t.subtitle}</p>
                 </div>
                 <Link
                     href={`/${lang}/company/ai-agents/new`}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white px-4 py-2.5 text-[14px] font-medium transition-colors"
                 >
                     <Plus className="h-4 w-4" />
-                    Nuevo agente
+                    {t.newAgent}
                 </Link>
             </div>
 
@@ -77,8 +81,8 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
                         <div className="p-3 rounded-lg" style={{ backgroundColor: '#F4F4F5' }}>
                             <Sparkles className="h-6 w-6" style={{ color: '#71717A' }} />
                         </div>
-                        <h3 className="font-semibold" style={{ color: '#09090B' }}>No hay agentes IA configurados</h3>
-                        <p className="text-sm" style={{ color: '#71717A' }}>Crea uno nuevo para empezar a automatizar tus respuestas.</p>
+                        <h3 className="font-semibold" style={{ color: '#09090B' }}>{t.noAgentsConfigured}</h3>
+                        <p className="text-sm" style={{ color: '#71717A' }}>{t.noAgentsConfiguredDesc}</p>
                     </div>
                 ) : (
                     aiAgents.map((agent, index) => {
@@ -86,8 +90,8 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
                         const colorScheme = ICON_COLORS[index % ICON_COLORS.length];
                         const channelNames = agent.channels.map(ch => channelLabel[ch.type] || ch.type);
                         const statsText = [
-                            channelNames.length > 0 ? channelNames.join(', ') : 'Sin canales',
-                            `${agent._count.conversations} conversaciones`,
+                            channelNames.length > 0 ? channelNames.join(', ') : t.noChannelsConfigured,
+                            `${agent._count.conversations} ${t.conversationsCount}`,
                         ].join(' \u2022 ');
 
                         return (
@@ -135,7 +139,7 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
                                                 padding: '2px 10px',
                                             }}
                                         >
-                                            Activo
+                                            {t.active}
                                         </span>
                                     ) : (
                                         <span
@@ -147,7 +151,7 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
                                                 padding: '2px 10px',
                                             }}
                                         >
-                                            Inactivo
+                                            {t.inactive}
                                         </span>
                                     )}
                                 </div>
@@ -156,7 +160,7 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
                                 <p className="line-clamp-2" style={{ fontSize: '13px', color: '#3F3F46', lineHeight: '1.4' }}>
                                     {agent.systemPrompt
                                         ? agent.systemPrompt.substring(0, 120) + (agent.systemPrompt.length > 120 ? '...' : '')
-                                        : 'Responde preguntas y guía al cliente paso a paso.'}
+                                        : t.defaultResponse}
                                 </p>
 
                                 {/* Stats line */}
@@ -202,7 +206,7 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
                                         href={`/${lang}/company/ai-agents/${agent.id}/edit`}
                                         className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E4E7] px-3 py-1.5 text-[13px] font-medium text-[#3F3F46] hover:bg-[#F4F4F5] transition-colors"
                                     >
-                                        <Pencil className="h-3 w-3" /> Editar
+                                        <Pencil className="h-3 w-3" /> {t.editBtn}
                                     </Link>
                                     <DeleteAiAgentDialog agentId={agent.id} agentName={agent.name} />
                                     <div className="ml-auto">

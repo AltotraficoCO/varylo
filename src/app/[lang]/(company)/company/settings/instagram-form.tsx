@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { AlertCircle, CheckCircle2, Instagram, Facebook } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useDictionary } from '@/lib/i18n-context';
 
 // Extend window interface for FB SDK
 declare global {
@@ -27,6 +28,9 @@ export function InstagramConnectionForm({
     hasAccessToken?: boolean
 }) {
     const [state, saveAction, isSaving] = useActionState(saveInstagramCredentials, undefined);
+    const dict = useDictionary();
+    const t = dict.settingsUI?.instagramForm || {};
+    const ui = dict.ui || {};
     const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
     const [isTesting, setIsTesting] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
@@ -115,7 +119,7 @@ export function InstagramConnectionForm({
     };
 
     const handleDisconnect = async () => {
-        if (!confirm('¿Estás seguro de que quieres desconectar Instagram? Dejarás de recibir mensajes.')) return;
+        if (!confirm(t.disconnectConfirm || '¿Estás seguro de que quieres desconectar Instagram? Dejarás de recibir mensajes.')) return;
 
         setIsDisconnecting(true);
         try {
@@ -156,15 +160,15 @@ export function InstagramConnectionForm({
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <Instagram className="h-6 w-6 text-pink-600" />
-                        <CardTitle className="text-pink-700">Instagram Configurado</CardTitle>
+                        <CardTitle className="text-pink-700">{t.configured || 'Instagram Configurado'}</CardTitle>
                     </div>
                     <CardDescription>
-                        Tu cuenta de Instagram Business está conectada y lista.
+                        {t.configuredDesc || 'Tu cuenta de Instagram Business está conectada y lista.'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid gap-1">
-                        <Label className="text-xs text-muted-foreground">ID Conectado</Label>
+                        <Label className="text-xs text-muted-foreground">{t.connectedId || 'ID Conectado'}</Label>
                         <p className="font-mono text-sm">{initialPageId}</p>
                     </div>
 
@@ -186,7 +190,7 @@ export function InstagramConnectionForm({
                         disabled={isTesting || isDisconnecting}
                         className="bg-background"
                     >
-                        {isTesting ? 'Probando...' : 'Probar Conexión'}
+                        {isTesting ? (ui.loading || 'Probando...') : (t.testConnection || 'Probar Conexión')}
                     </Button>
                     <Button
                         type="button"
@@ -194,7 +198,7 @@ export function InstagramConnectionForm({
                         onClick={handleDisconnect}
                         disabled={isDisconnecting || isTesting}
                     >
-                        {isDisconnecting ? 'Desconectando...' : 'Desconectar'}
+                        {isDisconnecting ? (dict.settingsUI?.whatsappForm?.disconnecting || 'Desconectando...') : (ui.disconnect || 'Desconectar')}
                     </Button>
                 </CardFooter>
             </Card>
@@ -206,10 +210,10 @@ export function InstagramConnectionForm({
             <CardHeader>
                 <div className="flex items-center gap-2">
                     <Instagram className="h-5 w-5 text-pink-600" />
-                    <CardTitle>Conexión de Instagram DM</CardTitle>
+                    <CardTitle>{t.connectionTitle || 'Conexión de Instagram DM'}</CardTitle>
                 </div>
                 <CardDescription>
-                    Conecta tu cuenta Professional de Instagram (vía Facebook Page) para recibir DMs.
+                    {t.connectionDesc || 'Conecta tu cuenta Professional de Instagram (vía Facebook Page) para recibir DMs.'}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -217,7 +221,7 @@ export function InstagramConnectionForm({
                     <div className="flex flex-col items-center justify-center py-6 space-y-4">
                         {!process.env.NEXT_PUBLIC_FACEBOOK_APP_ID && (
                             <div className="w-full text-center p-2 text-xs bg-yellow-50 text-yellow-800 border border-yellow-200 rounded mb-2">
-                                ⚠️ Falta NEXT_PUBLIC_FACEBOOK_APP_ID en .env
+                                {t.missingAppId || 'Falta NEXT_PUBLIC_FACEBOOK_APP_ID en .env'}
                             </div>
                         )}
                         <Button
@@ -227,40 +231,40 @@ export function InstagramConnectionForm({
                             className="bg-[#1877F2] hover:bg-[#1864D9] text-white flex items-center gap-2 text-base h-12 px-6 shadow-sm"
                         >
                             <Facebook className="h-5 w-5" />
-                            Continuar con Facebook
+                            {t.continueWithFb || 'Continuar con Facebook'}
                         </Button>
                         <p className="text-xs text-muted-foreground text-center max-w-sm">
-                            Se abrirá una ventana emergente para que autorices a Varylo a gestionar tus mensajes de Instagram.
+                            {t.authPopupDesc || 'Se abrirá una ventana emergente para que autorices a Varylo a gestionar tus mensajes de Instagram.'}
                         </p>
                     </div>
                 ) : (
                     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                         <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-md border border-green-100 text-sm mb-4">
                             <CheckCircle2 className="h-4 w-4" />
-                            <span>Sesión iniciada con Facebook</span>
+                            <span>{t.fbSessionStarted || 'Sesión iniciada con Facebook'}</span>
                         </div>
 
                         {isLoadingPages ? (
-                            <div className="text-center text-sm text-muted-foreground py-4">Cargando tus páginas...</div>
+                            <div className="text-center text-sm text-muted-foreground py-4">{t.loadingPages || 'Cargando tus páginas...'}</div>
                         ) : (
                             <div className="space-y-4">
                                 {pages.length === 0 ? (
                                     <div className="text-center py-4 space-y-3">
                                         <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200 text-sm">
                                             <AlertCircle className="h-4 w-4 shrink-0" />
-                                            <span>No se encontraron páginas con una cuenta de Instagram Business conectada.</span>
+                                            <span>{t.noPagesFound || 'No se encontraron páginas con una cuenta de Instagram Business conectada.'}</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                                            Asegúrate de que tu página de Facebook tenga una cuenta de Instagram Professional o Business vinculada desde la configuración de Facebook.
+                                            {t.noPagesFoundDesc || 'Asegúrate de que tu página de Facebook tenga una cuenta de Instagram Professional o Business vinculada desde la configuración de Facebook.'}
                                         </p>
                                     </div>
                                 ) : (
                                 <form action={saveAction} className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label>Selecciona tu Página con Instagram</Label>
+                                        <Label>{t.selectPage || 'Selecciona tu Página con Instagram'}</Label>
                                         <Select value={selectedPageId} onValueChange={handlePageSelection} required>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Selecciona una página..." />
+                                                <SelectValue placeholder={t.selectPagePlaceholder || 'Selecciona una página...'} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {pages.map((page) => (
@@ -271,7 +275,7 @@ export function InstagramConnectionForm({
                                             </SelectContent>
                                         </Select>
                                         <p className="text-[0.8rem] text-muted-foreground">
-                                            Solo se muestran páginas con Instagram Business conectado.
+                                            {t.onlyIgPages || 'Solo se muestran páginas con Instagram Business conectado.'}
                                         </p>
                                     </div>
 
@@ -292,13 +296,13 @@ export function InstagramConnectionForm({
                                         disabled={isSaving || !selectedPageId || !selectedPageToken}
                                         className="w-full bg-pink-600 hover:bg-pink-700 text-white"
                                     >
-                                        {isSaving ? 'Guardando configuración...' : 'Confirmar y Guardar'}
+                                        {isSaving ? (t.savingConfig || 'Guardando configuración...') : (t.confirmAndSave || 'Confirmar y Guardar')}
                                     </Button>
                                 </form>
                                 )}
                                 <div className="text-center">
                                     <Button variant="ghost" size="sm" onClick={() => { setUserAccessToken(null); setPages([]); }} className="text-muted-foreground">
-                                        Cancelar y cambiar cuenta
+                                        {t.cancelAndSwitch || 'Cancelar y cambiar cuenta'}
                                     </Button>
                                 </div>
                             </div>

@@ -18,6 +18,7 @@ import { createTag } from './actions';
 import { toast } from 'sonner';
 import { Plus, X } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useDictionary } from '@/lib/i18n-context';
 
 const COLORS = [
     "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#2196F3",
@@ -34,23 +35,27 @@ export function AddTagDialog({ children }: { children?: React.ReactNode }) {
     const [showInSidebar, setShowInSidebar] = useState(true);
     const [loading, setLoading] = useState(false);
 
+    const dict = useDictionary();
+    const t = dict.settingsUI?.addTagDialog || {};
+    const ui = dict.ui || {};
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
             const res = await createTag({ name, description, color, showInSidebar });
             if (res.success) {
-                toast.success("Etiqueta creada correctamente");
+                toast.success(t.createSuccess || "Etiqueta creada correctamente");
                 setOpen(false);
                 setName('');
                 setDescription('');
                 setColor(COLORS[0]);
                 setShowInSidebar(true);
             } else {
-                toast.error("Error al crear etiqueta");
+                toast.error(t.createError || "Error al crear etiqueta");
             }
         } catch (error) {
-            toast.error("Error al crear etiqueta");
+            toast.error(t.createError || "Error al crear etiqueta");
         } finally {
             setLoading(false);
         }
@@ -59,23 +64,23 @@ export function AddTagDialog({ children }: { children?: React.ReactNode }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                {children || <Button>Añadir etiqueta</Button>}
+                {children || <Button>{t.addButton || 'Añadir etiqueta'}</Button>}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <div className="flex items-center justify-between">
-                        <DialogTitle>Añadir etiqueta</DialogTitle>
+                        <DialogTitle>{t.title || 'Añadir etiqueta'}</DialogTitle>
                     </div>
                     <DialogDescription>
-                        Las etiquetas permiten agrupar las conversaciones.
+                        {t.description || 'Las etiquetas permiten agrupar las conversaciones.'}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6 pt-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Nombre de la etiqueta</Label>
+                        <Label htmlFor="name">{t.tagNameLabel || 'Nombre de la etiqueta'}</Label>
                         <Input
                             id="name"
-                            placeholder="nombre de la etiqueta"
+                            placeholder={t.tagNamePlaceholder || 'nombre de la etiqueta'}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="bg-gray-50/50"
@@ -83,10 +88,10 @@ export function AddTagDialog({ children }: { children?: React.ReactNode }) {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="description">Descripción</Label>
+                        <Label htmlFor="description">{t.descriptionLabel || 'Descripción'}</Label>
                         <Input
                             id="description"
-                            placeholder="Descripción de la etiqueta"
+                            placeholder={t.descriptionPlaceholder || 'Descripción de la etiqueta'}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             className="bg-gray-50/50"
@@ -94,7 +99,7 @@ export function AddTagDialog({ children }: { children?: React.ReactNode }) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Color</Label>
+                        <Label>{t.colorLabel || 'Color'}</Label>
                         <div className="flex flex-wrap gap-2 p-2 border rounded-md max-h-[100px] overflow-y-auto">
                             {COLORS.map((c) => (
                                 <button
@@ -126,14 +131,14 @@ export function AddTagDialog({ children }: { children?: React.ReactNode }) {
                             onCheckedChange={(c: boolean | "indeterminate") => setShowInSidebar(c === true)}
                         />
                         <Label htmlFor="show" className="text-sm font-normal text-muted-foreground cursor-pointer">
-                            Mostrar etiqueta en la barra lateral
+                            {t.showInSidebar || 'Mostrar etiqueta en la barra lateral'}
                         </Label>
                     </div>
 
                     <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>{ui.cancel || 'Cancelar'}</Button>
                         <Button type="submit" disabled={loading}>
-                            {loading ? 'Creando...' : 'Crear'}
+                            {loading ? (ui.creating || 'Creando...') : (ui.create || 'Crear')}
                         </Button>
                     </DialogFooter>
                 </form>

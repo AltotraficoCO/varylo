@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { AGENT_TYPE_CONFIGS, AGENT_CATEGORIES, type AiAgentType } from '@/lib/ai-agent-types';
 import { createAiAgent } from '../actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 type Channel = { id: string; type: string };
 
@@ -34,6 +35,9 @@ const CHANNEL_LABELS: Record<string, string> = {
 };
 
 export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, hasWooCommerce }: NewAgentFlowProps) {
+    const dict = useDictionary();
+    const t = dict.aiAgents || {};
+    const ui = dict.ui || {};
     const router = useRouter();
     const [step, setStep] = useState<1 | 2>(1);
     const [selectedType, setSelectedType] = useState<AiAgentType | null>(null);
@@ -109,8 +113,8 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                         <ArrowLeft className="h-4 w-4" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-bold text-[#09090B]">Crear Agente IA</h1>
-                        <p className="text-[14px] text-[#71717A] mt-0.5">Elige una plantilla para empezar o crea uno desde cero</p>
+                        <h1 className="text-2xl font-bold text-[#09090B]">{t.createAgentPage}</h1>
+                        <p className="text-[14px] text-[#71717A] mt-0.5">{t.createAgentPageDesc}</p>
                     </div>
                 </div>
 
@@ -119,7 +123,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                     <div className="relative w-full sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A1A1AA]" />
                         <Input
-                            placeholder="Buscar plantilla..."
+                            placeholder={t.searchTemplate}
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             className="pl-9 h-10 rounded-xl border-[#E4E4E7] text-[14px] placeholder:text-[#A1A1AA]"
@@ -207,7 +211,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                 {filtered.length === 0 && (
                     <div className="text-center py-16">
                         <Sparkles className="h-8 w-8 text-[#A1A1AA] mx-auto mb-3" />
-                        <p className="text-[#71717A]">No se encontraron plantillas</p>
+                        <p className="text-[#71717A]">{t.noTemplatesFound}</p>
                     </div>
                 )}
             </div>
@@ -237,9 +241,9 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                         </div>
                     )}
                     <div>
-                        <h1 className="text-2xl font-bold text-[#09090B]">Configurar Agente</h1>
+                        <h1 className="text-2xl font-bold text-[#09090B]">{t.configureAgent}</h1>
                         <p className="text-[14px] text-[#71717A] mt-0.5">
-                            {config ? `Plantilla: ${config.label}` : 'Personalizado'} — personaliza los detalles
+                            {config ? `${t.templateLabel} ${config.label}` : t.customLabel} — {t.customizeDetails}
                         </p>
                     </div>
                 </div>
@@ -272,42 +276,42 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                 {/* Section: Basic Info */}
                 <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                     <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
-                        <h2 className="text-[15px] font-semibold text-[#09090B]">Informacion basica</h2>
+                        <h2 className="text-[15px] font-semibold text-[#09090B]">{t.basicInfo}</h2>
                     </div>
                     <div className="p-6 space-y-4">
                         <div className="space-y-1.5">
-                            <Label className="text-[13px] font-medium text-[#3F3F46]">Nombre del agente</Label>
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">{t.agentNameLabel}</Label>
                             <Input
                                 name="name"
                                 value={name}
                                 onChange={e => setName(e.target.value)}
-                                placeholder="Ej: Asistente de Ventas"
+                                placeholder={t.agentNamePlaceholder}
                                 className="h-10 rounded-lg border-[#E4E4E7] text-[14px]"
                                 required
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[13px] font-medium text-[#3F3F46]">Prompt del sistema</Label>
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">{t.systemPromptLabel}</Label>
                             <Textarea
                                 name="systemPrompt"
                                 value={systemPrompt}
                                 onChange={e => setSystemPrompt(e.target.value)}
-                                placeholder="Instrucciones para el comportamiento del agente..."
+                                placeholder={t.promptInstructions}
                                 rows={8}
                                 className="rounded-lg border-[#E4E4E7] text-[14px] resize-none"
                                 required
                             />
-                            <p className="text-[12px] text-[#A1A1AA]">Define cómo debe comportarse, su tono y qué información puede manejar.</p>
+                            <p className="text-[12px] text-[#A1A1AA]">{t.systemPromptHint}</p>
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[13px] font-medium text-[#3F3F46]">
-                                Contexto adicional <span className="text-[#A1A1AA] font-normal">(opcional)</span>
+                                {t.additionalContext} <span className="text-[#A1A1AA] font-normal">({t.contextInfoOptionalLabel || ui.optional})</span>
                             </Label>
                             <Textarea
                                 name="contextInfo"
                                 value={contextInfo}
                                 onChange={e => setContextInfo(e.target.value)}
-                                placeholder="Info sobre tu empresa, productos, precios, horarios..."
+                                placeholder={t.contextInfoPlaceholder2}
                                 rows={3}
                                 className="rounded-lg border-[#E4E4E7] text-[14px] resize-none"
                             />
@@ -318,23 +322,23 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                 {/* Section: Model & Behavior */}
                 <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                     <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
-                        <h2 className="text-[15px] font-semibold text-[#09090B]">Modelo y comportamiento</h2>
+                        <h2 className="text-[15px] font-semibold text-[#09090B]">{t.modelAndBehavior}</h2>
                     </div>
                     <div className="p-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label className="text-[13px] font-medium text-[#3F3F46]">Modelo</Label>
+                                <Label className="text-[13px] font-medium text-[#3F3F46]">{t.modelLabel}</Label>
                                 <select
                                     value={model}
                                     onChange={e => setModel(e.target.value)}
                                     className="w-full h-10 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[14px] text-[#09090B]"
                                 >
-                                    <option value="gpt-4o-mini">GPT-4o Mini (rapido y economico)</option>
-                                    <option value="gpt-4o">GPT-4o (mas inteligente)</option>
+                                    <option value="gpt-4o-mini">{t.modelFastEconomic}</option>
+                                    <option value="gpt-4o">{t.modelSmarter}</option>
                                 </select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[13px] font-medium text-[#3F3F46]">Temperatura: {temperature}</Label>
+                                <Label className="text-[13px] font-medium text-[#3F3F46]">{t.temperatureLabel}: {temperature}</Label>
                                 <input
                                     type="range"
                                     min="0"
@@ -345,20 +349,20 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                     className="w-full h-10 accent-[#10B981]"
                                 />
                                 <div className="flex justify-between text-[11px] text-[#A1A1AA]">
-                                    <span>Preciso</span>
-                                    <span>Creativo</span>
+                                    <span>{t.precise}</span>
+                                    <span>{t.creative}</span>
                                 </div>
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[13px] font-medium text-[#3F3F46]">Palabras de transferencia a humano</Label>
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">{t.transferToHumanWords}</Label>
                             <Input
                                 value={transferKeywords}
                                 onChange={e => setTransferKeywords(e.target.value)}
                                 placeholder="humano, agente, persona"
                                 className="h-10 rounded-lg border-[#E4E4E7] text-[14px]"
                             />
-                            <p className="text-[12px] text-[#A1A1AA]">Separadas por coma. Cuando el cliente escriba estas palabras, se transfiere a un agente humano.</p>
+                            <p className="text-[12px] text-[#A1A1AA]">{t.transferToHumanWordsHint}</p>
                         </div>
                     </div>
                 </div>
@@ -366,7 +370,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                 {/* Section: Capabilities */}
                 <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                     <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
-                        <h2 className="text-[15px] font-semibold text-[#09090B]">Capacidades</h2>
+                        <h2 className="text-[15px] font-semibold text-[#09090B]">{t.capabilities}</h2>
                     </div>
                     <div className="divide-y divide-[#F4F4F5]">
                         {/* Data Capture */}
@@ -377,8 +381,8 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                         <FileText className="h-4 w-4 text-[#10B981]" />
                                     </div>
                                     <div>
-                                        <p className="text-[14px] font-medium text-[#09090B]">Captura de datos</p>
-                                        <p className="text-[12px] text-[#71717A]">Define qué datos capturar del cliente</p>
+                                        <p className="text-[14px] font-medium text-[#09090B]">{t.dataCaptureTitle}</p>
+                                        <p className="text-[12px] text-[#71717A]">{t.dataCaptureSubtitle}</p>
                                     </div>
                                 </div>
                                 <Switch checked={dataCaptureEnabled} onCheckedChange={setDataCaptureEnabled} />
@@ -402,7 +406,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                                             : 'bg-[#F4F4F5] text-[#A1A1AA]'
                                                     }`}
                                                 >
-                                                    {field.required ? 'Obligatorio' : 'Opcional'}
+                                                    {field.required ? t.mandatory : t.optionalField}
                                                 </button>
                                             </div>
                                             <button
@@ -420,7 +424,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                         <Input
                                             value={newFieldLabel}
                                             onChange={e => setNewFieldLabel(e.target.value)}
-                                            placeholder="Nuevo campo (ej: Licencia, Ciudad, Empresa...)"
+                                            placeholder={t.newFieldPlaceholder2}
                                             className="h-9 rounded-lg border-[#E4E4E7] text-[13px] flex-1"
                                             onKeyDown={e => {
                                                 if (e.key === 'Enter' && newFieldLabel.trim()) {
@@ -459,9 +463,9 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                     <Calendar className="h-4 w-4 text-[#3B82F6]" />
                                 </div>
                                 <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">Google Calendar</p>
+                                    <p className="text-[14px] font-medium text-[#09090B]">{t.googleCalendar}</p>
                                     <p className="text-[12px] text-[#71717A]">
-                                        {hasGoogleCalendar ? 'Agenda citas y consulta disponibilidad' : 'Conecta Calendar en Integraciones primero'}
+                                        {hasGoogleCalendar ? t.scheduleAppointments : t.connectCalendarIntegrations}
                                     </p>
                                 </div>
                             </div>
@@ -479,9 +483,9 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                     <ShoppingBag className="h-4 w-4 text-[#16A34A]" />
                                 </div>
                                 <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">Shopify</p>
+                                    <p className="text-[14px] font-medium text-[#09090B]">{t.shopify}</p>
                                     <p className="text-[12px] text-[#71717A]">
-                                        {hasShopify ? 'Consulta productos, precios e inventario' : 'Conecta Shopify en Integraciones primero'}
+                                        {hasShopify ? t.shopifyProducts : t.shopifyConnect}
                                     </p>
                                 </div>
                             </div>
@@ -499,9 +503,9 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                     <ShoppingBag className="h-4 w-4 text-[#2563EB]" />
                                 </div>
                                 <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">WordPress</p>
+                                    <p className="text-[14px] font-medium text-[#09090B]">{t.wordpress}</p>
                                     <p className="text-[12px] text-[#71717A]">
-                                        {hasWooCommerce ? 'Consulta productos de WooCommerce' : 'Conecta WordPress en Integraciones primero'}
+                                        {hasWooCommerce ? t.wordpressProducts : t.wordpressConnect}
                                     </p>
                                 </div>
                             </div>
@@ -519,8 +523,8 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                     <Kanban className="h-4 w-4 text-[#10B981]" />
                                 </div>
                                 <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">CRM Pipeline</p>
-                                    <p className="text-[12px] text-[#71717A]">Crea y gestiona deals automaticamente segun la conversacion</p>
+                                    <p className="text-[14px] font-medium text-[#09090B]">{t.crmPipeline}</p>
+                                    <p className="text-[12px] text-[#71717A]">{t.crmPipelineDescFull}</p>
                                 </div>
                             </div>
                             <Switch checked={crmEnabled} onCheckedChange={setCrmEnabled} />
@@ -534,8 +538,8 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                         <Webhook className="h-4 w-4 text-[#F97316]" />
                                     </div>
                                     <div>
-                                        <p className="text-[14px] font-medium text-[#09090B]">Webhook / ERP</p>
-                                        <p className="text-[12px] text-[#71717A]">Envia datos capturados a un sistema externo</p>
+                                        <p className="text-[14px] font-medium text-[#09090B]">{t.webhookErpTitle}</p>
+                                        <p className="text-[12px] text-[#71717A]">{t.webhookSendCaptured}</p>
                                     </div>
                                 </div>
                                 <Switch checked={webhookEnabled} onCheckedChange={setWebhookEnabled} />
@@ -558,8 +562,8 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                 {channels.length > 0 && (
                     <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                         <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
-                            <h2 className="text-[15px] font-semibold text-[#09090B]">Canales</h2>
-                            <p className="text-[12px] text-[#71717A] mt-0.5">Selecciona en qué canales estará activo este agente</p>
+                            <h2 className="text-[15px] font-semibold text-[#09090B]">{t.channels}</h2>
+                            <p className="text-[12px] text-[#71717A] mt-0.5">{t.channelsSubtitle}</p>
                         </div>
                         <div className="p-6">
                             <div className="flex flex-wrap gap-2">
@@ -596,7 +600,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                         className="rounded-lg border-[#E4E4E7] text-[14px]"
                     >
                         <ArrowLeft className="h-4 w-4 mr-1.5" />
-                        Cambiar plantilla
+                        {t.changeTemplate}
                     </Button>
                     <Button
                         type="submit"
@@ -608,7 +612,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                         ) : (
                             <Sparkles className="h-4 w-4 mr-1.5" />
                         )}
-                        Crear agente
+                        {t.createAgentBtn2}
                     </Button>
                 </div>
             </form>

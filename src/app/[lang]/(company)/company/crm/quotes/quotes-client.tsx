@@ -9,18 +9,19 @@ import { Plus, X, Loader2, FileText, Trash2, Send, Check, Eye } from 'lucide-rea
 import { createQuote, updateQuoteStatus, deleteQuote } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useDictionary } from '@/lib/i18n-context';
 
 function formatCOP(amount: number): string {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount);
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-    DRAFT: { label: 'Borrador', color: '#71717A', bg: '#F4F4F5' },
-    SENT: { label: 'Enviada', color: '#3B82F6', bg: '#EFF6FF' },
-    VIEWED: { label: 'Vista', color: '#F59E0B', bg: '#FFFBEB' },
-    ACCEPTED: { label: 'Aceptada', color: '#10B981', bg: '#ECFDF5' },
-    REJECTED: { label: 'Rechazada', color: '#EF4444', bg: '#FEF2F2' },
-    EXPIRED: { label: 'Expirada', color: '#A1A1AA', bg: '#F4F4F5' },
+const STATUS_CONFIG_STATIC: Record<string, { labelKey: string; fallback: string; color: string; bg: string }> = {
+    DRAFT: { labelKey: 'quoteDraft', fallback: 'Borrador', color: '#71717A', bg: '#F4F4F5' },
+    SENT: { labelKey: 'quoteSent', fallback: 'Enviada', color: '#3B82F6', bg: '#EFF6FF' },
+    VIEWED: { labelKey: 'quoteSent', fallback: 'Vista', color: '#F59E0B', bg: '#FFFBEB' },
+    ACCEPTED: { labelKey: 'quoteAccepted', fallback: 'Aceptada', color: '#10B981', bg: '#ECFDF5' },
+    REJECTED: { labelKey: 'quoteRejected', fallback: 'Rechazada', color: '#EF4444', bg: '#FEF2F2' },
+    EXPIRED: { labelKey: 'quoteRejected', fallback: 'Expirada', color: '#A1A1AA', bg: '#F4F4F5' },
 };
 
 type QuoteItem = { id: string; name: string; quantity: number; unitPrice: number; total: number };
@@ -39,6 +40,9 @@ type Quote = {
 type ProductOption = { id: string; name: string; price: number };
 
 export function QuotesClient({ quotes, products }: { quotes: Quote[]; products: ProductOption[] }) {
+    const dict = useDictionary();
+    const crm = dict.crm || {};
+    const ui = dict.ui || {};
     const [showCreate, setShowCreate] = useState(false);
     const [saving, setSaving] = useState(false);
     const [items, setItems] = useState<{ productId: string; name: string; quantity: number; unitPrice: number }[]>([]);
@@ -72,7 +76,7 @@ export function QuotesClient({ quotes, products }: { quotes: Quote[]; products: 
             notes: notes.trim() || undefined,
             items: items.map(i => ({ productId: i.productId || undefined, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
         });
-        toast.success('Cotizacion creada');
+        toast.success(ui.createdSuccessfully || 'Cotizacion creada');
         setItems([]);
         setNotes('');
         setShowCreate(false);
@@ -85,11 +89,11 @@ export function QuotesClient({ quotes, products }: { quotes: Quote[]; products: 
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#09090B]">Cotizaciones</h1>
-                    <p className="text-[14px] text-[#71717A] mt-0.5">{quotes.length} cotizacion{quotes.length !== 1 ? 'es' : ''}</p>
+                    <h1 className="text-2xl font-bold text-[#09090B]">{crm.quotes || 'Cotizaciones'}</h1>
+                    <p className="text-[14px] text-[#71717A] mt-0.5">{quotes.length} {crm.quotes?.toLowerCase() || 'cotizaciones'}</p>
                 </div>
                 <Button onClick={() => { setShowCreate(true); if (items.length === 0) addItem(); }} className="rounded-lg bg-[#10B981] hover:bg-[#059669] text-white font-medium">
-                    <Plus className="h-4 w-4 mr-1.5" /> Nueva cotizacion
+                    <Plus className="h-4 w-4 mr-1.5" /> {crm.createQuote || 'Nueva cotizacion'}
                 </Button>
             </div>
 
@@ -97,23 +101,24 @@ export function QuotesClient({ quotes, products }: { quotes: Quote[]; products: 
             <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center py-3 px-5 bg-[#FAFAFA] border-b border-[#E4E4E7] text-[12px] font-semibold text-[#71717A] uppercase tracking-wider">
-                    <div className="w-[100px]">Numero</div>
-                    <div className="w-[100px]">Estado</div>
-                    <div className="flex-1">Cliente</div>
+                    <div className="w-[100px]">#</div>
+                    <div className="w-[100px]">{ui.status || 'Estado'}</div>
+                    <div className="flex-1">{crm.contact || 'Cliente'}</div>
                     <div className="w-[120px]">Items</div>
-                    <div className="w-[140px] text-right">Total</div>
-                    <div className="w-[120px] text-right">Fecha</div>
+                    <div className="w-[140px] text-right">{crm.total || ui.total || 'Total'}</div>
+                    <div className="w-[120px] text-right">{ui.date || 'Fecha'}</div>
                     <div className="w-[80px]" />
                 </div>
 
                 {quotes.length === 0 ? (
                     <div className="py-16 text-center">
                         <FileText className="h-10 w-10 text-[#A1A1AA] mx-auto mb-3" />
-                        <p className="text-[#71717A]">Crea tu primera cotizacion</p>
+                        <p className="text-[#71717A]">{crm.noQuotes || 'Crea tu primera cotizacion'}</p>
                     </div>
                 ) : (
                     quotes.map(quote => {
-                        const status = STATUS_CONFIG[quote.status] || STATUS_CONFIG.DRAFT;
+                        const statusDef = STATUS_CONFIG_STATIC[quote.status] || STATUS_CONFIG_STATIC.DRAFT;
+                        const status = { ...statusDef, label: (crm as any)[statusDef.labelKey] || statusDef.fallback };
                         return (
                             <div key={quote.id} className="flex items-center py-3.5 px-5 border-b border-[#F4F4F5] hover:bg-[#FAFAFA] transition-colors group">
                                 <div className="w-[100px] text-[14px] font-semibold text-[#09090B]">{quote.number}</div>
@@ -132,16 +137,16 @@ export function QuotesClient({ quotes, products }: { quotes: Quote[]; products: 
                                 </div>
                                 <div className="w-[80px] flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     {quote.status === 'DRAFT' && (
-                                        <button onClick={async () => { await updateQuoteStatus(quote.id, 'SENT'); toast.success('Cotizacion marcada como enviada'); router.refresh(); }} className="h-7 w-7 rounded-md flex items-center justify-center text-[#A1A1AA] hover:text-[#3B82F6] hover:bg-[#EFF6FF]" title="Marcar enviada">
+                                        <button onClick={async () => { await updateQuoteStatus(quote.id, 'SENT'); toast.success(ui.updatedSuccessfully || 'Cotizacion marcada como enviada'); router.refresh(); }} className="h-7 w-7 rounded-md flex items-center justify-center text-[#A1A1AA] hover:text-[#3B82F6] hover:bg-[#EFF6FF]" title={crm.quoteSent || 'Marcar enviada'}>
                                             <Send className="h-3.5 w-3.5" />
                                         </button>
                                     )}
                                     {quote.status === 'SENT' && (
-                                        <button onClick={async () => { await updateQuoteStatus(quote.id, 'ACCEPTED'); toast.success('Cotizacion aceptada'); router.refresh(); }} className="h-7 w-7 rounded-md flex items-center justify-center text-[#A1A1AA] hover:text-[#10B981] hover:bg-[#ECFDF5]" title="Marcar aceptada">
+                                        <button onClick={async () => { await updateQuoteStatus(quote.id, 'ACCEPTED'); toast.success(ui.updatedSuccessfully || 'Cotizacion aceptada'); router.refresh(); }} className="h-7 w-7 rounded-md flex items-center justify-center text-[#A1A1AA] hover:text-[#10B981] hover:bg-[#ECFDF5]" title={crm.quoteAccepted || 'Marcar aceptada'}>
                                             <Check className="h-3.5 w-3.5" />
                                         </button>
                                     )}
-                                    <button onClick={async () => { if (confirm('Eliminar?')) { await deleteQuote(quote.id); router.refresh(); } }} className="h-7 w-7 rounded-md flex items-center justify-center text-[#A1A1AA] hover:text-[#EF4444] hover:bg-[#FEF2F2]">
+                                    <button onClick={async () => { if (confirm(ui.areYouSure || 'Eliminar?')) { await deleteQuote(quote.id); router.refresh(); } }} className="h-7 w-7 rounded-md flex items-center justify-center text-[#A1A1AA] hover:text-[#EF4444] hover:bg-[#FEF2F2]">
                                         <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                 </div>
@@ -157,7 +162,7 @@ export function QuotesClient({ quotes, products }: { quotes: Quote[]; products: 
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
                     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between px-6 py-4 border-b border-[#F4F4F5] sticky top-0 bg-white z-10">
-                            <h3 className="text-[16px] font-semibold text-[#09090B]">Nueva cotizacion</h3>
+                            <h3 className="text-[16px] font-semibold text-[#09090B]">{crm.createQuote || 'Nueva cotizacion'}</h3>
                             <button onClick={() => setShowCreate(false)} className="h-8 w-8 rounded-lg flex items-center justify-center text-[#A1A1AA] hover:text-[#09090B] hover:bg-[#F4F4F5]">
                                 <X className="h-4 w-4" />
                             </button>
@@ -187,25 +192,25 @@ export function QuotesClient({ quotes, products }: { quotes: Quote[]; products: 
                                     </div>
                                 ))}
                                 <button onClick={addItem} className="text-[13px] text-[#10B981] hover:underline flex items-center gap-1">
-                                    <Plus className="h-3 w-3" /> Agregar item
+                                    <Plus className="h-3 w-3" /> {crm.addItem || 'Agregar item'}
                                 </button>
                             </div>
 
                             {/* Subtotal */}
                             <div className="flex justify-end py-2 border-t border-[#F4F4F5]">
-                                <span className="text-[16px] font-bold text-[#09090B]">Total: {formatCOP(subtotal)}</span>
+                                <span className="text-[16px] font-bold text-[#09090B]">{crm.total || ui.total || 'Total'}: {formatCOP(subtotal)}</span>
                             </div>
 
                             {/* Notes */}
                             <div>
-                                <Label className="text-[13px]">Notas (opcional)</Label>
+                                <Label className="text-[13px]">{ui.notes || 'Notas'} ({ui.optional || 'opcional'})</Label>
                                 <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Condiciones, vigencia..." className="h-10 rounded-lg text-[14px]" />
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 px-6 py-4 border-t border-[#F4F4F5] bg-[#FAFAFA]">
-                            <Button variant="outline" onClick={() => setShowCreate(false)} className="rounded-lg">Cancelar</Button>
+                            <Button variant="outline" onClick={() => setShowCreate(false)} className="rounded-lg">{ui.cancel || 'Cancelar'}</Button>
                             <Button onClick={handleCreate} disabled={saving} className="rounded-lg bg-[#10B981] hover:bg-[#059669] text-white">
-                                {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />} Crear cotizacion
+                                {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />} {crm.createQuote || 'Crear cotizacion'}
                             </Button>
                         </div>
                     </div>

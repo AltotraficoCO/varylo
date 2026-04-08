@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Key, Plus, Copy, Trash2, Eye, EyeOff, Check, AlertTriangle, Globe, BookOpen } from 'lucide-react';
 import { createApiKey, listApiKeys, revokeApiKey, deleteApiKey } from './api-keys-actions';
 import Link from 'next/link';
+import { useDictionary } from '@/lib/i18n-context';
 
 type ApiKeyItem = {
     id: string;
@@ -29,6 +30,10 @@ export function ApiKeysSection() {
     const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const dict = useDictionary();
+    const t = dict.settingsUI?.apiKeysSection || {};
+    const ui = dict.ui || {};
 
     useEffect(() => {
         loadKeys();
@@ -54,13 +59,13 @@ export function ApiKeysSection() {
             setShowForm(false);
             await loadKeys();
         } else {
-            setError(result.error || 'Error al crear la API key.');
+            setError(result.error || (t.createError || 'Error al crear la API key.'));
         }
         setCreating(false);
     }
 
     async function handleRevoke(keyId: string) {
-        const confirmed = window.confirm('¿Revocar esta API key? Las integraciones que la usen dejarán de funcionar.');
+        const confirmed = window.confirm(t.revokeConfirm || '¿Revocar esta API key? Las integraciones que la usen dejarán de funcionar.');
         if (!confirmed) return;
 
         const result = await revokeApiKey(keyId);
@@ -70,7 +75,7 @@ export function ApiKeysSection() {
     }
 
     async function handleDelete(keyId: string) {
-        const confirmed = window.confirm('¿Eliminar permanentemente esta API key?');
+        const confirmed = window.confirm(t.deleteConfirm || '¿Eliminar permanentemente esta API key?');
         if (!confirmed) return;
 
         const result = await deleteApiKey(keyId);
@@ -93,10 +98,10 @@ export function ApiKeysSection() {
             <div>
                 <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <Key className="h-5 w-5" />
-                    API Keys
+                    {t.title || 'API Keys'}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                    Genera API keys para integrar tu cuenta con sistemas externos.
+                    {t.description || 'Genera API keys para integrar tu cuenta con sistemas externos.'}
                 </p>
             </div>
 
@@ -108,7 +113,7 @@ export function ApiKeysSection() {
                             <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                                    Copia tu API key ahora. No se mostrara de nuevo.
+                                    {t.copyNow || 'Copia tu API key ahora. No se mostrara de nuevo.'}
                                 </p>
                                 <div className="flex items-center gap-2 mt-2">
                                     <code className="flex-1 bg-white dark:bg-gray-900 border rounded px-3 py-2 text-xs font-mono break-all">
@@ -128,7 +133,7 @@ export function ApiKeysSection() {
                                     className="mt-2 text-xs"
                                     onClick={() => setNewlyCreatedKey(null)}
                                 >
-                                    Entendido, ya la copie
+                                    {t.understood || 'Entendido, ya la copie'}
                                 </Button>
                             </div>
                         </div>
@@ -143,10 +148,10 @@ export function ApiKeysSection() {
                         <div className="flex items-end gap-3">
                             <div className="flex-1">
                                 <label className="text-sm font-medium text-foreground mb-1.5 block">
-                                    Nombre de la API Key
+                                    {t.apiKeyName || 'Nombre de la API Key'}
                                 </label>
                                 <Input
-                                    placeholder="Ej: Produccion, Mi ERP, Testing..."
+                                    placeholder={t.apiKeyNamePlaceholder || 'Ej: Produccion, Mi ERP, Testing...'}
                                     value={newKeyName}
                                     onChange={(e) => setNewKeyName(e.target.value)}
                                     maxLength={50}
@@ -154,10 +159,10 @@ export function ApiKeysSection() {
                                 />
                             </div>
                             <Button onClick={handleCreate} disabled={creating || !newKeyName.trim()}>
-                                {creating ? 'Creando...' : 'Crear'}
+                                {creating ? (ui.creating || 'Creando...') : (ui.create || 'Crear')}
                             </Button>
                             <Button variant="ghost" onClick={() => { setShowForm(false); setError(null); }}>
-                                Cancelar
+                                {ui.cancel || 'Cancelar'}
                             </Button>
                         </div>
                         {error && (
@@ -168,19 +173,19 @@ export function ApiKeysSection() {
             ) : (
                 <Button onClick={() => setShowForm(true)} variant="outline" className="gap-2">
                     <Plus className="h-4 w-4" />
-                    Crear API Key
+                    {dict.settingsUI?.createApiKey || 'Crear API Key'}
                 </Button>
             )}
 
             {/* Keys list */}
             {loading ? (
-                <p className="text-sm text-muted-foreground">Cargando...</p>
+                <p className="text-sm text-muted-foreground">{ui.loading || 'Cargando...'}</p>
             ) : keys.length === 0 ? (
                 <Card>
                     <CardContent className="py-8 text-center">
                         <Key className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                         <p className="text-sm text-muted-foreground">
-                            No tienes API keys. Crea una para empezar a integrar.
+                            {t.noKeysDesc || 'No tienes API keys. Crea una para empezar a integrar.'}
                         </p>
                     </CardContent>
                 </Card>
@@ -196,7 +201,7 @@ export function ApiKeysSection() {
                                             <div className="flex items-center gap-2">
                                                 <span className="font-medium text-sm">{key.name}</span>
                                                 <Badge variant={key.active ? 'default' : 'secondary'} className="text-xs">
-                                                    {key.active ? 'Activa' : 'Revocada'}
+                                                    {key.active ? (t.activeStatus || 'Activa') : (t.revokedStatus || 'Revocada')}
                                                 </Badge>
                                                 {key.webhookUrl && (
                                                     <Badge variant="outline" className="text-xs gap-1">
@@ -207,9 +212,9 @@ export function ApiKeysSection() {
                                             </div>
                                             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                                                 <span className="font-mono">vk_live_****{key.lastFour}</span>
-                                                <span>Creada: {new Date(key.createdAt).toLocaleDateString()}</span>
+                                                <span>{t.created || 'Creada:'} {new Date(key.createdAt).toLocaleDateString()}</span>
                                                 {key.lastUsedAt && (
-                                                    <span>Ultimo uso: {new Date(key.lastUsedAt).toLocaleDateString()}</span>
+                                                    <span>{t.lastUsed || 'Ultimo uso:'} {new Date(key.lastUsedAt).toLocaleDateString()}</span>
                                                 )}
                                             </div>
                                         </div>
@@ -222,7 +227,7 @@ export function ApiKeysSection() {
                                                 className="text-amber-600 hover:text-amber-700"
                                                 onClick={() => handleRevoke(key.id)}
                                             >
-                                                Revocar
+                                                {t.revoke || 'Revocar'}
                                             </Button>
                                         )}
                                         <Button
@@ -248,21 +253,21 @@ export function ApiKeysSection() {
                         <div>
                             <h3 className="text-sm font-semibold flex items-center gap-2">
                                 <BookOpen className="h-4 w-4" />
-                                Documentacion de la API
+                                {t.apiDocs || 'Documentacion de la API'}
                             </h3>
                             <p className="text-xs text-muted-foreground mt-1">
-                                Endpoints, ejemplos, webhooks y codigos de error.
+                                {t.apiDocsDesc || 'Endpoints, ejemplos, webhooks y codigos de error.'}
                             </p>
                         </div>
                         <Link href="/company/api-docs">
                             <Button variant="outline" size="sm" className="gap-2">
-                                Ver documentacion
+                                {t.viewDocs || 'Ver documentacion'}
                                 <BookOpen className="h-3.5 w-3.5" />
                             </Button>
                         </Link>
                     </div>
                     <div className="mt-3 p-3 bg-muted/50 rounded-md">
-                        <p className="text-xs text-muted-foreground mb-1">Header de autenticacion:</p>
+                        <p className="text-xs text-muted-foreground mb-1">{t.authHeader || 'Header de autenticacion:'}</p>
                         <code className="text-xs font-mono">Authorization: Bearer vk_live_tu_api_key</code>
                     </div>
                 </CardContent>

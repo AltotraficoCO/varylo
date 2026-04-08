@@ -26,6 +26,7 @@ import {
 import { EditPlanDialog } from "./edit-plan-dialog";
 import { CreatePlanDialog } from "./create-plan-dialog";
 import { seedLandingPlans, getLandingPlansWithPricing, deleteLandingPlan } from "./actions";
+import { useDictionary } from '@/lib/i18n-context';
 
 type PlanPricing = {
     id: string;
@@ -61,6 +62,9 @@ function formatCOP(cents: number): string {
 }
 
 export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.planManager || {};
+    const ui = dict.ui || {};
     const [plans, setPlans] = useState<Plan[]>(initialPlans);
     const [seeding, setSeeding] = useState(false);
     const [error, setError] = useState('');
@@ -92,15 +96,15 @@ export function PlanManager({ initialPlans }: { initialPlans: Plan[] }) {
                 <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
                     <DatabaseZap className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-medium mb-2">No hay planes configurados</h3>
+                <h3 className="text-lg font-medium mb-2">{t.noPlans || 'No hay planes configurados'}</h3>
                 <p className="text-sm text-muted-foreground mb-6">
-                    Crea los planes por defecto (Starter, Pro, Scale) para empezar a gestionar los precios de la landing.
+                    {t.noPlansDesc || 'Crea los planes por defecto (Starter, Pro, Scale) para empezar a gestionar los precios de la landing.'}
                 </p>
                 {error && (
                     <p className="text-sm text-red-500 mb-4">{error}</p>
                 )}
                 <Button onClick={handleSeed} disabled={seeding}>
-                    {seeding ? 'Creando...' : 'Crear planes por defecto'}
+                    {seeding ? (t.creatingDefaults || 'Creando...') : (t.createDefaults || 'Crear planes por defecto')}
                 </Button>
             </Card>
         );

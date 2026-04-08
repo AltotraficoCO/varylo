@@ -27,6 +27,7 @@ import {
     Phone,
 } from 'lucide-react';
 import { getWhatsAppTemplates, sendTemplateMessage } from '@/lib/template-actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface Contact {
     id: string;
@@ -63,6 +64,9 @@ export function SendTemplateDialog({
     contacts: Contact[];
     lang: string;
 }) {
+    const dict = useDictionary();
+    const t = dict.contacts || {};
+    const ui = dict.ui || {};
     const router = useRouter();
     const pathname = usePathname();
     const isAgentRoute = pathname.includes('/agent');
@@ -107,7 +111,7 @@ export function SendTemplateDialog({
         if (result.success && result.templates) {
             setTemplates(result.templates);
         } else {
-            setTemplateError(result.error || 'Error desconocido');
+            setTemplateError(result.error || ui.unknown || 'Error desconocido');
         }
         setLoadingTemplates(false);
     }, []);
@@ -194,13 +198,13 @@ export function SendTemplateDialog({
         setSending(false);
 
         if (result.success && result.conversationId) {
-            toast.success('Plantilla enviada correctamente');
+            toast.success(t.templateSent || 'Plantilla enviada correctamente');
             onOpenChange(false);
             const basePath = isAgentRoute ? 'agent' : 'company/conversations';
             router.push(`/${lang}/${basePath}?conversationId=${result.conversationId}`);
             router.refresh();
         } else {
-            toast.error(result.error || 'Error al enviar');
+            toast.error(result.error || ui.errorOccurred || 'Error al enviar');
         }
     };
 
@@ -209,14 +213,14 @@ export function SendTemplateDialog({
             <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>
-                        {step === 'recipient' && 'Seleccionar destinatario'}
-                        {step === 'template' && 'Seleccionar plantilla'}
-                        {step === 'params' && 'Completar parámetros'}
+                        {step === 'recipient' && (ui.select || 'Seleccionar')}
+                        {step === 'template' && (t.selectTemplate || 'Seleccionar plantilla')}
+                        {step === 'params' && (ui.configure || 'Completar parámetros')}
                     </DialogTitle>
                     <DialogDescription>
-                        {step === 'recipient' && 'Elige un contacto existente o ingresa un número nuevo.'}
-                        {step === 'template' && 'Elige una plantilla aprobada de WhatsApp.'}
-                        {step === 'params' && 'Completa los valores de los parámetros de la plantilla.'}
+                        {step === 'recipient' && (t.noContactsDesc || 'Elige un contacto existente o ingresa un número nuevo.')}
+                        {step === 'template' && (t.selectTemplate || 'Elige una plantilla aprobada de WhatsApp.')}
+                        {step === 'params' && (ui.configure || 'Completa los valores de los parámetros de la plantilla.')}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -225,11 +229,11 @@ export function SendTemplateDialog({
                     <div className="flex-1 overflow-hidden flex flex-col gap-4">
                         {/* Existing contact search */}
                         <div>
-                            <Label className="text-xs text-muted-foreground mb-1.5 block">Contacto existente</Label>
+                            <Label className="text-xs text-muted-foreground mb-1.5 block">{t.contactDetails || 'Contacto existente'}</Label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Buscar contacto..."
+                                    placeholder={t.search || 'Buscar contacto...'}
                                     className="pl-9"
                                     value={contactSearch}
                                     onChange={(e) => setContactSearch(e.target.value)}
@@ -238,7 +242,7 @@ export function SendTemplateDialog({
                         </div>
                         <div className="flex-1 overflow-y-auto max-h-40 border rounded-md">
                             {filteredContacts.length === 0 ? (
-                                <p className="text-xs text-muted-foreground p-3 text-center">No hay contactos.</p>
+                                <p className="text-xs text-muted-foreground p-3 text-center">{t.noContacts || 'No hay contactos.'}</p>
                             ) : (
                                 filteredContacts.map((c) => (
                                     <button
@@ -265,7 +269,7 @@ export function SendTemplateDialog({
 
                         {/* Or new number */}
                         <div className="border-t pt-4">
-                            <Label className="text-xs text-muted-foreground mb-1.5 block">O ingresa un número nuevo</Label>
+                            <Label className="text-xs text-muted-foreground mb-1.5 block">{t.phone || 'O ingresa un número nuevo'}</Label>
                             <div className="flex gap-2">
                                 <div className="flex-1">
                                     <Input
@@ -278,7 +282,7 @@ export function SendTemplateDialog({
                                     />
                                 </div>
                                 <Input
-                                    placeholder="Nombre (opcional)"
+                                    placeholder={`${ui.name || 'Nombre'} (${ui.optional || 'opcional'})`}
                                     className="w-36"
                                     value={newName}
                                     onChange={(e) => setNewName(e.target.value)}
@@ -297,13 +301,13 @@ export function SendTemplateDialog({
                         {loadingTemplates ? (
                             <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                <span className="ml-2 text-sm text-muted-foreground">Cargando plantillas...</span>
+                                <span className="ml-2 text-sm text-muted-foreground">{ui.loading || 'Cargando...'}</span>
                             </div>
                         ) : templateError ? (
                             <div className="text-center py-8">
                                 <p className="text-sm text-destructive">{templateError}</p>
                                 <Button variant="outline" size="sm" className="mt-3" onClick={loadTemplates}>
-                                    Reintentar
+                                    {ui.retry || 'Reintentar'}
                                 </Button>
                             </div>
                         ) : (
@@ -340,7 +344,7 @@ export function SendTemplateDialog({
                                 })}
                                 {templates.length === 0 && (
                                     <p className="text-xs text-muted-foreground p-3 text-center">
-                                        No hay plantillas aprobadas.
+                                        {t.noTemplatesAvailable || 'No hay plantillas aprobadas.'}
                                     </p>
                                 )}
                             </div>
@@ -371,7 +375,7 @@ export function SendTemplateDialog({
 
                         {/* Preview */}
                         <div className="border rounded-md p-3 bg-gray-50">
-                            <Label className="text-xs text-muted-foreground mb-1 block">Vista previa</Label>
+                            <Label className="text-xs text-muted-foreground mb-1 block">{ui.description || 'Vista previa'}</Label>
                             <p className="text-sm whitespace-pre-wrap">{getPreviewText(selectedTemplate)}</p>
                         </div>
                     </div>
@@ -389,7 +393,7 @@ export function SendTemplateDialog({
                             className="mr-auto"
                         >
                             <ChevronLeft className="h-4 w-4 mr-1" />
-                            Atrás
+                            {ui.back || 'Atrás'}
                         </Button>
                     )}
 
@@ -398,7 +402,7 @@ export function SendTemplateDialog({
                             onClick={handleGoToTemplates}
                             disabled={!canProceedFromRecipient}
                         >
-                            Siguiente
+                            {ui.next || 'Siguiente'}
                             <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
                     )}
@@ -410,7 +414,7 @@ export function SendTemplateDialog({
                             ) : (
                                 <Send className="h-4 w-4 mr-1" />
                             )}
-                            {sending ? 'Enviando...' : 'Enviar'}
+                            {sending ? (ui.sending || 'Enviando...') : (ui.send || 'Enviar')}
                         </Button>
                     )}
 
@@ -421,7 +425,7 @@ export function SendTemplateDialog({
                             ) : (
                                 <Send className="h-4 w-4 mr-1" />
                             )}
-                            {sending ? 'Enviando...' : 'Enviar plantilla'}
+                            {sending ? (ui.sending || 'Enviando...') : (t.sendTemplate || 'Enviar plantilla')}
                         </Button>
                     )}
                 </DialogFooter>

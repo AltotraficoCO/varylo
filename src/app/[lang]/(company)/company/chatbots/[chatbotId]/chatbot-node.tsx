@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { MessageCircle, User, Bot, XCircle, GripVertical, FileInput, Send, Paperclip } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { ChatbotFlowNode } from '@/types/chatbot';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface ChatbotNodeData extends Record<string, unknown> {
     flowNode: ChatbotFlowNode;
@@ -12,31 +13,33 @@ interface ChatbotNodeData extends Record<string, unknown> {
     label: string;
 }
 
-function getNodeConfig(node: ChatbotFlowNode) {
+function getNodeConfig(node: ChatbotFlowNode, t: Record<string, any>) {
     if (node.dataCapture) {
         if (node.dataCapture.validation === 'document') {
-            return { icon: Paperclip, label: 'Captura de documento', color: 'border-orange-400 bg-orange-50 dark:bg-orange-950/40' };
+            return { icon: Paperclip, label: t.documentCapture || 'Captura de documento', color: 'border-orange-400 bg-orange-50 dark:bg-orange-950/40' };
         }
-        return { icon: FileInput, label: 'Captura de dato', color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/40' };
+        return { icon: FileInput, label: t.dataCapture || 'Captura de dato', color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/40' };
     }
     switch (node.action?.type) {
         case 'transfer_to_human':
-            return { icon: User, label: 'Agente humano', color: 'border-blue-400 bg-blue-50 dark:bg-blue-950/40' };
+            return { icon: User, label: t.nodeHumanAgent || 'Agente humano', color: 'border-blue-400 bg-blue-50 dark:bg-blue-950/40' };
         case 'transfer_to_ai_agent':
-            return { icon: Bot, label: 'Agente IA', color: 'border-purple-400 bg-purple-50 dark:bg-purple-950/40' };
+            return { icon: Bot, label: t.nodeAiAgent || 'Agente IA', color: 'border-purple-400 bg-purple-50 dark:bg-purple-950/40' };
         case 'send_to_webhook':
-            return { icon: Send, label: 'Enviar a ERP', color: 'border-green-400 bg-green-50 dark:bg-green-950/40' };
+            return { icon: Send, label: t.sendToErp || 'Enviar a ERP', color: 'border-green-400 bg-green-50 dark:bg-green-950/40' };
         case 'end_conversation':
-            return { icon: XCircle, label: 'Fin', color: 'border-red-400 bg-red-50 dark:bg-red-950/40' };
+            return { icon: XCircle, label: t.nodeEnd || 'Fin', color: 'border-red-400 bg-red-50 dark:bg-red-950/40' };
         default:
-            return { icon: MessageCircle, label: 'Mensaje', color: 'border-border bg-card' };
+            return { icon: MessageCircle, label: t.nodeMessage || 'Mensaje', color: 'border-border bg-card' };
     }
 }
 
 export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodeProps) {
+    const dict = useDictionary();
+    const t = dict.chatbots || {};
     const nodeData = data as unknown as ChatbotNodeData;
     const { flowNode, isStart, label } = nodeData;
-    const config = getNodeConfig(flowNode);
+    const config = getNodeConfig(flowNode, t);
     const Icon = config.icon;
     const hasOptions = !flowNode.action && !flowNode.dataCapture && (flowNode.options?.length || 0) > 0;
     const isDataCapture = !!flowNode.dataCapture;
@@ -65,7 +68,7 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
                     <Icon className="h-3.5 w-3.5" />
                 </div>
                 <span className="font-semibold text-sm truncate flex-1">{label}</span>
-                {isStart && <Badge variant="default" className="text-[10px] h-4 px-1.5 shrink-0">INICIO</Badge>}
+                {isStart && <Badge variant="default" className="text-[10px] h-4 px-1.5 shrink-0">{t.start}</Badge>}
             </div>
 
             {/* Message preview */}
@@ -75,7 +78,7 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
                         {flowNode.message}
                     </p>
                 ) : (
-                    <p className="text-xs text-muted-foreground/50 italic">Sin mensaje...</p>
+                    <p className="text-xs text-muted-foreground/50 italic">{t.noMessage}</p>
                 )}
             </div>
 
@@ -83,7 +86,7 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
             {isDataCapture && flowNode.dataCapture && (
                 <div className="px-3 pb-2.5 space-y-1">
                     <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-600">
-                        {flowNode.dataCapture.fieldLabel || flowNode.dataCapture.fieldName || 'Sin campo'}
+                        {flowNode.dataCapture.fieldLabel || flowNode.dataCapture.fieldName || t.noField}
                     </Badge>
                     {flowNode.dataCapture.validation && flowNode.dataCapture.validation !== 'text' && (
                         <Badge variant="outline" className="text-[10px] ml-1">
@@ -114,7 +117,7 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
                                 </span>
                                 <span className={`truncate ${isConnected ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>{option.label}</span>
                                 {!isConnected && (
-                                    <span className="ml-auto mr-3 text-[9px] text-orange-500 font-medium">sin conectar</span>
+                                    <span className="ml-auto mr-3 text-[9px] text-orange-500 font-medium">{t.notConnected}</span>
                                 )}
                                 <Handle
                                     type="source"
@@ -133,9 +136,9 @@ export const ChatbotNode = memo(function ChatbotNode({ data, selected }: NodePro
             {isDataCapture && (
                 <div className="border-t border-border/50">
                     <div className="relative flex items-center px-3 py-1.5 text-xs">
-                        <span className="text-muted-foreground">Siguiente paso</span>
+                        <span className="text-muted-foreground">{t.nextStep}</span>
                         {!dataCaptureConnected && (
-                            <span className="ml-auto mr-3 text-[9px] text-orange-500 font-medium">sin conectar</span>
+                            <span className="ml-auto mr-3 text-[9px] text-orange-500 font-medium">{t.notConnected}</span>
                         )}
                         <Handle
                             type="source"

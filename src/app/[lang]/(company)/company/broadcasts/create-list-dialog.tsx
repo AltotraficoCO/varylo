@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { Search, Loader2, Users, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createContactList } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface Contact {
   id: string;
@@ -37,6 +38,9 @@ export function CreateListDialog({
   onOpenChange: (open: boolean) => void;
   contacts: Contact[];
 }) {
+  const dict = useDictionary();
+  const t = dict.broadcasts || {};
+  const ui = dict.ui || {};
   const router = useRouter();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -102,11 +106,11 @@ export function CreateListDialog({
     setSaving(false);
 
     if (result.success) {
-      toast.success(`Lista "${name}" creada con ${selectedIds.size} contactos.`);
+      toast.success(ui.createdSuccessfully || `Lista "${name}" creada con ${selectedIds.size} contactos.`);
       onOpenChange(false);
       router.refresh();
     } else {
-      toast.error(result.error || 'Error al crear la lista.');
+      toast.error(result.error || ui.errorOccurred || 'Error al crear la lista.');
     }
   };
 
@@ -114,9 +118,9 @@ export function CreateListDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Nueva lista de contactos</DialogTitle>
+          <DialogTitle>{t.createList || 'Nueva lista de contactos'}</DialogTitle>
           <DialogDescription>
-            Crea una lista con nombre y selecciona los contactos que quieres incluir.
+            {t.noListsDesc || 'Crea una lista con nombre y selecciona los contactos que quieres incluir.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -124,18 +128,18 @@ export function CreateListDialog({
           {/* Name & Description */}
           <div className="space-y-3">
             <div>
-              <Label className="text-sm">Nombre de la lista *</Label>
+              <Label className="text-sm">{t.listName || 'Nombre de la lista'} *</Label>
               <Input
-                placeholder="Ej: Clientes VIP, Prospectos..."
+                placeholder={t.listNamePlaceholder || 'Ej: Clientes VIP, Prospectos...'}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="mt-1"
               />
             </div>
             <div>
-              <Label className="text-sm">Descripción (opcional)</Label>
+              <Label className="text-sm">{ui.description || 'Descripción'} ({ui.optional || 'opcional'})</Label>
               <Input
-                placeholder="Describe el propósito de esta lista..."
+                placeholder={ui.description || 'Describe el propósito de esta lista...'}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="mt-1"
@@ -147,20 +151,20 @@ export function CreateListDialog({
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-2">
               <Label className="text-sm flex items-center gap-2">
-                Contactos
+                {dict.contacts?.title || 'Contactos'}
                 <Badge variant="secondary" className="text-[10px] px-1.5 h-5">
-                  {selectedIds.size} seleccionados
+                  {selectedIds.size} {ui.selected || 'seleccionados'}
                 </Badge>
               </Label>
               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={toggleAll}>
-                {selectedIds.size === whatsappContacts.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                {selectedIds.size === whatsappContacts.length ? (ui.none || 'Deseleccionar todos') : (ui.selectAll || 'Seleccionar todos')}
               </Button>
             </div>
 
             <div className="relative mb-2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar contacto..."
+                placeholder={dict.contacts?.search || 'Buscar contacto...'}
                 className="pl-9 h-8"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -170,7 +174,7 @@ export function CreateListDialog({
             <div className="flex-1 overflow-y-auto max-h-48 border rounded-md">
               {whatsappContacts.length === 0 ? (
                 <p className="text-xs text-muted-foreground p-3 text-center">
-                  No hay contactos con número de teléfono.
+                  {dict.contacts?.noContacts || 'No hay contactos con número de teléfono.'}
                 </p>
               ) : (
                 whatsappContacts.map((c) => (
@@ -205,12 +209,12 @@ export function CreateListDialog({
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                Creando...
+                {ui.creating || 'Creando...'}
               </>
             ) : (
               <>
                 <Users className="h-4 w-4 mr-1" />
-                Crear lista ({selectedIds.size})
+                {t.createList || 'Crear lista'} ({selectedIds.size})
               </>
             )}
           </Button>

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { CreateChatbotDialog } from './create-chatbot-dialog';
 import Link from 'next/link';
 import { Bot, MessageSquare, Zap } from 'lucide-react';
+import { getDictionary } from '@/lib/dictionary';
+import type { Locale } from '@/lib/dictionary';
 
 const ICON_THEMES = [
     { bg: 'bg-[#ECFDF5]', color: 'text-[#10B981]', Icon: Bot },
@@ -15,6 +17,8 @@ export default async function ChatbotsPage({ params }: { params: Promise<{ lang:
     const { lang } = await params;
     const session = await auth();
     if (!session?.user?.companyId) return null;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.chatbots || {} as Record<string, any>;
 
     const chatbots = await prisma.chatbot.findMany({
         where: { companyId: session.user.companyId },
@@ -31,8 +35,8 @@ export default async function ChatbotsPage({ params }: { params: Promise<{ lang:
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#09090B]">Chatbots</h1>
-                    <p className="text-sm text-[#71717A] mt-1">Crea flujos automatizados para tus conversaciones</p>
+                    <h1 className="text-2xl font-bold text-[#09090B]">{t.title}</h1>
+                    <p className="text-sm text-[#71717A] mt-1">{t.subtitlePage}</p>
                 </div>
                 <CreateChatbotDialog channels={channels.map(c => ({ id: c.id, type: c.type }))} />
             </div>
@@ -60,24 +64,24 @@ export default async function ChatbotsPage({ params }: { params: Promise<{ lang:
                                 <h3 className="text-base font-semibold text-[#09090B]">{chatbot.name}</h3>
                                 {chatbot.active && (
                                     <span className="bg-[#ECFDF5] text-[#10B981] text-xs rounded-xl px-2.5 py-0.5">
-                                        Activo
+                                        {t.active}
                                     </span>
                                 )}
                                 {!chatbot.active && (
                                     <span className="bg-[#F4F4F5] text-[#71717A] text-xs rounded-xl px-2.5 py-0.5">
-                                        Inactivo
+                                        {t.inactive}
                                     </span>
                                 )}
                             </div>
 
                             {/* Description */}
                             <p className="text-[13px] text-[#3F3F46] leading-[1.4] line-clamp-2">
-                                Flujo de conversación automatizado
+                                {t.automatedFlow}
                             </p>
 
                             {/* Stats */}
                             <p className="text-xs text-[#71717A]">
-                                {nodeCount} nodos • {chatbot._count.channels} {chatbot._count.channels === 1 ? 'canal' : 'canales'}
+                                {nodeCount} {t.nodes} • {chatbot._count.channels} {chatbot._count.channels === 1 ? t.channel : t.channelsPlural}
                             </p>
                         </Link>
                     );
@@ -90,8 +94,8 @@ export default async function ChatbotsPage({ params }: { params: Promise<{ lang:
                             <span className="text-2xl font-light text-[#71717A]">+</span>
                         </div>
                         <div>
-                            <h3 className="text-sm font-semibold text-[#09090B]">Crear nuevo chatbot</h3>
-                            <p className="text-[13px] text-[#71717A] mt-1">Diseña flujos visuales sin código</p>
+                            <h3 className="text-sm font-semibold text-[#09090B]">{t.createNewChatbot}</h3>
+                            <p className="text-[13px] text-[#71717A] mt-1">{t.designVisualFlows}</p>
                         </div>
                     </button>
                 } />

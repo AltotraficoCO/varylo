@@ -12,6 +12,7 @@ import {
     Plus, X, GripVertical, Kanban, Pencil,
 } from 'lucide-react';
 import { updateAiAgent } from '../../actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 type Channel = { id: string; type: string };
 
@@ -45,6 +46,9 @@ interface EditAgentFlowProps {
 }
 
 export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasShopify, hasWooCommerce }: EditAgentFlowProps) {
+    const dict = useDictionary();
+    const t = dict.aiAgents || {};
+    const ui = dict.ui || {};
     const router = useRouter();
 
     const [name, setName] = useState(agent.name);
@@ -92,7 +96,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                         <Pencil className="h-5 w-5 text-[#3B82F6]" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-[#09090B]">Editar Agente</h1>
+                        <h1 className="text-2xl font-bold text-[#09090B]">{t.editAgentPage}</h1>
                         <p className="text-[14px] text-[#71717A] mt-0.5">{agent.name}</p>
                     </div>
                 </div>
@@ -124,19 +128,19 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                 {/* Basic Info */}
                 <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                     <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
-                        <h2 className="text-[15px] font-semibold text-[#09090B]">Informacion basica</h2>
+                        <h2 className="text-[15px] font-semibold text-[#09090B]">{t.basicInfo}</h2>
                     </div>
                     <div className="p-6 space-y-4">
                         <div className="space-y-1.5">
-                            <Label className="text-[13px] font-medium text-[#3F3F46]">Nombre del agente</Label>
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">{t.agentNameLabel}</Label>
                             <Input name="name" value={name} onChange={e => setName(e.target.value)} className="h-10 rounded-lg border-[#E4E4E7] text-[14px]" required />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[13px] font-medium text-[#3F3F46]">Prompt del sistema</Label>
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">{t.systemPromptLabel}</Label>
                             <Textarea name="systemPrompt" value={systemPrompt} onChange={e => setSystemPrompt(e.target.value)} rows={8} className="rounded-lg border-[#E4E4E7] text-[14px] resize-none" required />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[13px] font-medium text-[#3F3F46]">Contexto adicional</Label>
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">{t.additionalContext}</Label>
                             <Textarea name="contextInfo" value={contextInfo} onChange={e => setContextInfo(e.target.value)} rows={3} className="rounded-lg border-[#E4E4E7] text-[14px] resize-none" />
                         </div>
                     </div>
@@ -145,24 +149,24 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                 {/* Model */}
                 <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                     <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
-                        <h2 className="text-[15px] font-semibold text-[#09090B]">Modelo y comportamiento</h2>
+                        <h2 className="text-[15px] font-semibold text-[#09090B]">{t.modelAndBehavior}</h2>
                     </div>
                     <div className="p-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label className="text-[13px] font-medium text-[#3F3F46]">Modelo</Label>
+                                <Label className="text-[13px] font-medium text-[#3F3F46]">{t.modelLabel}</Label>
                                 <select value={model} onChange={e => setModel(e.target.value)} className="w-full h-10 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[14px]">
                                     <option value="gpt-4o-mini">GPT-4o Mini</option>
                                     <option value="gpt-4o">GPT-4o</option>
                                 </select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-[13px] font-medium text-[#3F3F46]">Temperatura: {temperature}</Label>
+                                <Label className="text-[13px] font-medium text-[#3F3F46]">{t.temperatureLabel}: {temperature}</Label>
                                 <input type="range" min="0" max="2" step="0.1" value={temperature} onChange={e => setTemperature(e.target.value)} className="w-full h-10 accent-[#10B981]" />
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[13px] font-medium text-[#3F3F46]">Palabras de transferencia</Label>
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">{t.transferWordsLabel}</Label>
                             <Input value={transferKeywords} onChange={e => setTransferKeywords(e.target.value)} className="h-10 rounded-lg border-[#E4E4E7] text-[14px]" />
                         </div>
                     </div>
@@ -171,7 +175,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                 {/* Capabilities */}
                 <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                     <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
-                        <h2 className="text-[15px] font-semibold text-[#09090B]">Capacidades</h2>
+                        <h2 className="text-[15px] font-semibold text-[#09090B]">{t.capabilities}</h2>
                     </div>
                     <div className="divide-y divide-[#F4F4F5]">
                         {/* Data Capture */}
@@ -180,8 +184,8 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                                 <div className="flex items-center gap-3">
                                     <div className="h-9 w-9 rounded-lg bg-[#ECFDF5] flex items-center justify-center"><FileText className="h-4 w-4 text-[#10B981]" /></div>
                                     <div>
-                                        <p className="text-[14px] font-medium text-[#09090B]">Captura de datos</p>
-                                        <p className="text-[12px] text-[#71717A]">Define qué datos capturar del cliente</p>
+                                        <p className="text-[14px] font-medium text-[#09090B]">{t.dataCaptureTitle}</p>
+                                        <p className="text-[12px] text-[#71717A]">{t.dataCaptureSubtitle}</p>
                                     </div>
                                 </div>
                                 <Switch checked={dataCaptureEnabled} onCheckedChange={setDataCaptureEnabled} />
@@ -195,7 +199,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                                                 <span className="text-[13px] text-[#09090B] flex-1">{field.label}</span>
                                                 <button type="button" onClick={() => setCaptureFields(prev => prev.map((f, i) => i === idx ? { ...f, required: !f.required } : f))}
                                                     className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${field.required ? 'bg-[#ECFDF5] text-[#10B981]' : 'bg-[#F4F4F5] text-[#A1A1AA]'}`}>
-                                                    {field.required ? 'Obligatorio' : 'Opcional'}
+                                                    {field.required ? t.mandatory : t.optionalField}
                                                 </button>
                                             </div>
                                             <button type="button" onClick={() => setCaptureFields(prev => prev.filter((_, i) => i !== idx))} className="text-[#D4D4D8] hover:text-[#EF4444] p-1"><X className="h-3.5 w-3.5" /></button>
@@ -203,7 +207,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                                     ))}
                                     <div className="flex items-center gap-2">
                                         <span className="w-[18px]" />
-                                        <Input value={newFieldLabel} onChange={e => setNewFieldLabel(e.target.value)} placeholder="Nuevo campo..." className="h-9 rounded-lg text-[13px] flex-1"
+                                        <Input value={newFieldLabel} onChange={e => setNewFieldLabel(e.target.value)} placeholder={t.newFieldPlaceholder} className="h-9 rounded-lg text-[13px] flex-1"
                                             onKeyDown={e => {
                                                 if (e.key === 'Enter' && newFieldLabel.trim()) {
                                                     e.preventDefault();
@@ -232,8 +236,8 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                             <div className="flex items-center gap-3">
                                 <div className="h-9 w-9 rounded-lg bg-[#EFF6FF] flex items-center justify-center"><Calendar className="h-4 w-4 text-[#3B82F6]" /></div>
                                 <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">Google Calendar</p>
-                                    <p className="text-[12px] text-[#71717A]">{hasGoogleCalendar ? 'Agenda citas y consulta disponibilidad' : 'Conecta Calendar primero'}</p>
+                                    <p className="text-[14px] font-medium text-[#09090B]">{t.googleCalendar}</p>
+                                    <p className="text-[12px] text-[#71717A]">{hasGoogleCalendar ? t.scheduleAppointments : t.connectCalendarFirst}</p>
                                 </div>
                             </div>
                             <Switch checked={calendarEnabled} onCheckedChange={setCalendarEnabled} disabled={!hasGoogleCalendar} />
@@ -244,8 +248,8 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                             <div className="flex items-center gap-3">
                                 <div className="h-9 w-9 rounded-lg bg-[#F0FDF4] flex items-center justify-center"><ShoppingBag className="h-4 w-4 text-[#16A34A]" /></div>
                                 <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">Shopify</p>
-                                    <p className="text-[12px] text-[#71717A]">{hasShopify ? 'Consulta productos y precios' : 'Conecta Shopify primero'}</p>
+                                    <p className="text-[14px] font-medium text-[#09090B]">{t.shopify}</p>
+                                    <p className="text-[12px] text-[#71717A]">{hasShopify ? t.shopifyConnected : t.shopifyDisconnected}</p>
                                 </div>
                             </div>
                             <Switch checked={shopifyEnabled} onCheckedChange={setShopifyEnabled} disabled={!hasShopify} />
@@ -256,8 +260,8 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                             <div className="flex items-center gap-3">
                                 <div className="h-9 w-9 rounded-lg bg-[#EFF6FF] flex items-center justify-center"><ShoppingBag className="h-4 w-4 text-[#2563EB]" /></div>
                                 <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">WordPress</p>
-                                    <p className="text-[12px] text-[#71717A]">{hasWooCommerce ? 'Consulta productos WooCommerce' : 'Conecta WordPress primero'}</p>
+                                    <p className="text-[14px] font-medium text-[#09090B]">{t.wordpress}</p>
+                                    <p className="text-[12px] text-[#71717A]">{hasWooCommerce ? t.wordpressConnected : t.wordpressDisconnected}</p>
                                 </div>
                             </div>
                             <Switch checked={woocommerceEnabled} onCheckedChange={setWoocommerceEnabled} disabled={!hasWooCommerce} />
@@ -268,8 +272,8 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                             <div className="flex items-center gap-3">
                                 <div className="h-9 w-9 rounded-lg bg-[#ECFDF5] flex items-center justify-center"><Kanban className="h-4 w-4 text-[#10B981]" /></div>
                                 <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">CRM Pipeline</p>
-                                    <p className="text-[12px] text-[#71717A]">Crea y gestiona deals automaticamente</p>
+                                    <p className="text-[14px] font-medium text-[#09090B]">{t.crmPipeline}</p>
+                                    <p className="text-[12px] text-[#71717A]">{t.crmPipelineDesc}</p>
                                 </div>
                             </div>
                             <Switch checked={crmEnabled} onCheckedChange={setCrmEnabled} />
@@ -281,8 +285,8 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                                 <div className="flex items-center gap-3">
                                     <div className="h-9 w-9 rounded-lg bg-[#FFF7ED] flex items-center justify-center"><Webhook className="h-4 w-4 text-[#F97316]" /></div>
                                     <div>
-                                        <p className="text-[14px] font-medium text-[#09090B]">Webhook / ERP</p>
-                                        <p className="text-[12px] text-[#71717A]">Envia datos a un sistema externo</p>
+                                        <p className="text-[14px] font-medium text-[#09090B]">{t.webhookErpTitle}</p>
+                                        <p className="text-[12px] text-[#71717A]">{t.webhookErpSubtitle}</p>
                                     </div>
                                 </div>
                                 <Switch checked={webhookEnabled} onCheckedChange={setWebhookEnabled} />
@@ -300,7 +304,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                 {channels.length > 0 && (
                     <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                         <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
-                            <h2 className="text-[15px] font-semibold text-[#09090B]">Canales</h2>
+                            <h2 className="text-[15px] font-semibold text-[#09090B]">{t.channels}</h2>
                         </div>
                         <div className="p-6">
                             <div className="flex flex-wrap gap-2">
@@ -322,11 +326,11 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                 {/* Actions */}
                 <div className="flex items-center justify-between pt-2 pb-8">
                     <Button type="button" variant="outline" onClick={() => router.push(`/${lang}/company/ai-agents`)} className="rounded-lg border-[#E4E4E7] text-[14px]">
-                        <ArrowLeft className="h-4 w-4 mr-1.5" /> Cancelar
+                        <ArrowLeft className="h-4 w-4 mr-1.5" /> {t.cancelBtn || ui.cancel}
                     </Button>
                     <Button type="submit" disabled={isPending} className="rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-[14px] font-medium px-6">
                         {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
-                        Guardar cambios
+                        {t.saveChangesBtn}
                     </Button>
                 </div>
             </form>

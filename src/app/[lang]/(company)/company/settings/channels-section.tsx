@@ -6,6 +6,7 @@ import { WhatsAppConnectionForm } from './whatsapp-form';
 import { WebChatForm } from './webchat-form';
 import { InstagramDMForm } from './instagram-dm-form';
 import Link from 'next/link';
+import { useDictionary } from '@/lib/i18n-context';
 
 type ChannelsSectionProps = {
     whatsappConfig: {
@@ -35,6 +36,9 @@ type ChannelsSectionProps = {
 };
 
 export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig, hasActiveSubscription }: ChannelsSectionProps) {
+    const dict = useDictionary();
+    const t = dict.settingsUI?.channelsSection || {};
+
     if (!hasActiveSubscription) {
         return (
             <div className="space-y-4">
@@ -42,14 +46,14 @@ export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig
                     <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
                         <Lock className="h-6 w-6 text-amber-600" />
                     </div>
-                    <h3 className="text-lg font-semibold text-amber-900">Suscripción requerida</h3>
+                    <h3 className="text-lg font-semibold text-amber-900">{t.subscriptionRequired || 'Suscripción requerida'}</h3>
                     <p className="text-sm text-amber-700 max-w-md mx-auto">
-                        Para configurar canales necesitas un plan activo.
+                        {t.subscriptionRequiredDesc || 'Para configurar canales necesitas un plan activo.'}
                     </p>
                     <Link href="?tab=billing">
                         <button className="mt-2 inline-flex items-center gap-2 rounded-lg bg-[#10B981] text-white px-4 py-2 text-sm font-medium">
                             <CreditCard className="h-4 w-4" />
-                            Suscríbete ahora
+                            {t.subscribeNow || 'Suscríbete ahora'}
                         </button>
                     </Link>
                 </div>
@@ -60,7 +64,7 @@ export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig
     return (
         <div className="space-y-5">
             <p className="text-[14px] text-[#71717A]">
-                Canales conectados. Selecciona un canal para configurarlo.
+                {t.connectedChannelsDesc || 'Canales conectados. Selecciona un canal para configurarlo.'}
             </p>
 
             {/* All channels inline - no drill-down views */}

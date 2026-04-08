@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toggleConversationAgent } from "./actions";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useDictionary } from '@/lib/i18n-context';
 
 interface Agent {
     id: string;
@@ -36,12 +37,14 @@ interface AgentSelectorProps {
 
 export function AgentSelector({ conversationId, availableAgents, selectedAgents }: AgentSelectorProps) {
     const [open, setOpen] = React.useState(false);
+    const dict = useDictionary();
+    const t = dict.conversations || {};
 
     const handleToggle = async (agentId: string) => {
         try {
             await toggleConversationAgent(conversationId, agentId);
         } catch (error) {
-            toast.error("Failed to update agent");
+            toast.error(t.errorUpdateAgent);
         }
     };
 
@@ -78,16 +81,16 @@ export function AgentSelector({ conversationId, availableAgents, selectedAgents 
                         className="w-full justify-between h-9"
                     >
                         <span className="flex items-center gap-2 text-muted-foreground text-xs">
-                            <Plus className="h-4 w-4" /> Asignar agente
+                            <Plus className="h-4 w-4" /> {t.assignAgent}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[200px] p-0" align="start">
                     <Command>
-                        <CommandInput placeholder="Buscar agente..." />
+                        <CommandInput placeholder={t.searchAgent} />
                         <CommandList>
-                            <CommandEmpty>No se encontraron agentes.</CommandEmpty>
+                            <CommandEmpty>{t.noAgentsFound}</CommandEmpty>
                             <CommandGroup>
                                 {availableAgents.map((agent) => {
                                     const isSelected = selectedAgents.some(a => a.id === agent.id);

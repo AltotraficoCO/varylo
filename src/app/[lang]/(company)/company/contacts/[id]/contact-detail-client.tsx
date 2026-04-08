@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateContact } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface Contact {
     id: string;
@@ -53,6 +54,9 @@ interface Contact {
 }
 
 export function ContactDetailClient({ contact, lang }: { contact: Contact; lang: string }) {
+    const dict = useDictionary();
+    const t = dict.contacts || {};
+    const ui = dict.ui || {};
     const router = useRouter();
     const [editing, setEditing] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -76,11 +80,11 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
         setSaving(false);
 
         if (result.success) {
-            toast.success('Contacto actualizado');
+            toast.success(ui.updatedSuccessfully || 'Contacto actualizado');
             setEditing(false);
             router.refresh();
         } else {
-            toast.error(result.message || 'Error al actualizar');
+            toast.error(result.message || ui.errorOccurred || 'Error al actualizar');
         }
     };
 
@@ -125,11 +129,11 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
     const statusLabel = (status: string) => {
         switch (status) {
             case 'OPEN':
-                return <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px]">Abierta</Badge>;
+                return <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px]">{dict.dashboard?.common?.open || 'Abierta'}</Badge>;
             case 'RESOLVED':
-                return <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[10px]">Resuelta</Badge>;
+                return <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-[10px]">{ui.completed || 'Resuelta'}</Badge>;
             case 'PENDING':
-                return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[10px]">Pendiente</Badge>;
+                return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[10px]">{ui.pending || 'Pendiente'}</Badge>;
             default:
                 return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
         }
@@ -146,23 +150,23 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
                                 <ArrowLeft className="h-4 w-4" />
                             </Button>
                         </Link>
-                        <h1 className="text-xl font-semibold tracking-tight text-foreground">Detalle de contacto</h1>
+                        <h1 className="text-xl font-semibold tracking-tight text-foreground">{t.contactDetails || 'Detalle de contacto'}</h1>
                     </div>
                     <div className="flex items-center gap-2">
                         {!editing ? (
                             <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="h-8 px-3 text-xs">
                                 <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                                Editar
+                                {ui.edit || 'Editar'}
                             </Button>
                         ) : (
                             <>
                                 <Button variant="ghost" size="sm" onClick={handleCancel} className="h-8 px-3 text-xs">
                                     <X className="h-3.5 w-3.5 mr-1.5" />
-                                    Cancelar
+                                    {ui.cancel || 'Cancelar'}
                                 </Button>
                                 <Button size="sm" onClick={handleSave} disabled={saving} className="h-8 px-3 text-xs">
                                     <Save className="h-3.5 w-3.5 mr-1.5" />
-                                    {saving ? 'Guardando...' : 'Guardar'}
+                                    {saving ? (ui.saving || 'Guardando...') : (ui.save || 'Guardar')}
                                 </Button>
                             </>
                         )}
@@ -223,13 +227,13 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
                     {/* Edit / Info card */}
                     <Card>
                         <CardHeader className="pb-4">
-                            <CardTitle className="text-base">Informacion del contacto</CardTitle>
+                            <CardTitle className="text-base">{t.contactDetails || 'Informacion del contacto'}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                     <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                        Nombre
+                                        {t.name || ui.name || 'Nombre'}
                                     </Label>
                                     {editing ? (
                                         <Input
@@ -240,14 +244,14 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
                                         />
                                     ) : (
                                         <p className="text-sm font-medium text-gray-800 py-1.5">
-                                            {contact.name || <span className="text-muted-foreground italic">Sin nombre</span>}
+                                            {contact.name || <span className="text-muted-foreground italic">{dict.dashboard?.common?.noName || 'Sin nombre'}</span>}
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="space-y-1.5">
                                     <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                        <Mail className="h-3 w-3" /> Email
+                                        <Mail className="h-3 w-3" /> {t.email || ui.email || 'Email'}
                                     </Label>
                                     {editing ? (
                                         <Input
@@ -259,14 +263,14 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
                                         />
                                     ) : (
                                         <p className="text-sm font-medium text-gray-800 py-1.5">
-                                            {contact.email || <span className="text-muted-foreground italic">Sin email</span>}
+                                            {contact.email || <span className="text-muted-foreground italic">{ui.noData || 'Sin email'}</span>}
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="space-y-1.5">
                                     <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                        <Building className="h-3 w-3" /> Empresa
+                                        <Building className="h-3 w-3" /> {dict.dashboard?.companiesAdmin?.company || 'Empresa'}
                                     </Label>
                                     {editing ? (
                                         <Input
@@ -277,7 +281,7 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
                                         />
                                     ) : (
                                         <p className="text-sm font-medium text-gray-800 py-1.5">
-                                            {contact.companyName || <span className="text-muted-foreground italic">Sin empresa</span>}
+                                            {contact.companyName || <span className="text-muted-foreground italic">{ui.noData || 'Sin empresa'}</span>}
                                         </p>
                                     )}
                                 </div>
@@ -295,7 +299,7 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
                                         />
                                     ) : (
                                         <p className="text-sm font-medium text-gray-800 py-1.5">
-                                            {contact.city || <span className="text-muted-foreground italic">Sin ciudad</span>}
+                                            {contact.city || <span className="text-muted-foreground italic">{ui.noData || 'Sin ciudad'}</span>}
                                         </p>
                                     )}
                                 </div>
@@ -313,7 +317,7 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
                                         />
                                     ) : (
                                         <p className="text-sm font-medium text-gray-800 py-1.5">
-                                            {contact.country || <span className="text-muted-foreground italic">Sin pais</span>}
+                                            {contact.country || <span className="text-muted-foreground italic">{ui.noData || 'Sin pais'}</span>}
                                         </p>
                                     )}
                                 </div>
@@ -327,7 +331,7 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
                             <CardHeader className="pb-4">
                                 <CardTitle className="text-base flex items-center gap-2">
                                     <FileInput className="h-4 w-4" />
-                                    Datos capturados
+                                    {t.customFields || 'Datos capturados'}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -349,7 +353,7 @@ export function ContactDetailClient({ contact, lang }: { contact: Contact; lang:
                             <CardHeader className="pb-4">
                                 <CardTitle className="text-base flex items-center gap-2">
                                     <MessageSquare className="h-4 w-4" />
-                                    Conversaciones ({contact.conversations.length})
+                                    {t.conversations || 'Conversaciones'} ({contact.conversations.length})
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>

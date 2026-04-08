@@ -15,6 +15,7 @@ import { useRealtimeData } from './realtime-context';
 import { getWhatsAppTemplates, sendTemplateMessage } from '@/lib/template-actions';
 import { cn } from '@/lib/utils';
 import { Mp3Encoder } from '@breezystack/lamejs';
+import { useDictionary } from '@/lib/i18n-context';
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB (WhatsApp limit)
 const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -161,6 +162,9 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
     const router = useRouter();
     const { markAsRead, conversations } = useRealtimeData();
     const markedRef = useRef(false);
+    const dict = useDictionary();
+    const t = dict.conversations || {};
+    const ui = dict.ui || {};
 
     // Voice recording state
     const [isRecording, setIsRecording] = useState(false);
@@ -225,7 +229,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         if (!file) return;
 
         if (file.size > MAX_FILE_SIZE) {
-            alert('El archivo excede el límite de 16MB.');
+            alert(t.fileSizeExceeded);
             return;
         }
 
@@ -290,7 +294,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 });
             }, 1000);
         } catch {
-            alert('No se pudo acceder al micrófono. Verifica los permisos del navegador.');
+            alert(t.micPermissionError);
         }
     };
 
@@ -353,11 +357,11 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                     } else if (result.windowExpired) {
                         setShowTemplateSelector(true);
                     } else {
-                        alert(result.message || 'Error al enviar nota de voz');
+                        alert(result.message || t.errorSendingVoice);
                     }
                 } catch (error) {
                     console.error('Error sending voice note:', error);
-                    alert('Error al enviar la nota de voz. Intenta de nuevo.');
+                    alert(t.errorSendingVoiceRetry);
                 } finally {
                     setIsSending(false);
                 }
@@ -410,10 +414,10 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         if (result.success && result.templates) {
             setTemplates(result.templates);
         } else {
-            setTemplateError(result.error || 'Error desconocido');
+            setTemplateError(result.error || ui.unknown);
         }
         setLoadingTemplates(false);
-    }, []);
+    }, [ui.unknown]);
 
     const handleOpenTemplateSelector = () => {
         setShowTemplateSelector(true);
@@ -446,10 +450,10 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         return text;
     };
 
-    const handleSelectTemplate = (t: Template) => {
-        setSelectedTemplate(t);
+    const handleSelectTemplate = (tmpl: Template) => {
+        setSelectedTemplate(tmpl);
         setParamValues({});
-        const params = getBodyParams(t);
+        const params = getBodyParams(tmpl);
         if (params.length > 0) {
             setTemplateStep('params');
         }
@@ -489,7 +493,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
             setTemplateStep('list');
             router.refresh();
         } else {
-            alert(result.error || 'Error al enviar plantilla');
+            alert(result.error || t.errorSendingTemplate);
         }
     };
 
@@ -502,24 +506,24 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                         <div className="flex items-center gap-2 text-amber-700 bg-amber-50 px-4 py-2.5 rounded-lg w-full">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             <div className="text-sm">
-                                <p>La ventana de 24 horas ha expirado. Para volver a escribir a este contacto debes usar una <strong>plantilla aprobada</strong> de WhatsApp.</p>
+                                <p>{t.windowExpiredMsg}</p>
                                 {lastInboundAt && (
                                     <p className="text-xs text-amber-600 mt-1">
-                                        Último mensaje del cliente: {new Date(lastInboundAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })} a las {new Date(lastInboundAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                        {t.lastClientMessage} {new Date(lastInboundAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })} a las {new Date(lastInboundAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
                                     </p>
                                 )}
                             </div>
                         </div>
                         <Button onClick={handleOpenTemplateSelector} className="w-full" variant="default">
                             <Send className="h-4 w-4 mr-2" />
-                            Enviar plantilla
+                            {t.sendTemplate}
                         </Button>
                     </div>
                 ) : (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-medium">
-                                {templateStep === 'list' ? 'Seleccionar plantilla' : 'Completar parámetros'}
+                                {templateStep === 'list' ? t.selectTemplateTitle : t.completeParams}
                             </h4>
                             <Button
                                 variant="ghost"
@@ -534,9 +538,9 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                 }}
                             >
                                 {templateStep === 'params' ? (
-                                    <><ChevronLeft className="h-4 w-4 mr-1" /> Atrás</>
+                                    <><ChevronLeft className="h-4 w-4 mr-1" /> {ui.back}</>
                                 ) : (
-                                    <><X className="h-4 w-4 mr-1" /> Cerrar</>
+                                    <><X className="h-4 w-4 mr-1" /> {ui.close}</>
                                 )}
                             </Button>
                         </div>
@@ -546,34 +550,34 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                 {loadingTemplates ? (
                                     <div className="flex items-center justify-center py-6">
                                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                        <span className="ml-2 text-sm text-muted-foreground">Cargando plantillas...</span>
+                                        <span className="ml-2 text-sm text-muted-foreground">{t.loadingTemplates}</span>
                                     </div>
                                 ) : templateError ? (
                                     <div className="text-center py-4">
                                         <p className="text-sm text-destructive">{templateError}</p>
                                         <Button variant="outline" size="sm" className="mt-2" onClick={loadTemplates}>
-                                            Reintentar
+                                            {ui.retry}
                                         </Button>
                                     </div>
                                 ) : (
                                     <div className="max-h-48 overflow-y-auto border rounded-md divide-y">
-                                        {templates.map((t) => {
-                                            const body = t.components.find((c) => c.type === 'BODY');
-                                            const isSelected = selectedTemplate?.name === t.name && selectedTemplate?.language === t.language;
+                                        {templates.map((tmpl) => {
+                                            const body = tmpl.components.find((c) => c.type === 'BODY');
+                                            const isSelected = selectedTemplate?.name === tmpl.name && selectedTemplate?.language === tmpl.language;
                                             return (
                                                 <button
-                                                    key={`${t.name}-${t.language}`}
+                                                    key={`${tmpl.name}-${tmpl.language}`}
                                                     className={cn(
                                                         'w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors',
                                                         isSelected && 'bg-primary/5 border-l-2 border-primary'
                                                     )}
-                                                    onClick={() => handleSelectTemplate(t)}
+                                                    onClick={() => handleSelectTemplate(tmpl)}
                                                 >
                                                     <div className="flex items-center gap-2 mb-0.5">
                                                         <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                                        <span className="font-medium text-sm">{t.name}</span>
+                                                        <span className="font-medium text-sm">{tmpl.name}</span>
                                                         <Badge variant="outline" className="text-[10px] px-1 h-4">
-                                                            {t.language}
+                                                            {tmpl.language}
                                                         </Badge>
                                                     </div>
                                                     {body?.text && (
@@ -586,7 +590,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                         })}
                                         {templates.length === 0 && (
                                             <p className="text-xs text-muted-foreground p-3 text-center">
-                                                No hay plantillas aprobadas.
+                                                {t.noApprovedTemplates}
                                             </p>
                                         )}
                                     </div>
@@ -599,7 +603,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                         ) : (
                                             <Send className="h-4 w-4 mr-2" />
                                         )}
-                                        {sendingTemplate ? 'Enviando...' : 'Enviar plantilla'}
+                                        {sendingTemplate ? ui.sending : t.sendTemplate}
                                     </Button>
                                 )}
                             </>
@@ -612,9 +616,9 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                         const idx = p.replace(/[{}]/g, '');
                                         return (
                                             <div key={idx} className="space-y-1">
-                                                <Label className="text-xs">Parámetro {idx}</Label>
+                                                <Label className="text-xs">{t.parameter} {idx}</Label>
                                                 <Input
-                                                    placeholder={`Valor para ${p}`}
+                                                    placeholder={`${t.valueFor} ${p}`}
                                                     value={paramValues[idx] || ''}
                                                     onChange={(e) =>
                                                         setParamValues((prev) => ({ ...prev, [idx]: e.target.value }))
@@ -627,7 +631,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                 </div>
 
                                 <div className="border rounded-md p-2.5 bg-muted/50">
-                                    <p className="text-xs text-muted-foreground mb-1">Vista previa</p>
+                                    <p className="text-xs text-muted-foreground mb-1">{t.preview}</p>
                                     <p className="text-sm whitespace-pre-wrap">{getPreviewText(selectedTemplate)}</p>
                                 </div>
 
@@ -637,7 +641,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                     ) : (
                                         <Send className="h-4 w-4 mr-2" />
                                     )}
-                                    {sendingTemplate ? 'Enviando...' : 'Enviar plantilla'}
+                                    {sendingTemplate ? ui.sending : t.sendTemplate}
                                 </Button>
                             </>
                         )}
@@ -677,14 +681,14 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 <div className="mb-3 flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
                     <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
                     <span className="text-sm font-medium text-red-700 flex-1">
-                        Grabando... {formatDuration(recordingDuration)}
+                        {t.recording} {formatDuration(recordingDuration)}
                     </span>
                     <button
                         type="button"
                         onClick={cancelRecording}
                         className="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-100"
                     >
-                        Cancelar
+                        {ui.cancel}
                     </button>
                     <button
                         type="button"
@@ -725,7 +729,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                     value={message}
                     onChange={(e) => handleChange(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleSend(e); } }}
-                    placeholder={selectedFile ? "Agrega un mensaje (opcional)..." : "Escribe un mensaje..."}
+                    placeholder={selectedFile ? t.addOptionalMessage : t.typeMessage}
                     className="flex-1 bg-[#FAFAFA] border border-[#E4E4E7] rounded-lg py-2.5 px-3.5 text-[14px] text-[#09090B] placeholder:text-[#A1A1AA] outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]/20 transition-colors disabled:opacity-50"
                     disabled={isSending || isRecording}
                 />
@@ -737,7 +741,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                         onClick={startRecording}
                         disabled={isSending}
                         className="h-9 w-9 shrink-0 rounded-full bg-[#F4F4F5] flex items-center justify-center hover:bg-[#E4E4E7] transition-colors disabled:opacity-50"
-                        title="Grabar nota de voz"
+                        title={t.recordVoiceNote}
                     >
                         <Mic className="h-[18px] w-[18px] text-[#71717A]" />
                     </button>

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, CreditCard, Banknote, Wallet } from 'lucide-react';
 import { WompiConfigCard } from './wompi-config-card';
+import { useDictionary } from '@/lib/i18n-context';
 
 type Gateway = {
     id: string;
@@ -45,6 +46,9 @@ const GATEWAYS: Gateway[] = [
 
 export function PaymentGateways() {
     const [activeGateway, setActiveGateway] = useState<string | null>(null);
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.paymentGateways || {};
+    const ui = dict.ui || {};
 
     if (activeGateway === 'wompi') {
         return (
@@ -56,7 +60,7 @@ export function PaymentGateways() {
                     className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Volver a pasarelas
+                    {t.backToGateways || 'Volver a pasarelas'}
                 </Button>
                 <WompiConfigCard />
             </div>
@@ -66,7 +70,7 @@ export function PaymentGateways() {
     return (
         <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-                Selecciona una pasarela de pagos para configurarla.
+                {t.selectGateway || 'Selecciona una pasarela de pagos para configurarla.'}
             </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {GATEWAYS.map((gw) => (
@@ -85,9 +89,9 @@ export function PaymentGateways() {
                                     <gw.icon className="h-5 w-5" />
                                 </div>
                                 {gw.status === 'active' ? (
-                                    <Badge variant="default" className="text-xs">Activa</Badge>
+                                    <Badge variant="default" className="text-xs">{t.activeLabel || 'Activa'}</Badge>
                                 ) : (
-                                    <Badge variant="outline" className="text-xs">Próximamente</Badge>
+                                    <Badge variant="outline" className="text-xs">{t.comingSoon || 'Próximamente'}</Badge>
                                 )}
                             </div>
                             <h3 className="font-semibold mb-1">{gw.name}</h3>
@@ -96,7 +100,7 @@ export function PaymentGateways() {
                             </p>
                             {gw.status === 'active' && (
                                 <div className="mt-4 flex items-center text-sm text-primary font-medium gap-1">
-                                    Configurar
+                                    {ui.configure || 'Configurar'}
                                     <ArrowRight className="h-3.5 w-3.5" />
                                 </div>
                             )}

@@ -14,6 +14,7 @@ import {
     testWompiConnectionAction,
     ensureSubscriptionTables,
 } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 type ConfigState = {
     publicKey: string;
@@ -25,6 +26,9 @@ type ConfigState = {
 };
 
 export function WompiConfigCard() {
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.wompiConfig || {};
+    const ui = dict.ui || {};
     const [config, setConfig] = useState<ConfigState>({
         publicKey: '',
         privateKey: '',
@@ -105,7 +109,7 @@ export function WompiConfigCard() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <CreditCard className="h-5 w-5" />
-                        <CardTitle>Configuración Wompi</CardTitle>
+                        <CardTitle>{t.title || 'Configuración Wompi'}</CardTitle>
                     </div>
                     <div className="flex items-center gap-2">
                         {hasExisting && <Badge variant="secondary">Configurado</Badge>}
@@ -115,7 +119,7 @@ export function WompiConfigCard() {
                     </div>
                 </div>
                 <CardDescription>
-                    Claves API de Wompi para procesar pagos. Los secretos se almacenan cifrados.
+                    {t.description || 'Claves API de Wompi para procesar pagos. Los secretos se almacenan cifrados.'}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -138,7 +142,7 @@ export function WompiConfigCard() {
                             className="h-6 px-2 text-xs"
                         >
                             {showSecrets ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
-                            {showSecrets ? 'Ocultar' : 'Mostrar'}
+                            {showSecrets ? (t.hideSecrets || 'Ocultar') : (t.showSecrets || 'Mostrar')}
                         </Button>
                     </div>
                     <Input
@@ -183,7 +187,7 @@ export function WompiConfigCard() {
                         checked={config.isSandbox}
                         onCheckedChange={(v) => setConfig({ ...config, isSandbox: v })}
                     />
-                    <Label>Modo Sandbox (pruebas)</Label>
+                    <Label>{t.sandboxMode || 'Modo Sandbox (pruebas)'}</Label>
                 </div>
 
                 {testResult && (
@@ -204,15 +208,15 @@ export function WompiConfigCard() {
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={handleTest} disabled={testing || !config.publicKey}>
                         {testing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                        Probar conexión
+                        {t.testConnection || 'Probar conexión'}
                     </Button>
                     <Button variant="outline" onClick={handleMigrate} disabled={migrateStatus === 'running'}>
                         <Database className="h-4 w-4 mr-1" />
-                        {migrateStatus === 'running' ? 'Migrando...' : migrateStatus === 'done' ? 'Tablas creadas' : 'Crear tablas DB'}
+                        {migrateStatus === 'running' ? (t.migrating || 'Migrando...') : migrateStatus === 'done' ? (t.tablesCreated || 'Tablas creadas') : (t.migrateDb || 'Crear tablas DB')}
                     </Button>
                 </div>
                 <Button onClick={handleSave} disabled={saving || !config.publicKey}>
-                    {saving ? 'Guardando...' : 'Guardar configuración'}
+                    {saving ? (ui.saving || 'Guardando...') : (t.saveConfig || 'Guardar configuración')}
                 </Button>
             </CardFooter>
         </Card>

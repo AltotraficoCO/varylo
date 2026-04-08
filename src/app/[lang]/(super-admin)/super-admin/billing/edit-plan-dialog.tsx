@@ -19,6 +19,7 @@ import { updateLandingPlan, upsertPlanPricing } from './actions';
 import { Pencil, Plus, X, RefreshCw, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { fetchUsdToCop, FALLBACK_RATE } from '@/lib/exchange-rate';
+import { useDictionary } from '@/lib/i18n-context';
 
 type PlanPricing = {
     id: string;
@@ -47,6 +48,9 @@ type PlanData = {
 export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated: () => void }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.editPlanDialog || {};
+    const ui = dict.ui || {};
     const [name, setName] = useState(plan.name);
     const [description, setDescription] = useState(plan.description);
     const [price, setPrice] = useState(plan.price);
@@ -149,7 +153,7 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
             <DialogTrigger asChild>
                 <Button variant="outline" className="w-full gap-2">
                     <Pencil className="h-4 w-4" />
-                    Editar Plan
+                    {t.editPlan || 'Editar Plan'}
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -272,9 +276,9 @@ export function EditPlanDialog({ plan, onUpdated }: { plan: PlanData; onUpdated:
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                    <Button variant="outline" onClick={() => setOpen(false)}>{ui.cancel || 'Cancelar'}</Button>
                     <Button onClick={handleSave} disabled={loading}>
-                        {loading ? 'Guardando...' : 'Guardar cambios'}
+                        {loading ? (t.savingChanges || 'Guardando...') : (t.saveChanges || 'Guardar cambios')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

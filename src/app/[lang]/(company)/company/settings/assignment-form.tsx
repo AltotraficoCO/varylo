@@ -8,13 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, CheckCircle2, Users } from "lucide-react";
 import type { AssignmentStrategy } from '@prisma/client';
-
-const STRATEGIES: { value: AssignmentStrategy; label: string; description: string }[] = [
-    { value: 'LEAST_BUSY', label: 'Menor carga', description: 'Asigna al agente con menos conversaciones abiertas.' },
-    { value: 'ROUND_ROBIN', label: 'Rotación', description: 'Rota entre agentes en orden.' },
-    { value: 'SPECIFIC_AGENT', label: 'Agente específico', description: 'Todas las conversaciones van a un agente.' },
-    { value: 'MANUAL_ONLY', label: 'Solo manual', description: 'No se asigna automáticamente, quedan en "Sin asignar".' },
-];
+import { useDictionary } from '@/lib/i18n-context';
 
 export function AssignmentForm({
     currentStrategy,
@@ -29,6 +23,17 @@ export function AssignmentForm({
     const [agentId, setAgentId] = useState<string>(currentAgentId || '');
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    const dict = useDictionary();
+    const t = dict.settingsUI?.assignmentForm || {};
+    const ui = dict.ui || {};
+
+    const STRATEGIES: { value: AssignmentStrategy; label: string; description: string }[] = [
+        { value: 'LEAST_BUSY', label: t.leastBusy || 'Menor carga', description: t.leastBusyDesc || 'Asigna al agente con menos conversaciones abiertas.' },
+        { value: 'ROUND_ROBIN', label: t.roundRobin || 'Rotación', description: t.roundRobinDesc || 'Rota entre agentes en orden.' },
+        { value: 'SPECIFIC_AGENT', label: t.specificAgent || 'Agente específico', description: t.specificAgentDesc || 'Todas las conversaciones van a un agente.' },
+        { value: 'MANUAL_ONLY', label: t.manualOnly || 'Solo manual', description: t.manualOnlyDesc || 'No se asigna automáticamente, quedan en "Sin asignar".' },
+    ];
 
     const hasChanges = strategy !== currentStrategy || (strategy === 'SPECIFIC_AGENT' && agentId !== (currentAgentId || ''));
 
@@ -45,7 +50,7 @@ export function AssignmentForm({
                 text: result.message,
             });
         } catch {
-            setMessage({ type: 'error', text: 'Error al guardar.' });
+            setMessage({ type: 'error', text: t.saveError || 'Error al guardar.' });
         } finally {
             setSaving(false);
         }
@@ -56,15 +61,15 @@ export function AssignmentForm({
             <CardHeader>
                 <div className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    <CardTitle className="text-lg">Asignación de Conversaciones</CardTitle>
+                    <CardTitle className="text-lg">{t.title || 'Asignación de Conversaciones'}</CardTitle>
                 </div>
                 <CardDescription>
-                    Define cómo se asignan automáticamente las nuevas conversaciones a los agentes.
+                    {t.description || 'Define cómo se asignan automáticamente las nuevas conversaciones a los agentes.'}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="space-y-2">
-                    <Label>Estrategia de asignación</Label>
+                    <Label>{t.strategyLabel || 'Estrategia de asignación'}</Label>
                     <Select value={strategy} onValueChange={(v) => { setStrategy(v as AssignmentStrategy); setMessage(null); }}>
                         <SelectTrigger>
                             <SelectValue />
@@ -84,10 +89,10 @@ export function AssignmentForm({
 
                 {strategy === 'SPECIFIC_AGENT' && (
                     <div className="space-y-2">
-                        <Label>Agente</Label>
+                        <Label>{t.agentLabel || 'Agente'}</Label>
                         <Select value={agentId} onValueChange={(v) => { setAgentId(v); setMessage(null); }}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Selecciona un agente" />
+                                <SelectValue placeholder={t.selectAgent || 'Selecciona un agente'} />
                             </SelectTrigger>
                             <SelectContent>
                                 {agents.map(a => (
@@ -109,7 +114,7 @@ export function AssignmentForm({
             </CardContent>
             <CardFooter>
                 <Button onClick={handleSave} disabled={saving || !hasChanges} className="w-full">
-                    {saving ? 'Guardando...' : 'Guardar'}
+                    {saving ? (ui.saving || 'Guardando...') : (ui.save || 'Guardar')}
                 </Button>
             </CardFooter>
         </Card>

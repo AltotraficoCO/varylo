@@ -6,6 +6,7 @@ import { ArrowLeft, CreditCard } from 'lucide-react';
 import { SubscriptionCard } from './subscription-card';
 import { PaymentMethodsCard } from './payment-methods-card';
 import { BillingHistoryCard } from './billing-history-card';
+import { useDictionary } from '@/lib/i18n-context';
 
 type BillingSectionProps = {
     subscription: any;
@@ -42,14 +43,6 @@ function formatDateShort(dateStr: string): string {
     });
 }
 
-const STATUS_BADGE: Record<string, { label: string; color: string }> = {
-    APPROVED: { label: 'Pagado', color: 'bg-[#ECFDF5] text-[#10B981]' },
-    PENDING: { label: 'Pendiente', color: 'bg-amber-50 text-amber-600' },
-    DECLINED: { label: 'Rechazado', color: 'bg-red-50 text-red-500' },
-    ERROR: { label: 'Error', color: 'bg-red-50 text-red-500' },
-    VOIDED: { label: 'Anulado', color: 'bg-gray-100 text-gray-500' },
-};
-
 export function BillingSection({
     subscription,
     availablePlans,
@@ -61,6 +54,17 @@ export function BillingSection({
     attempts,
 }: BillingSectionProps) {
     const [activeView, setActiveView] = useState<string | null>(null);
+    const dict = useDictionary();
+    const t = dict.settingsUI?.billingSection || {};
+    const ui = dict.ui || {};
+
+    const STATUS_BADGE: Record<string, { label: string; color: string }> = {
+        APPROVED: { label: t.paid || 'Pagado', color: 'bg-[#ECFDF5] text-[#10B981]' },
+        PENDING: { label: ui.pending || 'Pendiente', color: 'bg-amber-50 text-amber-600' },
+        DECLINED: { label: t.rejected || 'Rechazado', color: 'bg-red-50 text-red-500' },
+        ERROR: { label: ui.error || 'Error', color: 'bg-red-50 text-red-500' },
+        VOIDED: { label: t.voided || 'Anulado', color: 'bg-gray-100 text-gray-500' },
+    };
 
     // Drill-down: Subscription management (change plan, cancel, etc.)
     if (activeView === 'subscription') {
@@ -73,7 +77,7 @@ export function BillingSection({
                     className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Volver a facturación
+                    {t.backToBilling || 'Volver a facturación'}
                 </Button>
                 <SubscriptionCard
                     subscription={subscription}
@@ -95,7 +99,7 @@ export function BillingSection({
                     className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Volver a facturación
+                    {t.backToBilling || 'Volver a facturación'}
                 </Button>
                 <PaymentMethodsCard
                     sources={sources}
@@ -118,7 +122,7 @@ export function BillingSection({
                     className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Volver a facturación
+                    {t.backToBilling || 'Volver a facturación'}
                 </Button>
                 <BillingHistoryCard attempts={attempts} />
             </div>
@@ -129,17 +133,17 @@ export function BillingSection({
     const defaultSource = sources.find((s) => s.isDefault) || sources[0] || null;
 
     // Get current plan info
-    const planName = subscription?.planPricing?.landingPlan?.name || 'Sin plan';
+    const planName = subscription?.planPricing?.landingPlan?.name || (t.noSubscriptionPlan || 'Sin plan');
     const planPricing = availablePlans.find(
         (p) => p.landingPlan?.slug === subscription?.planPricing?.landingPlan?.slug
     );
     const priceLabel = planPricing
-        ? `${formatCOP(planPricing.priceInCents)} / mes`
+        ? `${formatCOP(planPricing.priceInCents)} ${t.perMonth || '/ mes'}`
         : subscription
-            ? 'Plan activo'
-            : 'Sin suscripción';
+            ? (t.activePlan || 'Plan activo')
+            : (t.noSubscription || 'Sin suscripción');
     const renewalDate = subscription?.currentPeriodEnd
-        ? `Próximo cobro: ${formatDateLong(subscription.currentPeriodEnd)}`
+        ? `${t.nextCharge || 'Próximo cobro:'} ${formatDateLong(subscription.currentPeriodEnd)}`
         : null;
 
     // Recent attempts (show up to 5)
@@ -151,7 +155,7 @@ export function BillingSection({
             style={{ gap: '20px', display: 'flex', flexDirection: 'column' }}
         >
             {/* Section title */}
-            <h2 className="text-[15px] font-semibold text-[#09090B]">Facturación</h2>
+            <h2 className="text-[15px] font-semibold text-[#09090B]">{t.title || 'Facturación'}</h2>
 
             {/* Plan row */}
             <div className="flex items-center justify-between">
@@ -169,7 +173,7 @@ export function BillingSection({
                     )}
                     {!subscription && (
                         <span className="text-[13px] text-[#71717A]">
-                            No tienes una suscripción activa
+                            {t.noActiveSubscription || 'No tienes una suscripción activa'}
                         </span>
                     )}
                 </div>
@@ -178,7 +182,7 @@ export function BillingSection({
                     className="rounded-lg border-[#E4E4E7] px-4 py-2 text-[14px]"
                     onClick={() => setActiveView('subscription')}
                 >
-                    Cambiar plan
+                    {t.changePlan || 'Cambiar plan'}
                 </Button>
             </div>
 
@@ -194,21 +198,21 @@ export function BillingSection({
                     {defaultSource ? (
                         <>
                             <p className="text-[14px] font-medium text-[#09090B]">
-                                {defaultSource.brand || 'Tarjeta'} **** {defaultSource.lastFour || '????'}
+                                {defaultSource.brand || (dict.settingsUI?.paymentMethodsCard?.card || 'Tarjeta')} **** {defaultSource.lastFour || '????'}
                             </p>
                             {defaultSource.expiresAt && (
                                 <p className="text-[13px] text-[#71717A]">
-                                    Expira {new Date(defaultSource.expiresAt).toLocaleDateString('es-CO', { month: '2-digit', year: 'numeric' })}
+                                    {t.expires || 'Expira'} {new Date(defaultSource.expiresAt).toLocaleDateString('es-CO', { month: '2-digit', year: 'numeric' })}
                                 </p>
                             )}
                         </>
                     ) : (
                         <>
                             <p className="text-[14px] font-medium text-[#09090B]">
-                                Sin tarjeta registrada
+                                {t.noCardRegistered || 'Sin tarjeta registrada'}
                             </p>
                             <p className="text-[13px] text-[#71717A]">
-                                Agrega una tarjeta para suscribirte
+                                {t.addCardToSubscribe || 'Agrega una tarjeta para suscribirte'}
                             </p>
                         </>
                     )}
@@ -217,7 +221,7 @@ export function BillingSection({
                     className="text-[13px] font-medium text-[#10B981] hover:underline"
                     onClick={() => setActiveView('payment-methods')}
                 >
-                    Cambiar
+                    {t.change || 'Cambiar'}
                 </button>
             </div>
 
@@ -227,14 +231,14 @@ export function BillingSection({
             {/* Payment history title */}
             <div className="flex items-center justify-between">
                 <h3 className="text-[14px] font-semibold text-[#09090B]">
-                    Historial de pagos
+                    {t.paymentHistory || 'Historial de pagos'}
                 </h3>
                 {attempts.length > 5 && (
                     <button
                         className="text-[13px] font-medium text-[#10B981] hover:underline"
                         onClick={() => setActiveView('history')}
                     >
-                        Ver todo
+                        {t.viewAll || 'Ver todo'}
                     </button>
                 )}
             </div>
@@ -242,7 +246,7 @@ export function BillingSection({
             {/* Payment history rows */}
             {recentAttempts.length === 0 ? (
                 <p className="text-[13px] text-[#71717A]">
-                    No hay cobros registrados aún.
+                    {t.noChargesYet || 'No hay cobros registrados aún.'}
                 </p>
             ) : (
                 <div className="flex flex-col gap-3">
@@ -280,7 +284,7 @@ export function BillingSection({
                     className="text-[13px] font-medium text-[#10B981] hover:underline self-start"
                     onClick={() => setActiveView('history')}
                 >
-                    Ver historial completo
+                    {t.viewFullHistory || 'Ver historial completo'}
                 </button>
             )}
         </div>

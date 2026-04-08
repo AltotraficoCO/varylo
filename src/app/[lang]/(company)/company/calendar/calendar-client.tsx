@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, X, Plus, CalendarDays, Clock, MapPin, User, ExternalLink, Video, Users } from 'lucide-react';
 import './calendar.css';
+import { useDictionary } from '@/lib/i18n-context';
 
 type Attendee = { email: string; name: string; status: string };
 
@@ -32,6 +33,9 @@ type CalEvent = {
 };
 
 export function CalendarClient({ isConnected }: { isConnected: boolean }) {
+    const dict = useDictionary();
+    const cal = dict.calendar || {};
+    const ui = dict.ui || {};
     const [events, setEvents] = useState<CalEvent[]>([]);
     const [selectedEvent, setSelectedEvent] = useState<CalEvent | null>(null);
     const [loading, setLoading] = useState(false);
@@ -53,7 +57,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
         if (result.success) {
             setEvents(result.events as CalEvent[]);
         } else {
-            toast.error(result.error || 'Error al cargar eventos');
+            toast.error(result.error || ui.errorOccurred || 'Error al cargar eventos');
         }
         setLoading(false);
     }, []);
@@ -83,9 +87,9 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
             end: info.event.endStr,
         });
         if (result.success) {
-            toast.success('Evento actualizado');
+            toast.success(ui.updatedSuccessfully || 'Evento actualizado');
         } else {
-            toast.error('Error al mover evento');
+            toast.error(ui.errorOccurred || 'Error al mover evento');
             info.revert();
         }
     }
@@ -106,13 +110,13 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
             attendeeEmail: createData.attendeeEmail.trim() || undefined,
         });
         if (result.success) {
-            toast.success('Reunion creada exitosamente');
+            toast.success(ui.createdSuccessfully || 'Reunion creada exitosamente');
             setShowCreate(false);
             setCreateData({ title: '', date: '', startTime: '09:00', endTime: '10:00', description: '', attendeeEmail: '' });
             const api = calendarRef.current?.getApi();
             if (api) fetchEvents(api.view.activeStart.toISOString(), api.view.activeEnd.toISOString());
         } else {
-            toast.error(result.error || 'Error al crear evento');
+            toast.error(result.error || ui.errorOccurred || 'Error al crear evento');
         }
         setSaving(false);
     }
@@ -127,14 +131,14 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                     <div>
                         <h2 className="text-xl font-bold text-[#09090B]">Google Calendar</h2>
                         <p className="text-[14px] text-[#71717A] mt-2 leading-relaxed">
-                            Conecta tu cuenta de Google Calendar para ver y gestionar tus reuniones directamente desde Varylo.
+                            {cal.connectCalendar || 'Conecta tu cuenta de Google Calendar para ver y gestionar tus reuniones directamente desde Varylo.'}
                         </p>
                     </div>
                     <a
                         href="?tab=integrations"
                         className="inline-flex items-center gap-2 rounded-lg bg-[#10B981] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#059669] transition-colors"
                     >
-                        Conectar Google Calendar
+                        {cal.goToSettings || 'Conectar Google Calendar'}
                     </a>
                 </div>
             </div>
@@ -150,7 +154,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                         <CalendarDays className="h-5 w-5 text-[#3B82F6]" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-[#09090B]">Calendario</h1>
+                        <h1 className="text-2xl font-bold text-[#09090B]">{cal.title || 'Calendario'}</h1>
                         <div className="flex items-center gap-2 mt-0.5">
                             <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
                             <span className="text-[13px] text-[#71717A]">Sincronizado con Google Calendar</span>
@@ -174,7 +178,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                     className="rounded-lg bg-[#10B981] hover:bg-[#059669] text-white font-medium px-4 py-2 text-[14px]"
                 >
                     <Plus className="h-4 w-4 mr-1.5" />
-                    Nueva reunion
+                    {cal.addEvent || 'Nueva reunion'}
                 </Button>
             </div>
 
@@ -190,10 +194,10 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                         right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
                     }}
                     buttonText={{
-                        today: 'Hoy',
-                        month: 'Mes',
-                        week: 'Semana',
-                        day: 'Dia',
+                        today: cal.today || 'Hoy',
+                        month: cal.month || 'Mes',
+                        week: cal.week || 'Semana',
+                        day: cal.day || 'Dia',
                         list: 'Lista',
                     }}
                     locale="es"
@@ -249,7 +253,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                                 <div className="h-9 w-9 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
                                     <CalendarDays className="h-4.5 w-4.5 text-[#10B981]" />
                                 </div>
-                                <h3 className="text-[16px] font-semibold text-[#09090B]">Nueva reunion</h3>
+                                <h3 className="text-[16px] font-semibold text-[#09090B]">{cal.addEvent || 'Nueva reunion'}</h3>
                             </div>
                             <button
                                 onClick={() => setShowCreate(false)}
@@ -263,7 +267,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                         <div className="px-6 py-5 space-y-4">
                             {/* Title */}
                             <div className="space-y-1.5">
-                                <Label className="text-[13px] font-medium text-[#3F3F46]">Titulo</Label>
+                                <Label className="text-[13px] font-medium text-[#3F3F46]">{ui.title || 'Titulo'}</Label>
                                 <Input
                                     value={createData.title}
                                     onChange={e => setCreateData(prev => ({ ...prev, title: e.target.value }))}
@@ -277,7 +281,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                             <div className="space-y-1.5">
                                 <Label className="text-[13px] font-medium text-[#3F3F46] flex items-center gap-1.5">
                                     <CalendarDays className="h-3.5 w-3.5 text-[#A1A1AA]" />
-                                    Fecha
+                                    {ui.date || 'Fecha'}
                                 </Label>
                                 <Input
                                     type="date"
@@ -317,7 +321,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
 
                             {/* Description */}
                             <div className="space-y-1.5">
-                                <Label className="text-[13px] font-medium text-[#3F3F46]">Descripcion <span className="text-[#A1A1AA] font-normal">(opcional)</span></Label>
+                                <Label className="text-[13px] font-medium text-[#3F3F46]">{ui.description || 'Descripcion'} <span className="text-[#A1A1AA] font-normal">({ui.optional || 'opcional'})</span></Label>
                                 <Textarea
                                     value={createData.description}
                                     onChange={e => setCreateData(prev => ({ ...prev, description: e.target.value }))}
@@ -331,7 +335,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                             <div className="space-y-1.5">
                                 <Label className="text-[13px] font-medium text-[#3F3F46] flex items-center gap-1.5">
                                     <User className="h-3.5 w-3.5 text-[#A1A1AA]" />
-                                    Invitado <span className="text-[#A1A1AA] font-normal">(opcional)</span>
+                                    {ui.name || 'Invitado'} <span className="text-[#A1A1AA] font-normal">({ui.optional || 'opcional'})</span>
                                 </Label>
                                 <Input
                                     type="email"
@@ -350,7 +354,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                                 onClick={() => setShowCreate(false)}
                                 className="rounded-lg px-4 py-2 text-[14px] border-[#E4E4E7]"
                             >
-                                Cancelar
+                                {ui.cancel || 'Cancelar'}
                             </Button>
                             <Button
                                 onClick={handleCreate}
@@ -358,7 +362,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                                 className="rounded-lg px-5 py-2 text-[14px] bg-[#10B981] hover:bg-[#059669] text-white font-medium"
                             >
                                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-                                Crear reunion
+                                {cal.addEvent || 'Crear reunion'}
                             </Button>
                         </div>
                     </div>
@@ -422,7 +426,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                                         rel="noopener noreferrer"
                                         className="text-[14px] text-[#3B82F6] hover:underline font-medium flex items-center gap-1"
                                     >
-                                        Unirse a Google Meet
+                                        {ui.connect || 'Unirse a Google Meet'}
                                         <ExternalLink className="h-3 w-3" />
                                     </a>
                                 </div>
@@ -510,7 +514,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                                     rel="noopener noreferrer"
                                     className="text-[13px] text-[#3B82F6] hover:underline font-medium flex items-center gap-1"
                                 >
-                                    Abrir en Google Calendar
+                                    {ui.open || 'Abrir en Google Calendar'}
                                     <ExternalLink className="h-3 w-3" />
                                 </a>
                             ) : (
@@ -522,7 +526,7 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                                 onClick={() => setSelectedEvent(null)}
                                 className="rounded-lg border-[#E4E4E7] text-[13px]"
                             >
-                                Cerrar
+                                {ui.close || 'Cerrar'}
                             </Button>
                         </div>
                     </div>

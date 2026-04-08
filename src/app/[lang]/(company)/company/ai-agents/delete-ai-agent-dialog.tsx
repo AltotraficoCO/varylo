@@ -15,8 +15,12 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { useTransition } from "react";
 import { deleteAiAgent } from "./actions";
+import { useDictionary } from '@/lib/i18n-context';
 
 export function DeleteAiAgentDialog({ agentId, agentName }: { agentId: string; agentName: string }) {
+    const dict = useDictionary();
+    const t = dict.aiAgents || {};
+    const ui = dict.ui || {};
     const [isPending, startTransition] = useTransition();
 
     const handleDelete = () => {
@@ -37,20 +41,20 @@ export function DeleteAiAgentDialog({ agentId, agentName }: { agentId: string; a
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>¿Eliminar agente IA?</AlertDialogTitle>
+                    <AlertDialogTitle>{t.deleteAgentTitle}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará permanentemente el agente IA
-                        <strong> {agentName}</strong> y dejará de responder mensajes.
+                        {t.deleteAgentDesc}
+                        <strong> {agentName}</strong> {t.deleteAgentSuffix}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel>{ui.cancel}</AlertDialogCancel>
                     <AlertDialogAction
                         onClick={handleDelete}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         disabled={isPending}
                     >
-                        {isPending ? 'Eliminando...' : 'Eliminar'}
+                        {isPending ? ui.deleting : ui.delete}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

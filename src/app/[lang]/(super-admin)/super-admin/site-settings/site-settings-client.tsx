@@ -7,6 +7,7 @@ import { Globe, Image as ImageIcon, Link2, ArrowLeft, ArrowRight } from 'lucide-
 import { TrustedLogosManager } from './trusted-logos';
 import { FooterLinksCard } from './footer-links-card';
 import type { FooterSection } from '@/lib/site-config';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface TrustedLogo {
     id: string;
@@ -28,6 +29,9 @@ export function SiteSettingsClient({
     copyrightText: string | null;
 }) {
     const [view, setView] = useState<View>('menu');
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.siteSettingsClient || {};
+    const ui = dict.ui || {};
 
     if (view === 'logos') {
         return (
@@ -40,11 +44,11 @@ export function SiteSettingsClient({
                         className="gap-2 -ml-2 text-muted-foreground hover:text-foreground mb-2"
                     >
                         <ArrowLeft className="h-4 w-4" />
-                        Volver
+                        {ui.back || 'Volver'}
                     </Button>
-                    <h2 className="text-2xl font-bold tracking-tight">Logos de confianza</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">{t.logosTitle || 'Logos de confianza'}</h2>
                     <p className="text-muted-foreground text-sm mt-1">
-                        Empresas que confían en Varylo. Se muestran en la landing page en escala de grises.
+                        {t.logosFullDesc || 'Empresas que confían en Varylo. Se muestran en la landing page en escala de grises.'}
                     </p>
                 </div>
                 <TrustedLogosManager logos={logos} />
@@ -63,11 +67,11 @@ export function SiteSettingsClient({
                         className="gap-2 -ml-2 text-muted-foreground hover:text-foreground mb-2"
                     >
                         <ArrowLeft className="h-4 w-4" />
-                        Volver
+                        {ui.back || 'Volver'}
                     </Button>
-                    <h2 className="text-2xl font-bold tracking-tight">Enlaces del Footer</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">{t.footerTitle || 'Enlaces del Footer'}</h2>
                     <p className="text-muted-foreground text-sm mt-1">
-                        Configura las secciones y enlaces del pie de página de la landing.
+                        {t.footerFullDesc || 'Configura las secciones y enlaces del pie de página de la landing.'}
                     </p>
                 </div>
                 <FooterLinksCard
@@ -83,8 +87,8 @@ export function SiteSettingsClient({
         {
             id: 'logos' as View,
             icon: ImageIcon,
-            title: 'Logos de confianza',
-            description: 'Empresas que confían en Varylo, mostrados en la landing.',
+            title: t.logosTitle || 'Logos de confianza',
+            description: t.logosDesc || 'Empresas que confían en Varylo, mostrados en la landing.',
             count: logos.length,
             countLabel: logos.length === 1 ? 'logo' : 'logos',
             color: 'bg-violet-50 text-violet-600 border-violet-100',
@@ -93,8 +97,8 @@ export function SiteSettingsClient({
         {
             id: 'footer' as View,
             icon: Link2,
-            title: 'Enlaces del Footer',
-            description: 'Secciones y enlaces del pie de página de la landing.',
+            title: t.footerTitle || 'Enlaces del Footer',
+            description: t.footerDesc || 'Secciones y enlaces del pie de página de la landing.',
             count: (footerSections as any[])?.length || 0,
             countLabel: 'secciones',
             color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -107,10 +111,10 @@ export function SiteSettingsClient({
             <div>
                 <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                     <Globe className="h-6 w-6 text-primary" />
-                    Sitio Web
+                    {t.siteTitle || 'Sitio Web'}
                 </h2>
                 <p className="text-muted-foreground mt-1">
-                    Personaliza la landing page de Varylo.
+                    {t.siteDesc || 'Personaliza la landing page de Varylo.'}
                 </p>
             </div>
 
@@ -138,7 +142,7 @@ export function SiteSettingsClient({
                                 {item.description}
                             </p>
                             <div className="mt-4 flex items-center text-sm text-primary font-medium gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                Configurar
+                                {ui.configure || 'Configurar'}
                                 <ArrowRight className="h-3.5 w-3.5" />
                             </div>
                         </CardContent>

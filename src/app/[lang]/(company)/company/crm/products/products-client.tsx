@@ -10,6 +10,7 @@ import { Plus, Search, Package, Loader2, X, Pencil, Trash2 } from 'lucide-react'
 import { createProduct, updateProduct, deleteProduct, createCategory } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useDictionary } from '@/lib/i18n-context';
 
 function formatCOP(amount: number): string {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount);
@@ -30,6 +31,9 @@ type Product = {
 type Category = { id: string; name: string; _count: { products: number } };
 
 export function ProductsClient({ products, categories }: { products: Product[]; categories: Category[] }) {
+    const dict = useDictionary();
+    const crm = dict.crm || {};
+    const ui = dict.ui || {};
     const [search, setSearch] = useState('');
     const [showCreate, setShowCreate] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -52,7 +56,7 @@ export function ProductsClient({ products, categories }: { products: Product[]; 
             stock: form.stock ? parseInt(form.stock) : undefined,
             categoryId: form.categoryId || undefined,
         });
-        toast.success('Producto creado');
+        toast.success(ui.createdSuccessfully || 'Producto creado');
         setForm({ name: '', description: '', sku: '', price: '', stock: '', categoryId: '' });
         setShowCreate(false);
         setSaving(false);
@@ -64,11 +68,11 @@ export function ProductsClient({ products, categories }: { products: Product[]; 
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#09090B]">Productos</h1>
-                    <p className="text-[14px] text-[#71717A] mt-0.5">{products.length} producto{products.length !== 1 ? 's' : ''} en catalogo</p>
+                    <h1 className="text-2xl font-bold text-[#09090B]">{crm.products || 'Productos'}</h1>
+                    <p className="text-[14px] text-[#71717A] mt-0.5">{products.length} {crm.products?.toLowerCase() || 'productos'}</p>
                 </div>
                 <Button onClick={() => setShowCreate(true)} className="rounded-lg bg-[#10B981] hover:bg-[#059669] text-white font-medium">
-                    <Plus className="h-4 w-4 mr-1.5" /> Nuevo producto
+                    <Plus className="h-4 w-4 mr-1.5" /> {crm.addProduct || 'Nuevo producto'}
                 </Button>
             </div>
 
@@ -78,7 +82,7 @@ export function ProductsClient({ products, categories }: { products: Product[]; 
                 <Input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Buscar producto..."
+                    placeholder={`${ui.search || 'Buscar'} ${crm.products?.toLowerCase() || 'producto'}...`}
                     className="pl-9 h-10 rounded-xl border-[#E4E4E7] text-[14px]"
                 />
             </div>
@@ -109,7 +113,7 @@ export function ProductsClient({ products, categories }: { products: Product[]; 
                         <div>
                             <div className="flex items-center gap-2">
                                 <h3 className="text-[15px] font-semibold text-[#09090B]">{product.name}</h3>
-                                {!product.active && <Badge variant="outline" className="text-[10px]">Inactivo</Badge>}
+                                {!product.active && <Badge variant="outline" className="text-[10px]">{ui.inactive || 'Inactivo'}</Badge>}
                             </div>
                             {product.description && (
                                 <p className="text-[13px] text-[#71717A] mt-1 line-clamp-2">{product.description}</p>
@@ -132,7 +136,7 @@ export function ProductsClient({ products, categories }: { products: Product[]; 
             {filtered.length === 0 && (
                 <div className="text-center py-16">
                     <Package className="h-10 w-10 text-[#A1A1AA] mx-auto mb-3" />
-                    <p className="text-[#71717A]">{search ? 'No se encontraron productos' : 'Agrega tu primer producto'}</p>
+                    <p className="text-[#71717A]">{search ? (ui.noResults || 'No se encontraron productos') : (crm.noProducts || 'Agrega tu primer producto')}</p>
                 </div>
             )}
 
@@ -142,19 +146,19 @@ export function ProductsClient({ products, categories }: { products: Product[]; 
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
                     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between px-6 py-4 border-b border-[#F4F4F5]">
-                            <h3 className="text-[16px] font-semibold text-[#09090B]">Nuevo producto</h3>
+                            <h3 className="text-[16px] font-semibold text-[#09090B]">{crm.addProduct || 'Nuevo producto'}</h3>
                             <button onClick={() => setShowCreate(false)} className="h-8 w-8 rounded-lg flex items-center justify-center text-[#A1A1AA] hover:text-[#09090B] hover:bg-[#F4F4F5]">
                                 <X className="h-4 w-4" />
                             </button>
                         </div>
                         <div className="p-6 space-y-3">
-                            <div><Label className="text-[13px]">Nombre</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Producto X" className="h-10 rounded-lg text-[14px]" autoFocus /></div>
-                            <div><Label className="text-[13px]">Precio (COP)</Label><Input value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} type="number" placeholder="50000" className="h-10 rounded-lg text-[14px]" /></div>
+                            <div><Label className="text-[13px]">{ui.name || 'Nombre'}</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder={crm.productName || 'Producto X'} className="h-10 rounded-lg text-[14px]" autoFocus /></div>
+                            <div><Label className="text-[13px]">{crm.productPrice || ui.price || 'Precio'} (COP)</Label><Input value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} type="number" placeholder="50000" className="h-10 rounded-lg text-[14px]" /></div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div><Label className="text-[13px]">SKU</Label><Input value={form.sku} onChange={e => setForm(p => ({ ...p, sku: e.target.value }))} placeholder="ABC-001" className="h-10 rounded-lg text-[14px]" /></div>
                                 <div><Label className="text-[13px]">Stock</Label><Input value={form.stock} onChange={e => setForm(p => ({ ...p, stock: e.target.value }))} type="number" placeholder="100" className="h-10 rounded-lg text-[14px]" /></div>
                             </div>
-                            <div><Label className="text-[13px]">Descripcion</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Descripcion del producto..." rows={2} className="rounded-lg text-[14px] resize-none" /></div>
+                            <div><Label className="text-[13px]">{ui.description || 'Descripcion'}</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder={ui.description || 'Descripcion del producto...'} rows={2} className="rounded-lg text-[14px] resize-none" /></div>
                             {categories.length > 0 && (
                                 <div>
                                     <Label className="text-[13px]">Categoria</Label>
@@ -166,9 +170,9 @@ export function ProductsClient({ products, categories }: { products: Product[]; 
                             )}
                         </div>
                         <div className="flex justify-end gap-2 px-6 py-4 border-t border-[#F4F4F5] bg-[#FAFAFA]">
-                            <Button variant="outline" onClick={() => setShowCreate(false)} className="rounded-lg">Cancelar</Button>
+                            <Button variant="outline" onClick={() => setShowCreate(false)} className="rounded-lg">{ui.cancel || 'Cancelar'}</Button>
                             <Button onClick={handleCreate} disabled={saving} className="rounded-lg bg-[#10B981] hover:bg-[#059669] text-white">
-                                {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />} Crear producto
+                                {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />} {crm.addProduct || 'Crear producto'}
                             </Button>
                         </div>
                     </div>

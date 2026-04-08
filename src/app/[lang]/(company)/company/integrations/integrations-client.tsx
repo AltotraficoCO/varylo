@@ -15,6 +15,7 @@ import { disconnectEcommerceById, createWebhookIntegration, deleteWebhookIntegra
 import { AVAILABLE_EVENTS } from './constants';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useDictionary } from '@/lib/i18n-context';
 
 type EcommerceStore = {
     id: string;
@@ -54,6 +55,9 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
     const [activeView, setActiveView] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const router = useRouter();
+    const dict = useDictionary();
+    const t = dict.settingsUI?.integrationsClient || {};
+    const ui = dict.ui || {};
 
     // n8n form state
     const [n8nUrl, setN8nUrl] = useState('');
@@ -68,11 +72,11 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
     const wooStores = ecommerceStores.filter(s => s.platform === 'woocommerce');
 
     async function handleDeleteN8n(integrationId: string) {
-        if (!confirm('Eliminar esta integración?')) return;
+        if (!confirm(t.deleteConfirm || 'Eliminar esta integración?')) return;
         setDeletingId(integrationId);
         const result = await deleteWebhookIntegration(integrationId);
         if (result.success) {
-            toast.success('Integración eliminada');
+            toast.success(t.integrationDeleted || 'Integración eliminada');
             router.refresh();
         } else {
             toast.error(result.error || 'Error');
@@ -81,8 +85,8 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
     }
 
     async function handleCreateN8n() {
-        if (!n8nUrl.trim()) { toast.error('URL del webhook es obligatoria'); return; }
-        if (n8nEvents.length === 0) { toast.error('Selecciona al menos un evento'); return; }
+        if (!n8nUrl.trim()) { toast.error(t.webhookUrlRequired || 'URL del webhook es obligatoria'); return; }
+        if (n8nEvents.length === 0) { toast.error(t.selectAtLeastOneEvent || 'Selecciona al menos un evento'); return; }
         setN8nSaving(true);
         const result = await createWebhookIntegration({
             platform: 'n8n',
@@ -92,7 +96,7 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
             events: n8nEvents,
         });
         if (result.success) {
-            toast.success('n8n conectado exitosamente');
+            toast.success(t.n8nConnected || 'n8n conectado exitosamente');
             setN8nUrl(''); setN8nName(''); setN8nSecret('');
             setActiveView(null);
             router.refresh();
@@ -103,7 +107,7 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
     }
 
     async function handleTestN8n() {
-        if (!n8nUrl.trim()) { toast.error('Ingresa la URL primero'); return; }
+        if (!n8nUrl.trim()) { toast.error(t.enterUrlFirst || 'Ingresa la URL primero'); return; }
         setN8nTesting(true);
         setN8nTestResult(null);
         const result = await testWebhookIntegration(n8nUrl.trim());
@@ -112,11 +116,11 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
     }
 
     async function handleDeleteStore(storeId: string) {
-        if (!confirm('Desconectar esta tienda?')) return;
+        if (!confirm(t.disconnectStoreConfirm || 'Desconectar esta tienda?')) return;
         setDeletingId(storeId);
         const result = await disconnectEcommerceById(storeId);
         if (result.success) {
-            toast.success('Tienda desconectada');
+            toast.success(t.storeDisconnected || 'Tienda desconectada');
             router.refresh();
         } else {
             toast.error(result.error || 'Error');
@@ -159,7 +163,7 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
         return (
             <div className="space-y-4">
                 <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="h-4 w-4" /> Volver a integraciones
+                    <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
                 </Button>
                 <OpenAIKeyForm hasApiKey={openai.hasApiKey} updatedAt={openai.updatedAt} />
             </div>
@@ -170,7 +174,7 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
         return (
             <div className="space-y-4">
                 <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="h-4 w-4" /> Volver a integraciones
+                    <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
                 </Button>
                 <GoogleCalendarForm
                     isConnected={googleCalendar.isConnected}
@@ -185,7 +189,7 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
         return (
             <div className="space-y-4">
                 <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="h-4 w-4" /> Volver a integraciones
+                    <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
                 </Button>
                 <StoreList stores={shopifyStores} />
                 <EcommerceForm isConnected={false} platform="shopify" storeUrl={null} />
@@ -197,7 +201,7 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
         return (
             <div className="space-y-4">
                 <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="h-4 w-4" /> Volver a integraciones
+                    <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
                 </Button>
                 <StoreList stores={wooStores} />
                 <EcommerceForm isConnected={false} platform="woocommerce" storeUrl={null} />
@@ -209,7 +213,7 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
         return (
             <div className="space-y-4">
                 <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="h-4 w-4" /> Volver a integraciones
+                    <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
                 </Button>
 
                 {/* Existing n8n integrations */}
@@ -335,9 +339,9 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-semibold text-[#09090B]">Integraciones</h1>
+                <h1 className="text-2xl font-semibold text-[#09090B]">{t.title || 'Integraciones'}</h1>
                 <p className="text-sm text-[#71717A] mt-1">
-                    Conecta servicios externos para potenciar tu espacio de trabajo.
+                    {t.description || 'Conecta servicios externos para potenciar tu espacio de trabajo.'}
                 </p>
             </div>
 
@@ -359,7 +363,7 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
                             )}
                         </div>
                         <p className="text-[13px] text-[#71717A] mt-0.5">
-                            Conecta tu API Key de OpenAI para usar modelos de IA en tus agentes.
+                            {t.openaiDesc || 'Conecta tu API Key de OpenAI para usar modelos de IA en tus agentes.'}
                         </p>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => setActiveView('openai')} className="shrink-0">

@@ -11,6 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useDictionary } from '@/lib/i18n-context';
 
 type BillingAttemptRow = {
     id: string;
@@ -34,38 +35,42 @@ function formatCOP(cents: number): string {
     }).format(cents / 100);
 }
 
-const STATUS_BADGE: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    APPROVED: { label: 'Aprobado', variant: 'default' },
-    PENDING: { label: 'Pendiente', variant: 'secondary' },
-    DECLINED: { label: 'Rechazado', variant: 'destructive' },
-    ERROR: { label: 'Error', variant: 'destructive' },
-    VOIDED: { label: 'Anulado', variant: 'outline' },
-};
-
 export function BillingHistoryCard({ attempts }: { attempts: BillingAttemptRow[] }) {
+    const dict = useDictionary();
+    const t = dict.settingsUI?.billingHistoryCard || {};
+    const ui = dict.ui || {};
+
+    const STATUS_BADGE: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+        APPROVED: { label: t.approved || 'Aprobado', variant: 'default' },
+        PENDING: { label: ui.pending || 'Pendiente', variant: 'secondary' },
+        DECLINED: { label: t.declined || 'Rechazado', variant: 'destructive' },
+        ERROR: { label: ui.error || 'Error', variant: 'destructive' },
+        VOIDED: { label: t.voided || 'Anulado', variant: 'outline' },
+    };
+
     return (
         <Card>
             <CardHeader>
                 <div className="flex items-center gap-2">
                     <Receipt className="h-5 w-5" />
-                    <CardTitle>Historial de Facturación</CardTitle>
+                    <CardTitle>{t.title || 'Historial de Facturación'}</CardTitle>
                 </div>
-                <CardDescription>Tus cobros recientes de suscripción.</CardDescription>
+                <CardDescription>{t.description || 'Tus cobros recientes de suscripción.'}</CardDescription>
             </CardHeader>
             <CardContent>
                 {attempts.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                        No hay cobros registrados aún.
+                        {t.noCharges || 'No hay cobros registrados aún.'}
                     </p>
                 ) : (
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Plan</TableHead>
-                                <TableHead>Monto</TableHead>
-                                <TableHead>Intento</TableHead>
-                                <TableHead>Estado</TableHead>
+                                <TableHead>{t.dateCol || 'Fecha'}</TableHead>
+                                <TableHead>{t.planCol || 'Plan'}</TableHead>
+                                <TableHead>{t.amountCol || 'Monto'}</TableHead>
+                                <TableHead>{t.attemptCol || 'Intento'}</TableHead>
+                                <TableHead>{t.statusCol || 'Estado'}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>

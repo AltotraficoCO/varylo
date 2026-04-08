@@ -33,13 +33,14 @@ import { CreateListDialog } from './create-list-dialog';
 import { SendBroadcastDialog } from './send-broadcast-dialog';
 import { EditListDialog } from './edit-list-dialog';
 import { deleteContactList } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
-const STATUS_MAP: Record<string, { label: string; icon: any; color: string }> = {
-  PENDING: { label: 'Pendiente', icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
-  IN_PROGRESS: { label: 'Enviando...', icon: Loader2, color: 'text-blue-600 bg-blue-50 border-blue-200' },
-  COMPLETED: { label: 'Completada', icon: CheckCircle2, color: 'text-green-600 bg-green-50 border-green-200' },
-  FAILED: { label: 'Fallida', icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200' },
-  CANCELLED: { label: 'Cancelada', icon: AlertCircle, color: 'text-gray-600 bg-gray-50 border-gray-200' },
+const STATUS_MAP_STATIC: Record<string, { labelKey: string; fallback: string; icon: any; color: string }> = {
+  PENDING: { labelKey: 'pending', fallback: 'Pendiente', icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
+  IN_PROGRESS: { labelKey: 'sending', fallback: 'Enviando...', icon: Loader2, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+  COMPLETED: { labelKey: 'completed', fallback: 'Completada', icon: CheckCircle2, color: 'text-green-600 bg-green-50 border-green-200' },
+  FAILED: { labelKey: 'failed', fallback: 'Fallida', icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200' },
+  CANCELLED: { labelKey: 'cancelled', fallback: 'Cancelada', icon: AlertCircle, color: 'text-gray-600 bg-gray-50 border-gray-200' },
 };
 
 interface ContactList {
@@ -85,6 +86,9 @@ export function BroadcastsClient({
   contacts: Contact[];
   lang: string;
 }) {
+  const dict = useDictionary();
+  const t = dict.broadcasts || {};
+  const ui = dict.ui || {};
   const [tab, setTab] = useState<Tab>('lists');
   const [showCreateList, setShowCreateList] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
@@ -113,11 +117,11 @@ export function BroadcastsClient({
     const result = await deleteContactList(deleteListId);
     setIsDeleting(false);
     if (result.success) {
-      toast.success('Lista eliminada');
+      toast.success(ui.deletedSuccessfully || 'Lista eliminada');
       setDeleteListId(null);
       router.refresh();
     } else {
-      toast.error(result.error || 'Error al eliminar');
+      toast.error(result.error || ui.errorOccurred || 'Error al eliminar');
     }
   };
 
@@ -128,10 +132,10 @@ export function BroadcastsClient({
         <div className="flex items-center justify-between">
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: '#09090B', lineHeight: 1.2 }}>
-              Difusiones
+              {t.title || 'Difusiones'}
             </h1>
             <p style={{ fontSize: 14, color: '#71717A', marginTop: 4 }}>
-              Envía plantillas de WhatsApp a listas de contactos
+              {t.subtitle || 'Envía plantillas de WhatsApp a listas de contactos'}
             </p>
             {tierLabel && (
               <div className="flex items-center gap-1.5 mt-2">
@@ -160,7 +164,7 @@ export function BroadcastsClient({
                 cursor: 'pointer',
               }}
             >
-              Listas
+              {t.createList || 'Listas'}
             </button>
             <button
               onClick={() => setTab('broadcasts')}
@@ -175,7 +179,7 @@ export function BroadcastsClient({
                 cursor: 'pointer',
               }}
             >
-              Historial
+              {t.history || 'Historial'}
             </button>
             <button
               onClick={() => {
@@ -200,7 +204,7 @@ export function BroadcastsClient({
               }}
             >
               <Plus className="h-4 w-4" />
-              Nueva difusión
+              {t.sendBroadcast || 'Nueva difusión'}
             </button>
           </div>
         </div>
@@ -226,7 +230,7 @@ export function BroadcastsClient({
               transition: 'color 0.15s, border-color 0.15s',
             }}
           >
-            Listas de contactos
+            {t.selectContacts || 'Listas de contactos'}
           </button>
           <button
             onClick={() => setTab('broadcasts')}
@@ -244,7 +248,7 @@ export function BroadcastsClient({
               transition: 'color 0.15s, border-color 0.15s',
             }}
           >
-            Historial de envíos
+            {t.history || 'Historial de envíos'}
           </button>
         </div>
       </div>
@@ -257,9 +261,9 @@ export function BroadcastsClient({
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
                 <Users className="h-8 w-8 text-gray-400" />
               </div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#09090B' }}>Sin listas de contactos</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#09090B' }}>{t.noLists || 'Sin listas de contactos'}</h2>
               <p style={{ fontSize: 14, color: '#71717A' }}>
-                Crea tu primera lista para organizar contactos y enviar difusiones masivas.
+                {t.noListsDesc || 'Crea tu primera lista para organizar contactos y enviar difusiones masivas.'}
               </p>
               <button
                 onClick={() => setShowCreateList(true)}
@@ -278,7 +282,7 @@ export function BroadcastsClient({
                 }}
               >
                 <Plus className="h-4 w-4" />
-                Crear primera lista
+                {t.createList || 'Crear primera lista'}
               </button>
             </div>
           ) : (
@@ -289,16 +293,16 @@ export function BroadcastsClient({
                 style={{ backgroundColor: '#F4F4F5', padding: '12px 16px' }}
               >
                 <div className="flex-1" style={{ fontSize: 12, fontWeight: 600, color: '#71717A' }}>
-                  Nombre
+                  {ui.name || 'Nombre'}
                 </div>
                 <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
-                  Contactos
+                  {dict.contacts?.title || 'Contactos'}
                 </div>
                 <div style={{ width: 160, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
-                  Creada
+                  {ui.date || 'Creada'}
                 </div>
                 <div style={{ width: 160, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
-                  Acciones
+                  {ui.actions || 'Acciones'}
                 </div>
               </div>
               {/* Table rows */}
@@ -330,7 +334,7 @@ export function BroadcastsClient({
                         padding: 0,
                       }}
                     >
-                      Editar
+                      {ui.edit || 'Editar'}
                     </button>
                     <button
                       onClick={() => {
@@ -347,7 +351,7 @@ export function BroadcastsClient({
                         padding: 0,
                       }}
                     >
-                      Enviar
+                      {ui.send || 'Enviar'}
                     </button>
                     <button
                       onClick={() => setDeleteListId(list.id)}
@@ -360,7 +364,7 @@ export function BroadcastsClient({
                         display: 'flex',
                         alignItems: 'center',
                       }}
-                      title="Eliminar"
+                      title={ui.delete || 'Eliminar'}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -379,11 +383,11 @@ export function BroadcastsClient({
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
                 <Megaphone className="h-8 w-8 text-gray-400" />
               </div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#09090B' }}>Sin difusiones</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#09090B' }}>{t.noLists || 'Sin difusiones'}</h2>
               <p style={{ fontSize: 14, color: '#71717A' }}>
                 {contactLists.length === 0
-                  ? 'Primero crea una lista de contactos, luego podrás enviar difusiones.'
-                  : 'Envía tu primera difusión masiva a una lista de contactos.'}
+                  ? (t.noListsDesc || 'Primero crea una lista de contactos, luego podrás enviar difusiones.')
+                  : (t.subtitle || 'Envía tu primera difusión masiva a una lista de contactos.')}
               </p>
               {contactLists.length > 0 && (
                 <button
@@ -403,7 +407,7 @@ export function BroadcastsClient({
                   }}
                 >
                   <Megaphone className="h-4 w-4" />
-                  Crear difusión
+                  {t.sendBroadcast || 'Crear difusión'}
                 </button>
               )}
             </div>
@@ -415,31 +419,32 @@ export function BroadcastsClient({
                 style={{ backgroundColor: '#F4F4F5', padding: '12px 16px' }}
               >
                 <div className="flex-1" style={{ fontSize: 12, fontWeight: 600, color: '#71717A' }}>
-                  Plantilla
+                  {t.messageTemplate || 'Plantilla'}
                 </div>
                 <div style={{ width: 140, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
-                  Lista
+                  {t.listName || 'Lista'}
                 </div>
                 <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
-                  Estado
+                  {t.status || ui.status || 'Estado'}
                 </div>
                 <div style={{ width: 100, fontSize: 12, fontWeight: 600, color: '#71717A', textAlign: 'center' }}>
-                  Enviados
+                  {t.sent || 'Enviados'}
                 </div>
                 <div style={{ width: 80, fontSize: 12, fontWeight: 600, color: '#71717A', textAlign: 'center' }}>
-                  Fallidos
+                  {t.failed || ui.failed || 'Fallidos'}
                 </div>
                 <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
-                  Creada por
+                  {ui.actions || 'Creada por'}
                 </div>
                 <div style={{ width: 140, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
-                  Fecha
+                  {ui.date || 'Fecha'}
                 </div>
               </div>
               {/* Table rows */}
               {broadcasts.map((b) => {
-                const status = STATUS_MAP[b.status] || STATUS_MAP.PENDING;
-                const StatusIcon = status.icon;
+                const statusDef = STATUS_MAP_STATIC[b.status] || STATUS_MAP_STATIC.PENDING;
+                const StatusIcon = statusDef.icon;
+                const statusLabel = (ui as any)[statusDef.labelKey] || statusDef.fallback;
                 return (
                   <div
                     key={b.id}
@@ -455,10 +460,10 @@ export function BroadcastsClient({
                     <div style={{ width: 120 }}>
                       <Badge
                         variant="outline"
-                        className={cn('text-xs flex items-center gap-1 w-fit', status.color)}
+                        className={cn('text-xs flex items-center gap-1 w-fit', statusDef.color)}
                       >
                         <StatusIcon className={cn('h-3 w-3', b.status === 'IN_PROGRESS' && 'animate-spin')} />
-                        {status.label}
+                        {statusLabel}
                       </Badge>
                     </div>
                     <div style={{ width: 100, fontSize: 14, fontWeight: 400, color: '#16a34a', textAlign: 'center', fontFamily: 'monospace' }}>
@@ -513,19 +518,19 @@ export function BroadcastsClient({
       <AlertDialog open={!!deleteListId} onOpenChange={() => setDeleteListId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar esta lista?</AlertDialogTitle>
+            <AlertDialogTitle>{t.deleteList || '¿Eliminar esta lista?'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará la lista de contactos. Los contactos no serán eliminados.
+              {ui.confirmDeleteDesc || 'Esta acción no se puede deshacer.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{ui.cancel || 'Cancelar'}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteList}
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+              {isDeleting ? (ui.deleting || 'Eliminando...') : (ui.delete || 'Eliminar')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

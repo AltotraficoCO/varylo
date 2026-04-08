@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { deleteContacts } from './actions';
 import { toast } from 'sonner';
 import { SendTemplateDialog } from './send-template-dialog';
+import { useDictionary } from '@/lib/i18n-context';
 
 const CHANNEL_OPTIONS = [
     { value: '', label: 'Todos', icon: null },
@@ -70,6 +71,9 @@ function timeAgo(date: Date | string) {
 }
 
 export function ContactsClient({ contacts, search, filter, channel, lang }: ContactsClientProps) {
+    const dict = useDictionary();
+    const t = dict.contacts || {};
+    const ui = dict.ui || {};
     const [searchValue, setSearchValue] = useState(search);
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -108,13 +112,13 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
         const result = await deleteContacts(Array.from(selected));
         setIsDeleting(false);
         if (result.success) {
-            toast.success(`${result.count} contactos eliminados`);
+            toast.success(ui.deletedSuccessfully || `${result.count} contactos eliminados`);
             setSelected(new Set());
             setSelectMode(false);
             setShowDeleteDialog(false);
             router.refresh();
         } else {
-            toast.error(result.message || 'Error al eliminar');
+            toast.error(result.message || ui.errorOccurred || 'Error al eliminar');
         }
     };
 
@@ -134,8 +138,8 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-[28px] font-bold text-[#09090B]">Contactos</h1>
-                    <p className="text-[14px] text-[#71717A] mt-1">Gestiona tus contactos y listas</p>
+                    <h1 className="text-[28px] font-bold text-[#09090B]">{t.title || 'Contactos'}</h1>
+                    <p className="text-[14px] text-[#71717A] mt-1">{t.subtitle || 'Gestiona tus contactos y listas'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button
@@ -164,7 +168,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                         }}
                     >
                         <Download className="h-4 w-4 mr-1.5" />
-                        Exportar
+                        {t.exportContacts || 'Exportar'}
                     </Button>
                     <Button
                         variant="outline"
@@ -172,11 +176,11 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                         onClick={() => setShowTemplateDialog(true)}
                     >
                         <Send className="h-4 w-4 mr-1.5" />
-                        Enviar mensaje
+                        {t.sendTemplate || 'Enviar mensaje'}
                     </Button>
                     <Button className="rounded-lg px-4 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-[14px] font-medium">
                         <Plus className="h-4 w-4 mr-1.5" />
-                        Nuevo contacto
+                        {t.addContact || 'Nuevo contacto'}
                     </Button>
                 </div>
             </div>
@@ -186,7 +190,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                 <form onSubmit={handleSearch} className="relative w-72">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Buscar contactos..."
+                        placeholder={t.search || 'Buscar contactos...'}
                         className="pl-9 h-9 text-sm"
                         value={searchValue}
                         onChange={(e) => setSearchValue(e.target.value)}
@@ -217,7 +221,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                 {selected.size > 0 && (
                     <div className="ml-auto flex items-center gap-2">
                         <Checkbox checked={selected.size === contactIds.length && contactIds.length > 0} onCheckedChange={toggleAll} />
-                        <span className="text-xs text-[#71717A]">{selected.size} seleccionados</span>
+                        <span className="text-xs text-[#71717A]">{selected.size} {ui.selected || 'seleccionados'}</span>
                         <Button
                             variant="destructive"
                             size="sm"
@@ -225,13 +229,13 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                             className="text-xs"
                         >
                             <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                            Eliminar ({selected.size})
+                            {ui.delete || 'Eliminar'} ({selected.size})
                         </Button>
                         <button
                             onClick={() => setSelected(new Set())}
                             className="text-xs text-[#71717A] hover:text-[#09090B] px-2 py-1"
                         >
-                            Cancelar
+                            {ui.cancel || 'Cancelar'}
                         </button>
                     </div>
                 )}
@@ -242,11 +246,11 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                 {/* Table Header */}
                 <div className="flex items-center bg-[#F4F4F5] py-3 px-4 text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">
                     <div className="w-[36px] shrink-0" />
-                    <div className="w-[200px] shrink-0">Nombre</div>
-                    <div className="w-[170px] shrink-0">Teléfono</div>
-                    <div className="w-[130px] shrink-0">Canal</div>
-                    <div className="w-[130px] shrink-0">Empresa</div>
-                    <div className="flex-1">Última actividad</div>
+                    <div className="w-[200px] shrink-0">{t.name || ui.name || 'Nombre'}</div>
+                    <div className="w-[170px] shrink-0">{t.phone || ui.phone || 'Teléfono'}</div>
+                    <div className="w-[130px] shrink-0">{t.channel || 'Canal'}</div>
+                    <div className="w-[130px] shrink-0">{dict.dashboard?.companyHome?.company || 'Empresa'}</div>
+                    <div className="flex-1">{t.lastSeen || 'Última actividad'}</div>
                     <div className="w-[40px] shrink-0" />
                 </div>
 
@@ -255,11 +259,11 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                         <div className="p-3 rounded-full bg-muted">
                             <Users className="h-6 w-6 text-muted-foreground" />
                         </div>
-                        <h3 className="font-semibold text-foreground">No se encontraron contactos</h3>
+                        <h3 className="font-semibold text-foreground">{t.noContacts || 'No se encontraron contactos'}</h3>
                         <p className="text-sm text-muted-foreground max-w-sm">
-                            {search ? 'No hay resultados para tu búsqueda.' :
-                             channel ? 'No hay contactos en este canal.' :
-                             'Los contactos aparecerán aquí cuando recibas mensajes.'}
+                            {search ? (ui.noResults || 'No hay resultados para tu búsqueda.') :
+                             channel ? (ui.noResults || 'No hay contactos en este canal.') :
+                             (t.noContactsDesc || 'Los contactos aparecerán aquí cuando recibas mensajes.')}
                         </p>
                     </div>
                 ) : (
@@ -324,7 +328,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                                                 setShowTemplateDialog(true);
                                             }}
                                             className="h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#10B981] hover:bg-[#ECFDF5] transition-all"
-                                            title="Enviar mensaje"
+                                            title={t.sendTemplate || 'Enviar mensaje'}
                                         >
                                             <Send className="h-3.5 w-3.5" />
                                         </button>
@@ -336,7 +340,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                                                 setShowDeleteDialog(true);
                                             }}
                                             className="h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#EF4444] hover:bg-[#FEF2F2] transition-all"
-                                            title="Eliminar contacto"
+                                            title={t.deleteContact || 'Eliminar contacto'}
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
                                         </button>
@@ -360,19 +364,19 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar {selected.size} contactos?</AlertDialogTitle>
+                        <AlertDialogTitle>{ui.areYouSure || '¿Eliminar'} {selected.size} {t.title?.toLowerCase() || 'contactos'}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminarán los contactos seleccionados y todas sus conversaciones asociadas.
+                            {ui.confirmDeleteDesc || 'Esta acción no se puede deshacer.'}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isDeleting}>{ui.cancel || 'Cancelar'}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             disabled={isDeleting}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {isDeleting ? 'Eliminando...' : `Eliminar ${selected.size}`}
+                            {isDeleting ? (ui.deleting || 'Eliminando...') : `${ui.delete || 'Eliminar'} ${selected.size}`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

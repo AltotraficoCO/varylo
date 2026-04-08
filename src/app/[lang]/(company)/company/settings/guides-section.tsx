@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, Copy, ChevronDown, ChevronRight, ExternalLink, BookOpen, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDictionary } from '@/lib/i18n-context';
 
 function CopyButton({ text }: { text: string }) {
     const [copied, setCopied] = useState(false);
@@ -64,6 +65,9 @@ function Step({ number, title, children, defaultOpen = false }: StepProps) {
 }
 
 export function GuidesSection() {
+    const dict = useDictionary();
+    const t = dict.settingsUI?.guidesSection || {};
+
     const webhookUrl = typeof window !== 'undefined'
         ? `${window.location.origin}/api/webhook/whatsapp`
         : 'https://tu-dominio.com/api/webhook/whatsapp';
@@ -78,9 +82,9 @@ export function GuidesSection() {
                             <MessageSquare className="h-5 w-5 text-green-600" />
                         </div>
                         <div>
-                            <CardTitle className="text-lg">Integrar WhatsApp Business</CardTitle>
+                            <CardTitle className="text-lg">{t.integrationGuide || 'Integrar WhatsApp Business'}</CardTitle>
                             <CardDescription>
-                                Guía paso a paso para conectar tu número de WhatsApp Business con Varylo.
+                                {t.integrationGuideDesc || 'Guía paso a paso para conectar tu número de WhatsApp Business con Varylo.'}
                             </CardDescription>
                         </div>
                     </div>
@@ -269,9 +273,9 @@ export function GuidesSection() {
                             <BookOpen className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div>
-                            <CardTitle className="text-lg">Más guías próximamente</CardTitle>
+                            <CardTitle className="text-lg">{t.moreGuides || 'Más guías próximamente'}</CardTitle>
                             <CardDescription>
-                                Guías para integrar Instagram, configurar agentes de IA, chatbots y más.
+                                {t.moreGuidesDesc || 'Guías para integrar Instagram, configurar agentes de IA, chatbots y más.'}
                             </CardDescription>
                         </div>
                     </div>

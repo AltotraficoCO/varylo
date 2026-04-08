@@ -15,8 +15,12 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { useTransition } from "react";
 import { deleteChatbot } from "./actions";
+import { useDictionary } from '@/lib/i18n-context';
 
 export function DeleteChatbotDialog({ chatbotId, chatbotName }: { chatbotId: string; chatbotName: string }) {
+    const dict = useDictionary();
+    const t = dict.chatbots || {};
+    const ui = dict.ui || {};
     const [isPending, startTransition] = useTransition();
 
     const handleDelete = () => {
@@ -37,20 +41,20 @@ export function DeleteChatbotDialog({ chatbotId, chatbotName }: { chatbotId: str
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>¿Eliminar chatbot?</AlertDialogTitle>
+                    <AlertDialogTitle>{t.deleteChatbotTitle}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará permanentemente el chatbot
-                        <strong> {chatbotName}</strong> y todas sus sesiones.
+                        {t.deleteChatbotDesc}
+                        <strong> {chatbotName}</strong> {t.deleteChatbotSuffix}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel>{ui.cancel}</AlertDialogCancel>
                     <AlertDialogAction
                         onClick={handleDelete}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         disabled={isPending}
                     >
-                        {isPending ? 'Eliminando...' : 'Eliminar'}
+                        {isPending ? ui.deleting : ui.delete}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

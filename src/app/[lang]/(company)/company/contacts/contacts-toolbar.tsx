@@ -20,6 +20,7 @@ import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe } from 'lucide-
 import { cn } from '@/lib/utils';
 import { deleteContacts } from './actions';
 import { toast } from 'sonner';
+import { useDictionary } from '@/lib/i18n-context';
 
 const CHANNEL_OPTIONS = [
     { value: '', label: 'Todos', icon: null },
@@ -37,6 +38,9 @@ interface ContactsToolbarProps {
 }
 
 export function ContactsToolbar({ search, filter, channel, contactIds, totalCount }: ContactsToolbarProps) {
+    const dict = useDictionary();
+    const t = dict.contacts || {};
+    const ui = dict.ui || {};
     const [searchValue, setSearchValue] = useState(search);
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -66,13 +70,13 @@ export function ContactsToolbar({ search, filter, channel, contactIds, totalCoun
         const result = await deleteContacts(Array.from(selected));
         setIsDeleting(false);
         if (result.success) {
-            toast.success(`${result.count} contactos eliminados`);
+            toast.success(ui.deletedSuccessfully || `${result.count} contactos eliminados`);
             setSelected(new Set());
             setSelectMode(false);
             setShowDeleteDialog(false);
             router.refresh();
         } else {
-            toast.error(result.message || 'Error al eliminar');
+            toast.error(result.message || ui.errorOccurred || 'Error al eliminar');
         }
     };
 
@@ -93,12 +97,12 @@ export function ContactsToolbar({ search, filter, channel, contactIds, totalCoun
             <header className="border-b bg-white sticky top-0 z-10">
                 {/* Top row */}
                 <div className="h-14 flex items-center justify-between px-6">
-                    <h1 className="text-xl font-semibold tracking-tight text-foreground">Contactos</h1>
+                    <h1 className="text-xl font-semibold tracking-tight text-foreground">{t.title || 'Contactos'}</h1>
                     <div className="flex items-center gap-2">
                         <form onSubmit={handleSearch} className="relative w-56">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Buscar..."
+                                placeholder={ui.search || 'Buscar...'}
                                 className="pl-9 h-8 bg-gray-50/50 border-gray-200 text-sm"
                                 value={searchValue}
                                 onChange={(e) => setSearchValue(e.target.value)}
@@ -112,7 +116,7 @@ export function ContactsToolbar({ search, filter, channel, contactIds, totalCoun
                                 className="h-8 px-2 text-xs"
                             >
                                 <CheckSquare className="h-3.5 w-3.5 mr-1" />
-                                Seleccionar
+                                {ui.select || 'Seleccionar'}
                             </Button>
                         ) : (
                             <div className="flex items-center gap-2">
@@ -130,7 +134,7 @@ export function ContactsToolbar({ search, filter, channel, contactIds, totalCoun
                                         className="h-8 px-2 text-xs"
                                     >
                                         <Trash2 className="h-3.5 w-3.5 mr-1" />
-                                        Eliminar ({selected.size})
+                                        {ui.delete || 'Eliminar'} ({selected.size})
                                     </Button>
                                 )}
                                 <Button variant="ghost" size="sm" onClick={() => { setSelectMode(false); setSelected(new Set()); }} className="h-8 px-2">
@@ -180,19 +184,19 @@ export function ContactsToolbar({ search, filter, channel, contactIds, totalCoun
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar {selected.size} contactos?</AlertDialogTitle>
+                        <AlertDialogTitle>{ui.areYouSure || '¿Eliminar'} {selected.size} {t.title?.toLowerCase() || 'contactos'}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminarán los contactos seleccionados y todas sus conversaciones asociadas.
+                            {ui.confirmDeleteDesc || 'Esta acción no se puede deshacer.'}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isDeleting}>{ui.cancel || 'Cancelar'}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             disabled={isDeleting}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {isDeleting ? 'Eliminando...' : `Eliminar ${selected.size}`}
+                            {isDeleting ? (ui.deleting || 'Eliminando...') : `${ui.delete || 'Eliminar'} ${selected.size}`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

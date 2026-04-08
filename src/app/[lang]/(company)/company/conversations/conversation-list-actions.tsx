@@ -20,6 +20,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { deleteConversation, reopenConversation } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 export function ConversationListActions({ conversationId, status, isAgent }: { conversationId: string; status: string; isAgent?: boolean }) {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -27,6 +28,9 @@ export function ConversationListActions({ conversationId, status, isAgent }: { c
     const [isDeleting, setIsDeleting] = useState(false);
     const [isReopening, setIsReopening] = useState(false);
     const router = useRouter();
+    const dict = useDictionary();
+    const t = dict.conversations || {};
+    const ui = dict.ui || {};
 
     async function handleDelete() {
         setIsDeleting(true);
@@ -75,7 +79,7 @@ export function ConversationListActions({ conversationId, status, isAgent }: { c
                             }}
                         >
                             <RotateCcw className="h-4 w-4 mr-2" />
-                            Reabrir
+                            {t.reopen}
                         </DropdownMenuItem>
                     )}
                     {hasDelete && (
@@ -87,7 +91,7 @@ export function ConversationListActions({ conversationId, status, isAgent }: { c
                             }}
                         >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Eliminar
+                            {ui.delete}
                         </DropdownMenuItem>
                     )}
                 </DropdownMenuContent>
@@ -96,18 +100,18 @@ export function ConversationListActions({ conversationId, status, isAgent }: { c
             <AlertDialog open={showReopenDialog} onOpenChange={setShowReopenDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Reabrir conversación?</AlertDialogTitle>
+                        <AlertDialogTitle>{t.reopenConfirm}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Reabrir esta conversación puede generar un costo en Meta si la ventana de 24 horas ha expirado. Se requerirá enviar una plantilla para iniciar contacto.
+                            {t.reopenConfirmDesc}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isReopening}>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isReopening}>{ui.cancel}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleReopen}
                             disabled={isReopening}
                         >
-                            {isReopening ? 'Reabriendo...' : 'Reabrir'}
+                            {isReopening ? t.reopening : t.reopen}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -116,19 +120,19 @@ export function ConversationListActions({ conversationId, status, isAgent }: { c
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
+                        <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminarán todos los mensajes de esta conversación.
+                            {t.deleteConfirmDesc}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isDeleting}>{ui.cancel}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             disabled={isDeleting}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                            {isDeleting ? ui.deleting : ui.delete}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

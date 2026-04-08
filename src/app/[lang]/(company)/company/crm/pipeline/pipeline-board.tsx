@@ -15,6 +15,7 @@ import { Plus, X, Loader2, DollarSign, User, CalendarDays, MoreHorizontal, Troph
 import { createDeal, moveDeal, updateDealStatus, deleteDeal, reopenDeal } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useDictionary } from '@/lib/i18n-context';
 
 type Deal = {
     id: string;
@@ -46,6 +47,9 @@ function formatCOP(amount: number): string {
 }
 
 function DealCard({ deal, stageColor }: { deal: Deal; stageColor: string }) {
+    const dict = useDictionary();
+    const crm = dict.crm || {};
+    const ui = dict.ui || {};
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: deal.id });
     const [showMenu, setShowMenu] = useState(false);
     const router = useRouter();
@@ -80,15 +84,15 @@ function DealCard({ deal, stageColor }: { deal: Deal; stageColor: string }) {
                     </button>
                     {showMenu && (
                         <div className="absolute right-0 top-7 bg-white border border-[#E4E4E7] rounded-lg shadow-lg py-1 z-10 w-36">
-                            <button onClick={async () => { await updateDealStatus(deal.id, 'WON'); toast.success('Deal ganado!'); router.refresh(); }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#10B981] hover:bg-[#ECFDF5] flex items-center gap-2">
-                                <Trophy className="h-3 w-3" /> Marcar ganado
+                            <button onClick={async () => { await updateDealStatus(deal.id, 'WON'); toast.success(crm.won || 'Deal ganado!'); router.refresh(); }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#10B981] hover:bg-[#ECFDF5] flex items-center gap-2">
+                                <Trophy className="h-3 w-3" /> {crm.markAsWon || 'Marcar ganado'}
                             </button>
-                            <button onClick={async () => { await updateDealStatus(deal.id, 'LOST'); toast.success('Deal perdido'); router.refresh(); }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#F59E0B] hover:bg-[#FFFBEB] flex items-center gap-2">
-                                <XCircle className="h-3 w-3" /> Marcar perdido
+                            <button onClick={async () => { await updateDealStatus(deal.id, 'LOST'); toast.success(crm.lost || 'Deal perdido'); router.refresh(); }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#F59E0B] hover:bg-[#FFFBEB] flex items-center gap-2">
+                                <XCircle className="h-3 w-3" /> {crm.markAsLost || 'Marcar perdido'}
                             </button>
                             <div className="h-px bg-[#F4F4F5] my-1" />
-                            <button onClick={async () => { if (confirm('Eliminar este deal?')) { await deleteDeal(deal.id); router.refresh(); } }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#EF4444] hover:bg-[#FEF2F2]">
-                                Eliminar
+                            <button onClick={async () => { if (confirm(ui.areYouSure || 'Eliminar este deal?')) { await deleteDeal(deal.id); router.refresh(); } }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#EF4444] hover:bg-[#FEF2F2]">
+                                {ui.delete || 'Eliminar'}
                             </button>
                         </div>
                     )}
@@ -111,7 +115,7 @@ function DealCard({ deal, stageColor }: { deal: Deal; stageColor: string }) {
                         <span className="text-[12px] text-[#71717A] truncate max-w-[100px]">{deal.contact.name || deal.contact.phone}</span>
                     </div>
                 ) : (
-                    <span className="text-[12px] text-[#A1A1AA]">Sin contacto</span>
+                    <span className="text-[12px] text-[#A1A1AA]">{crm.contact || 'Sin contacto'}</span>
                 )}
                 {deal.expectedCloseAt && (
                     <span className="text-[11px] text-[#A1A1AA] flex items-center gap-1">
@@ -133,6 +137,9 @@ function DealCard({ deal, stageColor }: { deal: Deal; stageColor: string }) {
 }
 
 function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Contact[]; agents: Agent[] }) {
+    const dict = useDictionary();
+    const crm = dict.crm || {};
+    const ui = dict.ui || {};
     const { setNodeRef } = useDroppable({ id: stage.id });
     const [showAddDeal, setShowAddDeal] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -188,7 +195,7 @@ function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Cont
                         <Input
                             value={newDeal.title}
                             onChange={e => setNewDeal(p => ({ ...p, title: e.target.value }))}
-                            placeholder="Nombre del deal"
+                            placeholder={crm.dealTitle || 'Nombre del deal'}
                             className="h-9 text-[13px] rounded-lg"
                             autoFocus
                             onKeyDown={e => { if (e.key === 'Enter') handleAddDeal(); if (e.key === 'Escape') setShowAddDeal(false); }}
@@ -196,7 +203,7 @@ function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Cont
                         <Input
                             value={newDeal.value}
                             onChange={e => setNewDeal(p => ({ ...p, value: e.target.value }))}
-                            placeholder="Valor (COP)"
+                            placeholder={`${crm.dealValue || ui.value || 'Valor'} (COP)`}
                             type="number"
                             className="h-9 text-[13px] rounded-lg"
                         />
@@ -205,12 +212,12 @@ function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Cont
                             onChange={e => setNewDeal(p => ({ ...p, contactId: e.target.value }))}
                             className="w-full h-9 rounded-lg border border-[#E4E4E7] bg-white px-2 text-[13px]"
                         >
-                            <option value="">Contacto (opcional)</option>
+                            <option value="">{crm.contact || 'Contacto'} ({ui.optional || 'opcional'})</option>
                             {contacts.map(c => <option key={c.id} value={c.id}>{c.name || c.phone}</option>)}
                         </select>
                         <div className="flex gap-2">
                             <Button onClick={handleAddDeal} disabled={saving} size="sm" className="flex-1 h-8 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-[12px]">
-                                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Crear'}
+                                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : (ui.create || 'Crear')}
                             </Button>
                             <Button onClick={() => setShowAddDeal(false)} variant="outline" size="sm" className="h-8 rounded-lg text-[12px]">
                                 <X className="h-3 w-3" />
@@ -222,7 +229,7 @@ function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Cont
                         onClick={() => setShowAddDeal(true)}
                         className="w-full py-2 rounded-lg border border-dashed border-[#D4D4D8] text-[13px] text-[#A1A1AA] hover:text-[#09090B] hover:border-[#A1A1AA] hover:bg-white transition-all flex items-center justify-center gap-1.5"
                     >
-                        <Plus className="h-3.5 w-3.5" /> Agregar deal
+                        <Plus className="h-3.5 w-3.5" /> {crm.addDeal || 'Agregar deal'}
                     </button>
                 )}
             </div>
@@ -241,6 +248,9 @@ type ClosedDeal = {
 };
 
 export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: { stages: Stage[]; contacts: Contact[]; agents: Agent[]; closedDeals: ClosedDeal[]; lang: string }) {
+    const dict = useDictionary();
+    const crm = dict.crm || {};
+    const ui = dict.ui || {};
     const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
     const [activeStageColor, setActiveStageColor] = useState('#3B82F6');
     const router = useRouter();
@@ -305,7 +315,7 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#09090B]">Pipeline de Ventas</h1>
+                    <h1 className="text-2xl font-bold text-[#09090B]">{crm.pipeline || 'Pipeline de Ventas'}</h1>
                     <div className="flex items-center gap-4 mt-1">
                         <span className="text-[14px] text-[#71717A]">{totalDeals} abiertos</span>
                         <span className="text-[14px] font-semibold text-[#10B981]">{formatCOP(totalPipeline)} en pipeline</span>
@@ -338,20 +348,20 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
             {/* Closed deals */}
             {closedDeals.length > 0 && (
                 <div className="space-y-3">
-                    <h2 className="text-[16px] font-semibold text-[#09090B]">Deals cerrados</h2>
+                    <h2 className="text-[16px] font-semibold text-[#09090B]">{crm.closedDeals || 'Deals cerrados'}</h2>
                     <div className="grid gap-3 sm:grid-cols-2">
                         {/* Won */}
                         <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                             <div className="px-4 py-3 bg-[#ECFDF5] border-b border-[#D1FAE5] flex items-center gap-2">
                                 <Trophy className="h-4 w-4 text-[#10B981]" />
-                                <span className="text-[14px] font-semibold text-[#065F46]">Ganados</span>
+                                <span className="text-[14px] font-semibold text-[#065F46]">{crm.wonDeals || 'Ganados'}</span>
                                 <span className="text-[13px] font-bold text-[#10B981] ml-auto">
                                     {formatCOP(closedDeals.filter(d => d.status === 'WON').reduce((sum, d) => sum + d.value, 0))}
                                 </span>
                             </div>
                             <div className="divide-y divide-[#F4F4F5]">
                                 {closedDeals.filter(d => d.status === 'WON').length === 0 ? (
-                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">Sin deals ganados aun</p>
+                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">{crm.noDealas || 'Sin deals ganados aun'}</p>
                                 ) : (
                                     closedDeals.filter(d => d.status === 'WON').map(deal => (
                                         <div key={deal.id} className="px-4 py-3 flex items-center justify-between group">
@@ -361,7 +371,7 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                                     <span className="text-[14px] font-medium text-[#09090B]">{deal.title}</span>
                                                 </div>
                                                 <span className="text-[12px] text-[#71717A]">
-                                                    {deal.contactName || 'Sin contacto'} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
+                                                    {deal.contactName || (crm.contact || 'Sin contacto')} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -370,7 +380,7 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                                     onClick={async () => { await reopenDeal(deal.id); router.refresh(); toast.success('Deal reabierto'); }}
                                                     className="opacity-0 group-hover:opacity-100 text-[11px] text-[#3B82F6] hover:underline transition-opacity"
                                                 >
-                                                    Reabrir
+                                                    {ui.open || 'Reabrir'}
                                                 </button>
                                             </div>
                                         </div>
@@ -383,14 +393,14 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                         <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                             <div className="px-4 py-3 bg-[#FEF2F2] border-b border-[#FECACA] flex items-center gap-2">
                                 <Ban className="h-4 w-4 text-[#EF4444]" />
-                                <span className="text-[14px] font-semibold text-[#991B1B]">Perdidos</span>
+                                <span className="text-[14px] font-semibold text-[#991B1B]">{crm.lostDeals || 'Perdidos'}</span>
                                 <span className="text-[13px] text-[#EF4444] ml-auto">
                                     {closedDeals.filter(d => d.status === 'LOST').length} deals
                                 </span>
                             </div>
                             <div className="divide-y divide-[#F4F4F5]">
                                 {closedDeals.filter(d => d.status === 'LOST').length === 0 ? (
-                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">Sin deals perdidos</p>
+                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">{crm.noDealas || 'Sin deals perdidos'}</p>
                                 ) : (
                                     closedDeals.filter(d => d.status === 'LOST').map(deal => (
                                         <div key={deal.id} className="px-4 py-3 flex items-center justify-between group">
@@ -400,7 +410,7 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                                     <span className="text-[14px] font-medium text-[#09090B]">{deal.title}</span>
                                                 </div>
                                                 <span className="text-[12px] text-[#71717A]">
-                                                    {deal.contactName || 'Sin contacto'} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
+                                                    {deal.contactName || (crm.contact || 'Sin contacto')} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -409,7 +419,7 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                                     onClick={async () => { await reopenDeal(deal.id); router.refresh(); toast.success('Deal reabierto'); }}
                                                     className="opacity-0 group-hover:opacity-100 text-[11px] text-[#3B82F6] hover:underline transition-opacity"
                                                 >
-                                                    Reabrir
+                                                    {ui.open || 'Reabrir'}
                                                 </button>
                                             </div>
                                         </div>
