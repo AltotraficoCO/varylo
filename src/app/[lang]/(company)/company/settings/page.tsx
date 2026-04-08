@@ -38,7 +38,7 @@ export default async function SettingsPage(props: {
     if (!companyId) return null;
 
     // Fetch all data in parallel
-    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceStores, activeSubscription] = await Promise.all([
+    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceStores, n8nWebhooks, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -69,6 +69,11 @@ export default async function SettingsPage(props: {
         prisma.ecommerceIntegration.findMany({
             where: { companyId },
             select: { id: true, name: true, platform: true, storeUrl: true, active: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+        }),
+        prisma.webhookIntegration.findMany({
+            where: { companyId, platform: 'n8n' },
+            select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
         }),
         prisma.subscription.findFirst({
@@ -211,6 +216,11 @@ export default async function SettingsPage(props: {
                             ecommerceStores={ecommerceStores.map(s => ({
                                 ...s,
                                 createdAt: s.createdAt.toISOString(),
+                            }))}
+                            n8nIntegrations={n8nWebhooks.map(w => ({
+                                ...w,
+                                lastUsedAt: w.lastUsedAt?.toISOString() || null,
+                                createdAt: w.createdAt.toISOString(),
                             }))}
                         />
                     )}

@@ -150,6 +150,7 @@ model Company {
   paymentSources     PaymentSource[]
   subscriptions      Subscription[]
   ecommerceIntegrations EcommerceIntegration[]
+  webhookIntegrations   WebhookIntegration[]
   contactLists       ContactList[]
   broadcasts         Broadcast[]
   apiKeys            ApiKey[]
@@ -497,6 +498,24 @@ model EcommerceIntegration {
   updatedAt     DateTime @updatedAt
 
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model WebhookIntegration {
+  id          String   @id @default(cuid())
+  companyId   String
+  platform    String   // "n8n" | "zapier" | "make" | "custom"
+  name        String   @default("Mi webhook")
+  webhookUrl  String
+  secret      String?  // optional HMAC secret
+  events      String[] @default(["message.received", "conversation.created", "data.captured"])
+  active      Boolean  @default(true)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }

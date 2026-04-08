@@ -7,7 +7,7 @@ export default async function IntegrationsPage() {
     if (!session?.user?.companyId) return null;
     const companyId = session.user.companyId;
 
-    const [company, ecommerceStores] = await Promise.all([
+    const [company, ecommerceStores, webhookIntegrations] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -20,14 +20,12 @@ export default async function IntegrationsPage() {
         }),
         prisma.ecommerceIntegration.findMany({
             where: { companyId },
-            select: {
-                id: true,
-                name: true,
-                platform: true,
-                storeUrl: true,
-                active: true,
-                createdAt: true,
-            },
+            select: { id: true, name: true, platform: true, storeUrl: true, active: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+        }),
+        prisma.webhookIntegration.findMany({
+            where: { companyId },
+            select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
         }),
     ]);
@@ -46,6 +44,11 @@ export default async function IntegrationsPage() {
             ecommerceStores={ecommerceStores.map(s => ({
                 ...s,
                 createdAt: s.createdAt.toISOString(),
+            }))}
+            n8nIntegrations={webhookIntegrations.filter(w => w.platform === 'n8n').map(w => ({
+                ...w,
+                lastUsedAt: w.lastUsedAt?.toISOString() || null,
+                createdAt: w.createdAt.toISOString(),
             }))}
         />
     );

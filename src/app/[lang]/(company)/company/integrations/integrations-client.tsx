@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Settings2, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Settings2, Trash2, Loader2, Plus, Zap, TestTube, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 import { OpenAIKeyForm } from '../settings/openai-form';
 import { GoogleCalendarForm } from '../settings/google-calendar-form';
 import { EcommerceForm } from '../settings/ecommerce-form';
-import { disconnectEcommerceById } from './actions';
+import { disconnectEcommerceById, createWebhookIntegration, deleteWebhookIntegration, testWebhookIntegration, AVAILABLE_EVENTS } from './actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -18,6 +21,17 @@ type EcommerceStore = {
     platform: string;
     storeUrl: string;
     active: boolean;
+    createdAt: string;
+};
+
+type N8nIntegration = {
+    id: string;
+    name: string;
+    platform: string;
+    webhookUrl: string;
+    events: string[];
+    active: boolean;
+    lastUsedAt: string | null;
     createdAt: string;
 };
 
@@ -32,15 +46,69 @@ type IntegrationsClientProps = {
         connectedAt: string | null;
     };
     ecommerceStores: EcommerceStore[];
+    n8nIntegrations: N8nIntegration[];
 };
 
-export function IntegrationsClient({ openai, googleCalendar, ecommerceStores }: IntegrationsClientProps) {
+export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8nIntegrations }: IntegrationsClientProps) {
     const [activeView, setActiveView] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const router = useRouter();
 
+    // n8n form state
+    const [n8nUrl, setN8nUrl] = useState('');
+    const [n8nName, setN8nName] = useState('');
+    const [n8nSecret, setN8nSecret] = useState('');
+    const [n8nEvents, setN8nEvents] = useState<string[]>(['message.received', 'conversation.created', 'data.captured']);
+    const [n8nSaving, setN8nSaving] = useState(false);
+    const [n8nTesting, setN8nTesting] = useState(false);
+    const [n8nTestResult, setN8nTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
     const shopifyStores = ecommerceStores.filter(s => s.platform === 'shopify');
     const wooStores = ecommerceStores.filter(s => s.platform === 'woocommerce');
+
+    async function handleDeleteN8n(integrationId: string) {
+        if (!confirm('Eliminar esta integración?')) return;
+        setDeletingId(integrationId);
+        const result = await deleteWebhookIntegration(integrationId);
+        if (result.success) {
+            toast.success('Integración eliminada');
+            router.refresh();
+        } else {
+            toast.error(result.error || 'Error');
+        }
+        setDeletingId(null);
+    }
+
+    async function handleCreateN8n() {
+        if (!n8nUrl.trim()) { toast.error('URL del webhook es obligatoria'); return; }
+        if (n8nEvents.length === 0) { toast.error('Selecciona al menos un evento'); return; }
+        setN8nSaving(true);
+        const result = await createWebhookIntegration({
+            platform: 'n8n',
+            name: n8nName.trim() || 'n8n Webhook',
+            webhookUrl: n8nUrl.trim(),
+            secret: n8nSecret.trim() || undefined,
+            events: n8nEvents,
+        });
+        if (result.success) {
+            toast.success('n8n conectado exitosamente');
+            setN8nUrl(''); setN8nName(''); setN8nSecret('');
+            setActiveView(null);
+            router.refresh();
+        } else {
+            toast.error(result.error || 'Error');
+        }
+        setN8nSaving(false);
+    }
+
+    async function handleTestN8n() {
+        if (!n8nUrl.trim()) { toast.error('Ingresa la URL primero'); return; }
+        setN8nTesting(true);
+        setN8nTestResult(null);
+        const result = await testWebhookIntegration(n8nUrl.trim());
+        setN8nTestResult(result);
+        setN8nTesting(false);
+    }
 
     async function handleDeleteStore(storeId: string) {
         if (!confirm('Desconectar esta tienda?')) return;
@@ -132,6 +200,132 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores }: 
                 </Button>
                 <StoreList stores={wooStores} />
                 <EcommerceForm isConnected={false} platform="woocommerce" storeUrl={null} />
+            </div>
+        );
+    }
+
+    if (activeView === 'add-n8n') {
+        return (
+            <div className="space-y-4">
+                <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
+                    <ArrowLeft className="h-4 w-4" /> Volver a integraciones
+                </Button>
+
+                {/* Existing n8n integrations */}
+                {n8nIntegrations.length > 0 && (
+                    <div className="space-y-2">
+                        <h3 className="text-[14px] font-medium text-[#09090B]">Webhooks conectados</h3>
+                        {n8nIntegrations.map(integration => (
+                            <div key={integration.id} className="flex items-center justify-between rounded-lg border border-[#E4E4E7] px-4 py-3">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[14px] font-medium text-[#09090B]">{integration.name}</span>
+                                        {integration.active ? (
+                                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-[#ECFDF5] text-[#10B981] font-medium">Activo</span>
+                                        ) : (
+                                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-[#F4F4F5] text-[#71717A] font-medium">Inactivo</span>
+                                        )}
+                                    </div>
+                                    <p className="text-[12px] text-[#71717A] truncate max-w-[400px]">{integration.webhookUrl}</p>
+                                    <p className="text-[11px] text-[#A1A1AA] mt-0.5">
+                                        Eventos: {integration.events.join(', ')}
+                                        {integration.lastUsedAt && ` · Ultimo uso: ${new Date(integration.lastUsedAt).toLocaleDateString('es-CO')}`}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => handleDeleteN8n(integration.id)}
+                                    disabled={deletingId === integration.id}
+                                    className="text-[#A1A1AA] hover:text-[#EF4444] transition-colors p-1.5 rounded-md hover:bg-red-50"
+                                >
+                                    {deletingId === integration.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Add new n8n webhook */}
+                <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
+                    <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
+                        <h3 className="text-[15px] font-semibold text-[#09090B]">Conectar n8n</h3>
+                        <p className="text-[12px] text-[#71717A] mt-0.5">Configura un webhook para recibir eventos de Varylo en n8n</p>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">Nombre</Label>
+                            <Input
+                                value={n8nName}
+                                onChange={e => setN8nName(e.target.value)}
+                                placeholder="Mi flujo de n8n"
+                                className="h-10 rounded-lg border-[#E4E4E7] text-[14px]"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">URL del Webhook</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={n8nUrl}
+                                    onChange={e => setN8nUrl(e.target.value)}
+                                    placeholder="https://tu-n8n.com/webhook/xxx"
+                                    className="h-10 rounded-lg border-[#E4E4E7] text-[14px] flex-1"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleTestN8n}
+                                    disabled={n8nTesting || !n8nUrl.trim()}
+                                    className="h-10 rounded-lg"
+                                >
+                                    {n8nTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <TestTube className="h-4 w-4" />}
+                                </Button>
+                            </div>
+                            {n8nTestResult && (
+                                <p className={`text-[12px] ${n8nTestResult.success ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                                    {n8nTestResult.message}
+                                </p>
+                            )}
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">
+                                Secret <span className="text-[#A1A1AA] font-normal">(opcional)</span>
+                            </Label>
+                            <Input
+                                value={n8nSecret}
+                                onChange={e => setN8nSecret(e.target.value)}
+                                placeholder="HMAC secret para firmar los payloads"
+                                className="h-10 rounded-lg border-[#E4E4E7] text-[14px]"
+                                type="password"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">Eventos</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {AVAILABLE_EVENTS.map(evt => (
+                                    <label key={evt.key} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#E4E4E7] cursor-pointer hover:bg-[#FAFAFA]">
+                                        <Checkbox
+                                            checked={n8nEvents.includes(evt.key)}
+                                            onCheckedChange={(checked) => {
+                                                setN8nEvents(prev =>
+                                                    checked ? [...prev, evt.key] : prev.filter(e => e !== evt.key)
+                                                );
+                                            }}
+                                        />
+                                        <span className="text-[13px] text-[#3F3F46]">{evt.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <Button
+                            onClick={handleCreateN8n}
+                            disabled={n8nSaving}
+                            className="w-full rounded-lg bg-[#10B981] hover:bg-[#059669] text-white font-medium"
+                        >
+                            {n8nSaving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+                            <Zap className="h-4 w-4 mr-1.5" />
+                            Conectar webhook
+                        </Button>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -261,26 +455,61 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores }: 
                 </div>
 
                 {/* n8n */}
-                <div className="flex items-center gap-4 px-5 py-4">
-                    <div className="h-11 w-11 rounded-lg bg-[#FFF1F0] flex items-center justify-center shrink-0 overflow-hidden">
-                        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#EA4B71"/>
-                            <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="sans-serif">n8n</text>
-                        </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[15px] font-medium text-[#09090B]">n8n</span>
-                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-[#FFF7ED] text-[#F97316] font-medium">Proximamente</span>
+                <div className="px-5 py-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                            <div className="h-11 w-11 rounded-lg bg-[#FFF1F0] flex items-center justify-center shrink-0 overflow-hidden">
+                                <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#EA4B71"/>
+                                    <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="sans-serif">n8n</text>
+                                </svg>
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[15px] font-medium text-[#09090B]">n8n</span>
+                                    {n8nIntegrations.length > 0 && (
+                                        <Badge variant="default" className="text-[11px] px-2 py-0">{n8nIntegrations.length} conectado{n8nIntegrations.length > 1 ? 's' : ''}</Badge>
+                                    )}
+                                </div>
+                                <p className="text-[13px] text-[#71717A] mt-0.5">
+                                    Automatiza flujos conectando Varylo con miles de apps via webhooks.
+                                </p>
+                            </div>
                         </div>
-                        <p className="text-[13px] text-[#71717A] mt-0.5">
-                            Automatiza flujos de trabajo conectando Varylo con miles de apps.
-                        </p>
+                        <Button variant="outline" size="sm" onClick={() => setActiveView('add-n8n')} className="shrink-0">
+                            <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                            {n8nIntegrations.length > 0 ? 'Gestionar' : 'Conectar'}
+                        </Button>
                     </div>
-                    <Button variant="outline" size="sm" disabled className="shrink-0 opacity-50">
-                        <Settings2 className="h-3.5 w-3.5 mr-1.5" />
-                        Conectar
-                    </Button>
+
+                    {/* Connected n8n webhooks */}
+                    {n8nIntegrations.length > 0 && (
+                        <div className="ml-14 space-y-2">
+                            {n8nIntegrations.map(integration => (
+                                <div key={integration.id} className="flex items-center justify-between rounded-lg border border-[#E4E4E7] px-4 py-3">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[14px] font-medium text-[#09090B]">{integration.name}</span>
+                                            {integration.active ? (
+                                                <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
+                                            ) : (
+                                                <span className="h-2 w-2 rounded-full bg-[#A1A1AA]" />
+                                            )}
+                                        </div>
+                                        <p className="text-[12px] text-[#71717A] truncate max-w-[300px]">{integration.webhookUrl}</p>
+                                        <p className="text-[11px] text-[#A1A1AA]">{integration.events.length} evento{integration.events.length > 1 ? 's' : ''}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleDeleteN8n(integration.id)}
+                                        disabled={deletingId === integration.id}
+                                        className="text-[#A1A1AA] hover:text-[#EF4444] transition-colors p-1.5 rounded-md hover:bg-red-50"
+                                    >
+                                        {deletingId === integration.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
