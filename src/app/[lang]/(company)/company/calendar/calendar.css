@@ -1,0 +1,278 @@
+/* ===== Varylo Calendar — FullCalendar Theme Override ===== */
+
+.varylo-calendar {
+  --fc-border-color: #E4E4E7;
+  --fc-today-bg-color: #F0FDF4;
+  --fc-neutral-bg-color: #FAFAFA;
+  --fc-page-bg-color: transparent;
+  --fc-event-bg-color: #10B981;
+  --fc-event-border-color: #059669;
+  --fc-event-text-color: #fff;
+  --fc-now-indicator-color: #EF4444;
+  --fc-button-bg-color: #fff;
+  --fc-button-border-color: #E4E4E7;
+  --fc-button-text-color: #3F3F46;
+  --fc-button-hover-bg-color: #F4F4F5;
+  --fc-button-hover-border-color: #D4D4D8;
+  --fc-button-active-bg-color: #10B981;
+  --fc-button-active-border-color: #059669;
+  --fc-button-active-text-color: #fff;
+}
+
+/* --- Toolbar --- */
+.varylo-calendar .fc-toolbar {
+  padding: 0 0 20px 0;
+  gap: 12px;
+}
+
+.varylo-calendar .fc-toolbar-title {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #09090B !important;
+  letter-spacing: -0.01em;
+}
+
+/* --- Buttons --- */
+.varylo-calendar .fc-button {
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 6px 14px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.15s ease !important;
+  text-transform: none !important;
+}
+
+.varylo-calendar .fc-button:focus {
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
+}
+
+.varylo-calendar .fc-button-group {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.varylo-calendar .fc-button-group .fc-button {
+  border-radius: 0 !important;
+}
+
+.varylo-calendar .fc-button-group .fc-button:first-child {
+  border-radius: 8px 0 0 8px !important;
+}
+
+.varylo-calendar .fc-button-group .fc-button:last-child {
+  border-radius: 0 8px 8px 0 !important;
+}
+
+.varylo-calendar .fc-prev-button,
+.varylo-calendar .fc-next-button {
+  padding: 6px 10px !important;
+}
+
+.varylo-calendar .fc-today-button {
+  background: #10B981 !important;
+  border-color: #059669 !important;
+  color: #fff !important;
+}
+
+.varylo-calendar .fc-today-button:hover {
+  background: #059669 !important;
+}
+
+.varylo-calendar .fc-today-button:disabled {
+  background: #10B981 !important;
+  opacity: 0.5 !important;
+}
+
+/* --- Table structure --- */
+.varylo-calendar .fc-scrollgrid {
+  border: none !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.varylo-calendar .fc-scrollgrid td,
+.varylo-calendar .fc-scrollgrid th {
+  border-color: #F4F4F5 !important;
+}
+
+.varylo-calendar .fc-scrollgrid-sync-table {
+  border-radius: 12px;
+}
+
+/* --- Day headers --- */
+.varylo-calendar .fc-col-header-cell {
+  padding: 12px 0 !important;
+  background: #FAFAFA;
+  border-bottom: 1px solid #E4E4E7 !important;
+}
+
+.varylo-calendar .fc-col-header-cell-cushion {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #71717A !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  text-decoration: none !important;
+  padding: 4px 8px !important;
+}
+
+/* --- Time slots --- */
+.varylo-calendar .fc-timegrid-slot {
+  height: 48px !important;
+}
+
+.varylo-calendar .fc-timegrid-slot-label-cushion {
+  font-size: 11px !important;
+  color: #A1A1AA !important;
+  font-weight: 500 !important;
+  padding-right: 12px !important;
+}
+
+.varylo-calendar .fc-timegrid-slot-lane {
+  transition: background 0.1s ease;
+}
+
+.varylo-calendar .fc-timegrid-slot-lane:hover {
+  background: #F9FAFB;
+}
+
+/* --- Today column highlight --- */
+.varylo-calendar .fc-day-today {
+  background: #F0FDF4 !important;
+}
+
+.varylo-calendar .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+  color: #10B981 !important;
+  position: relative;
+}
+
+/* --- Now indicator --- */
+.varylo-calendar .fc-timegrid-now-indicator-line {
+  border-color: #EF4444 !important;
+  border-width: 2px !important;
+}
+
+.varylo-calendar .fc-timegrid-now-indicator-arrow {
+  border-color: #EF4444 !important;
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+}
+
+/* --- Events --- */
+.varylo-calendar .fc-event {
+  border-radius: 6px !important;
+  border: none !important;
+  padding: 2px 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  cursor: pointer !important;
+  transition: transform 0.1s ease, box-shadow 0.1s ease !important;
+}
+
+.varylo-calendar .fc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12) !important;
+}
+
+.varylo-calendar .fc-timegrid-event {
+  border-left: 3px solid #059669 !important;
+  background: linear-gradient(135deg, #10B981, #059669) !important;
+}
+
+.varylo-calendar .fc-event-title {
+  font-weight: 600 !important;
+}
+
+.varylo-calendar .fc-event-time {
+  font-weight: 400 !important;
+  opacity: 0.85;
+}
+
+/* --- Day grid (month view) --- */
+.varylo-calendar .fc-daygrid-day-number {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #3F3F46 !important;
+  padding: 8px !important;
+  text-decoration: none !important;
+}
+
+.varylo-calendar .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  background: #10B981 !important;
+  color: #fff !important;
+  border-radius: 50% !important;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.varylo-calendar .fc-daygrid-day-events {
+  padding: 0 4px 4px !important;
+}
+
+.varylo-calendar .fc-daygrid-event {
+  border-radius: 4px !important;
+  margin-top: 2px !important;
+}
+
+.varylo-calendar .fc-daygrid-more-link {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #10B981 !important;
+}
+
+/* --- List view --- */
+.varylo-calendar .fc-list {
+  border: none !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.varylo-calendar .fc-list-day-cushion {
+  background: #F4F4F5 !important;
+  padding: 10px 16px !important;
+}
+
+.varylo-calendar .fc-list-day-text,
+.varylo-calendar .fc-list-day-side-text {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #09090B !important;
+  text-decoration: none !important;
+}
+
+.varylo-calendar .fc-list-event td {
+  padding: 10px 16px !important;
+  border-color: #F4F4F5 !important;
+}
+
+.varylo-calendar .fc-list-event:hover td {
+  background: #F9FAFB !important;
+}
+
+.varylo-calendar .fc-list-event-dot {
+  border-color: #10B981 !important;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  .varylo-calendar .fc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .varylo-calendar .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+  }
+
+  .varylo-calendar .fc-toolbar-title {
+    font-size: 16px !important;
+    text-align: center;
+  }
+}
