@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ContactAvatar } from '@/components/contact-avatar';
-import { Plus, X, Loader2, DollarSign, User, CalendarDays, MoreHorizontal, Trophy, XCircle, GripVertical } from 'lucide-react';
+import { Plus, X, Loader2, DollarSign, User, CalendarDays, MoreHorizontal, Trophy, XCircle, GripVertical, CheckCircle2, Ban } from 'lucide-react';
 import { createDeal, moveDeal, updateDealStatus, deleteDeal } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -230,7 +230,17 @@ function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Cont
     );
 }
 
-export function PipelineBoard({ stages, contacts, agents, lang }: { stages: Stage[]; contacts: Contact[]; agents: Agent[]; lang: string }) {
+type ClosedDeal = {
+    id: string;
+    title: string;
+    value: number;
+    status: string;
+    closedAt: string;
+    contactName: string | null;
+    stageName: string | null;
+};
+
+export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: { stages: Stage[]; contacts: Contact[]; agents: Agent[]; closedDeals: ClosedDeal[]; lang: string }) {
     const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
     const [activeStageColor, setActiveStageColor] = useState('#3B82F6');
     const router = useRouter();
@@ -286,6 +296,9 @@ export function PipelineBoard({ stages, contacts, agents, lang }: { stages: Stag
 
     const totalPipeline = stages.reduce((sum, s) => sum + s.deals.reduce((dSum, d) => dSum + d.value, 0), 0);
     const totalDeals = stages.reduce((sum, s) => sum + s.deals.length, 0);
+    const wonCount = closedDeals.filter(d => d.status === 'WON').length;
+    const wonValue = closedDeals.filter(d => d.status === 'WON').reduce((sum, d) => sum + d.value, 0);
+    const lostCount = closedDeals.filter(d => d.status === 'LOST').length;
 
     return (
         <div className="space-y-5">
@@ -294,8 +307,10 @@ export function PipelineBoard({ stages, contacts, agents, lang }: { stages: Stag
                 <div>
                     <h1 className="text-2xl font-bold text-[#09090B]">Pipeline de Ventas</h1>
                     <div className="flex items-center gap-4 mt-1">
-                        <span className="text-[14px] text-[#71717A]">{totalDeals} deals abiertos</span>
+                        <span className="text-[14px] text-[#71717A]">{totalDeals} abiertos</span>
                         <span className="text-[14px] font-semibold text-[#10B981]">{formatCOP(totalPipeline)} en pipeline</span>
+                        {wonCount > 0 && <span className="text-[14px] text-[#10B981]">✓ {wonCount} ganados ({formatCOP(wonValue)})</span>}
+                        {lostCount > 0 && <span className="text-[14px] text-[#EF4444]">✗ {lostCount} perdidos</span>}
                     </div>
                 </div>
             </div>
@@ -319,6 +334,76 @@ export function PipelineBoard({ stages, contacts, agents, lang }: { stages: Stag
                     )}
                 </DragOverlay>
             </DndContext>
+
+            {/* Closed deals */}
+            {closedDeals.length > 0 && (
+                <div className="space-y-3">
+                    <h2 className="text-[16px] font-semibold text-[#09090B]">Deals cerrados</h2>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        {/* Won */}
+                        <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
+                            <div className="px-4 py-3 bg-[#ECFDF5] border-b border-[#D1FAE5] flex items-center gap-2">
+                                <Trophy className="h-4 w-4 text-[#10B981]" />
+                                <span className="text-[14px] font-semibold text-[#065F46]">Ganados</span>
+                                <span className="text-[13px] font-bold text-[#10B981] ml-auto">
+                                    {formatCOP(closedDeals.filter(d => d.status === 'WON').reduce((sum, d) => sum + d.value, 0))}
+                                </span>
+                            </div>
+                            <div className="divide-y divide-[#F4F4F5]">
+                                {closedDeals.filter(d => d.status === 'WON').length === 0 ? (
+                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">Sin deals ganados aun</p>
+                                ) : (
+                                    closedDeals.filter(d => d.status === 'WON').map(deal => (
+                                        <div key={deal.id} className="px-4 py-3 flex items-center justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <CheckCircle2 className="h-3.5 w-3.5 text-[#10B981]" />
+                                                    <span className="text-[14px] font-medium text-[#09090B]">{deal.title}</span>
+                                                </div>
+                                                <span className="text-[12px] text-[#71717A]">
+                                                    {deal.contactName || 'Sin contacto'} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
+                                                </span>
+                                            </div>
+                                            <span className="text-[14px] font-bold text-[#10B981]">{formatCOP(deal.value)}</span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Lost */}
+                        <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
+                            <div className="px-4 py-3 bg-[#FEF2F2] border-b border-[#FECACA] flex items-center gap-2">
+                                <Ban className="h-4 w-4 text-[#EF4444]" />
+                                <span className="text-[14px] font-semibold text-[#991B1B]">Perdidos</span>
+                                <span className="text-[13px] text-[#EF4444] ml-auto">
+                                    {closedDeals.filter(d => d.status === 'LOST').length} deals
+                                </span>
+                            </div>
+                            <div className="divide-y divide-[#F4F4F5]">
+                                {closedDeals.filter(d => d.status === 'LOST').length === 0 ? (
+                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">Sin deals perdidos</p>
+                                ) : (
+                                    closedDeals.filter(d => d.status === 'LOST').map(deal => (
+                                        <div key={deal.id} className="px-4 py-3 flex items-center justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <XCircle className="h-3.5 w-3.5 text-[#EF4444]" />
+                                                    <span className="text-[14px] font-medium text-[#09090B]">{deal.title}</span>
+                                                </div>
+                                                <span className="text-[12px] text-[#71717A]">
+                                                    {deal.contactName || 'Sin contacto'} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
+                                                </span>
+                                            </div>
+                                            {deal.value > 0 && <span className="text-[13px] text-[#A1A1AA] line-through">{formatCOP(deal.value)}</span>}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

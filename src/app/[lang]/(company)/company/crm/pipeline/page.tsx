@@ -22,7 +22,7 @@ export default async function PipelinePage({ params }: { params: Promise<{ lang:
         });
     }
 
-    const [stages, contacts, agents] = await Promise.all([
+    const [stages, contacts, agents, closedDeals] = await Promise.all([
         prisma.pipelineStage.findMany({
             where: { companyId },
             orderBy: { sortOrder: 'asc' },
@@ -49,6 +49,15 @@ export default async function PipelinePage({ params }: { params: Promise<{ lang:
             select: { id: true, name: true },
             orderBy: { name: 'asc' },
         }),
+        prisma.deal.findMany({
+            where: { companyId, status: { in: ['WON', 'LOST'] } },
+            include: {
+                contact: { select: { id: true, name: true, phone: true } },
+                stage: { select: { name: true } },
+            },
+            orderBy: { closedAt: 'desc' },
+            take: 20,
+        }),
     ]);
 
     const serialized = stages.map(s => ({
@@ -64,11 +73,22 @@ export default async function PipelinePage({ params }: { params: Promise<{ lang:
         })),
     }));
 
+    const serializedClosed = closedDeals.map(d => ({
+        id: d.id,
+        title: d.title,
+        value: d.value,
+        status: d.status,
+        closedAt: d.closedAt?.toISOString() || d.updatedAt.toISOString(),
+        contactName: d.contact?.name || d.contact?.phone || null,
+        stageName: d.stage?.name || null,
+    }));
+
     return (
         <PipelineBoard
             stages={serialized}
             contacts={contacts}
             agents={agents}
+            closedDeals={serializedClosed}
             lang={lang}
         />
     );
