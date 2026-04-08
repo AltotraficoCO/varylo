@@ -463,11 +463,21 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             fromName: aiAgent.name,
         });
 
-        // Auto-move deal to "Contactado" when AI responds (if CRM enabled and deal exists)
+        // CRM: auto-create deal if none exists + move to Contactado
         if (aiAgent.crmEnabled) {
-            import('@/lib/crm-auto').then(({ moveDealByStage }) => {
-                moveDealByStage(conversation.companyId, conversation.contactId, 'Contactado').catch(() => {});
-            }).catch(() => {});
+            import('@/lib/crm-auto').then(async ({ autoCreateDeal, moveDealByStage }) => {
+                // Auto-create deal if this contact doesn't have one yet
+                await autoCreateDeal(
+                    conversation.companyId,
+                    conversation.contactId,
+                    conversationId,
+                    inboundMessage,
+                );
+                // Then move to Contactado
+                await moveDealByStage(conversation.companyId, conversation.contactId, 'Contactado');
+            }).catch(err => {
+                console.error('[CRM] Auto-deal error:', err);
+            });
         }
 
         return { handled: true };
@@ -735,23 +745,16 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
 
     if (opts.crmEnabled) {
         prompt += '\n\n=== INSTRUCCIONES CRM (OBLIGATORIAS) ===';
-        prompt += '\nTienes herramientas de CRM que DEBES usar en cada conversacion de venta:';
-        prompt += '\n\n1. create_deal: DEBES llamar esta herramienta cuando el cliente:';
-        prompt += '\n   - Pregunte por precios de algun producto o servicio';
-        prompt += '\n   - Pida una cotizacion';
-        prompt += '\n   - Muestre interes en comprar algo';
-        prompt += '\n   - Pregunte por disponibilidad de un producto';
-        prompt += '\n   NO la uses para consultas generales o quejas.';
-        prompt += '\n\n2. move_deal_stage: DEBES mover la etapa cuando:';
-        prompt += '\n   - "Propuesta": Acabas de darle precios o informacion detallada al cliente → LLAMA move_deal_stage("Propuesta") INMEDIATAMENTE despues de responder con precios';
-        prompt += '\n   - "Negociación": El cliente dice "lo voy a pensar", pide descuento, compara → LLAMA move_deal_stage("Negociación")';
-        prompt += '\n   - "Cerrado": El cliente decidio comprar o rechazar';
-        prompt += '\n\n3. close_deal: DEBES llamar cuando:';
-        prompt += '\n   - El cliente confirma compra → close_deal(won=true, value=MONTO)';
-        prompt += '\n   - El cliente rechaza definitivamente → close_deal(won=false)';
-        prompt += '\n\nREGLA: Cada vez que des precios, SIEMPRE llama move_deal_stage("Propuesta"). Es OBLIGATORIO.';
-        prompt += '\nREGLA: Nunca le digas al cliente que estas gestionando un pipeline.';
-        prompt += '\nREGLA: El titulo del deal debe describir QUE quiere el cliente (ej: "Plan Pro", "20 camisetas").';
+        prompt += '\nEl sistema crea automaticamente una oportunidad de venta para cada cliente. Tu trabajo es MOVER la oportunidad por las etapas del pipeline:';
+        prompt += '\n\n1. move_deal_stage: DEBES llamar esta herramienta cuando:';
+        prompt += '\n   - "Propuesta": Acabas de dar precios o info detallada → LLAMA move_deal_stage("Propuesta") INMEDIATAMENTE';
+        prompt += '\n   - "Negociación": El cliente dice "lo pienso", pide descuento, compara → LLAMA move_deal_stage("Negociación")';
+        prompt += '\n   - "Cerrado": El cliente tomo una decision final';
+        prompt += '\n\n2. close_deal: DEBES llamar cuando:';
+        prompt += '\n   - Cliente confirma compra → close_deal(won=true, value=MONTO_EN_COP)';
+        prompt += '\n   - Cliente rechaza definitivamente → close_deal(won=false)';
+        prompt += '\n\nREGLA CRITICA: Cada vez que das precios, SIEMPRE llama move_deal_stage("Propuesta"). OBLIGATORIO.';
+        prompt += '\nREGLA: Nunca menciones al cliente que gestionas un pipeline.';
     }
 
     prompt += '\n\nSi el usuario insiste en hablar con un humano o si no puedes resolver su consulta, responde con [TRANSFER_TO_HUMAN] al inicio de tu mensaje seguido de un mensaje de despedida amable.';
