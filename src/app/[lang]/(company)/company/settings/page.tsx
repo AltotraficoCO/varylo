@@ -39,9 +39,15 @@ export default async function SettingsPage(props: {
 
     // Fetch all data in parallel
     let n8nWebhooks: any[] = [];
-    try { n8nWebhooks = await prisma.webhookIntegration.findMany({ where: { companyId, platform: 'n8n' }, select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true }, orderBy: { createdAt: 'desc' } }); } catch { n8nWebhooks = []; }
+    try {
+        const result = await prisma.webhookIntegration.findMany({ where: { companyId, platform: 'n8n' }, select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true }, orderBy: { createdAt: 'desc' } });
+        n8nWebhooks = result || [];
+    } catch (e) {
+        console.error('[Settings] WebhookIntegration query failed:', e);
+        n8nWebhooks = [];
+    }
 
-    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceStores, activeSubscription] = await Promise.all([
+    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceStoresRaw, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -79,6 +85,8 @@ export default async function SettingsPage(props: {
             select: { id: true },
         }).catch(() => null),
     ]);
+
+    const ecommerceStores = Array.isArray(ecommerceStoresRaw) ? ecommerceStoresRaw : [];
 
     const companyName = company?.name || '';
     const hasOpenAIKey = !!company?.openaiApiKey;
@@ -211,11 +219,11 @@ export default async function SettingsPage(props: {
                                 email: googleCalendarEmail,
                                 connectedAt: googleCalendarConnectedAt,
                             }}
-                            ecommerceStores={ecommerceStores.map(s => ({
+                            ecommerceStores={(Array.isArray(ecommerceStores) ? ecommerceStores : []).map(s => ({
                                 ...s,
                                 createdAt: s.createdAt.toISOString(),
                             }))}
-                            n8nIntegrations={n8nWebhooks.map(w => ({
+                            n8nIntegrations={(Array.isArray(n8nWebhooks) ? n8nWebhooks : []).map(w => ({
                                 ...w,
                                 lastUsedAt: w.lastUsedAt?.toISOString() || null,
                                 createdAt: w.createdAt.toISOString(),
