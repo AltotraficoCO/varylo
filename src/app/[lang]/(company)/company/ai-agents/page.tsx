@@ -1,12 +1,12 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { CreateAiAgentDialog } from './create-ai-agent-dialog';
 import { EditAiAgentDialog } from './edit-ai-agent-dialog';
 import { DeleteAiAgentDialog } from './delete-ai-agent-dialog';
 import { AiAgentStatusToggle } from './ai-agent-status-toggle';
 import { AGENT_TYPE_CONFIGS } from '@/lib/ai-agent-types';
 import type { AiAgentType } from '@/lib/ai-agent-types';
-import { Sparkles, Bot } from 'lucide-react';
+import { Sparkles, Bot, Plus } from 'lucide-react';
+import Link from 'next/link';
 
 // Rotating color palette for agent icon backgrounds
 const ICON_COLORS = [
@@ -18,7 +18,8 @@ const ICON_COLORS = [
     { bg: '#FFFBEB', icon: '#F59E0B' }, // amber
 ];
 
-export default async function AiAgentsPage() {
+export default async function AiAgentsPage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params;
     const session = await auth();
     if (!session?.user?.companyId) return null;
 
@@ -61,11 +62,13 @@ export default async function AiAgentsPage() {
                     <h1 className="text-2xl font-bold" style={{ color: '#09090B' }}>Agentes IA</h1>
                     <p className="text-sm mt-1" style={{ color: '#71717A' }}>Configura agentes inteligentes que responden por ti</p>
                 </div>
-                <CreateAiAgentDialog
-                    channels={channels.map(c => ({ id: c.id, type: c.type }))}
-                    hasGoogleCalendar={hasGoogleCalendar}
-                    hasEcommerce={hasEcommerce}
-                />
+                <Link
+                    href={`/${lang}/company/ai-agents/new`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white px-4 py-2.5 text-[14px] font-medium transition-colors"
+                >
+                    <Plus className="h-4 w-4" />
+                    Nuevo agente
+                </Link>
             </div>
 
             {/* Card Grid */}
