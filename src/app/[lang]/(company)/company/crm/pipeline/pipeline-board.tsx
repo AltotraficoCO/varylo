@@ -84,15 +84,15 @@ function DealCard({ deal, stageColor }: { deal: Deal; stageColor: string }) {
                     </button>
                     {showMenu && (
                         <div className="absolute right-0 top-7 bg-white border border-[#E4E4E7] rounded-lg shadow-lg py-1 z-10 w-36">
-                            <button onClick={async () => { await updateDealStatus(deal.id, 'WON'); toast.success(crm.won || 'Deal ganado!'); router.refresh(); }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#10B981] hover:bg-[#ECFDF5] flex items-center gap-2">
-                                <Trophy className="h-3 w-3" /> {crm.markAsWon || 'Marcar ganado'}
+                            <button onClick={async () => { await updateDealStatus(deal.id, 'WON'); toast.success(crm.won); router.refresh(); }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#10B981] hover:bg-[#ECFDF5] flex items-center gap-2">
+                                <Trophy className="h-3 w-3" /> {crm.markAsWon}
                             </button>
-                            <button onClick={async () => { await updateDealStatus(deal.id, 'LOST'); toast.success(crm.lost || 'Deal perdido'); router.refresh(); }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#F59E0B] hover:bg-[#FFFBEB] flex items-center gap-2">
-                                <XCircle className="h-3 w-3" /> {crm.markAsLost || 'Marcar perdido'}
+                            <button onClick={async () => { await updateDealStatus(deal.id, 'LOST'); toast.success(crm.lost); router.refresh(); }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#F59E0B] hover:bg-[#FFFBEB] flex items-center gap-2">
+                                <XCircle className="h-3 w-3" /> {crm.markAsLost}
                             </button>
                             <div className="h-px bg-[#F4F4F5] my-1" />
-                            <button onClick={async () => { if (confirm(ui.areYouSure || 'Eliminar este deal?')) { await deleteDeal(deal.id); router.refresh(); } }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#EF4444] hover:bg-[#FEF2F2]">
-                                {ui.delete || 'Eliminar'}
+                            <button onClick={async () => { if (confirm(ui.areYouSure)) { await deleteDeal(deal.id); router.refresh(); } }} className="w-full px-3 py-1.5 text-left text-[13px] text-[#EF4444] hover:bg-[#FEF2F2]">
+                                {ui.delete}
                             </button>
                         </div>
                     )}
@@ -115,7 +115,7 @@ function DealCard({ deal, stageColor }: { deal: Deal; stageColor: string }) {
                         <span className="text-[12px] text-[#71717A] truncate max-w-[100px]">{deal.contact.name || deal.contact.phone}</span>
                     </div>
                 ) : (
-                    <span className="text-[12px] text-[#A1A1AA]">{crm.contact || 'Sin contacto'}</span>
+                    <span className="text-[12px] text-[#A1A1AA]">{crm.noContact}</span>
                 )}
                 {deal.expectedCloseAt && (
                     <span className="text-[11px] text-[#A1A1AA] flex items-center gap-1">
@@ -195,7 +195,7 @@ function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Cont
                         <Input
                             value={newDeal.title}
                             onChange={e => setNewDeal(p => ({ ...p, title: e.target.value }))}
-                            placeholder={crm.dealTitle || 'Nombre del deal'}
+                            placeholder={crm.dealTitle}
                             className="h-9 text-[13px] rounded-lg"
                             autoFocus
                             onKeyDown={e => { if (e.key === 'Enter') handleAddDeal(); if (e.key === 'Escape') setShowAddDeal(false); }}
@@ -203,7 +203,7 @@ function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Cont
                         <Input
                             value={newDeal.value}
                             onChange={e => setNewDeal(p => ({ ...p, value: e.target.value }))}
-                            placeholder={`${crm.dealValue || ui.value || 'Valor'} (COP)`}
+                            placeholder={`${crm.dealValue || ui.value} (COP)`}
                             type="number"
                             className="h-9 text-[13px] rounded-lg"
                         />
@@ -212,12 +212,12 @@ function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Cont
                             onChange={e => setNewDeal(p => ({ ...p, contactId: e.target.value }))}
                             className="w-full h-9 rounded-lg border border-[#E4E4E7] bg-white px-2 text-[13px]"
                         >
-                            <option value="">{crm.contact || 'Contacto'} ({ui.optional || 'opcional'})</option>
+                            <option value="">{crm.contact} ({ui.optional})</option>
                             {contacts.map(c => <option key={c.id} value={c.id}>{c.name || c.phone}</option>)}
                         </select>
                         <div className="flex gap-2">
                             <Button onClick={handleAddDeal} disabled={saving} size="sm" className="flex-1 h-8 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-[12px]">
-                                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : (ui.create || 'Crear')}
+                                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : (ui.create)}
                             </Button>
                             <Button onClick={() => setShowAddDeal(false)} variant="outline" size="sm" className="h-8 rounded-lg text-[12px]">
                                 <X className="h-3 w-3" />
@@ -229,7 +229,7 @@ function StageColumn({ stage, contacts, agents }: { stage: Stage; contacts: Cont
                         onClick={() => setShowAddDeal(true)}
                         className="w-full py-2 rounded-lg border border-dashed border-[#D4D4D8] text-[13px] text-[#A1A1AA] hover:text-[#09090B] hover:border-[#A1A1AA] hover:bg-white transition-all flex items-center justify-center gap-1.5"
                     >
-                        <Plus className="h-3.5 w-3.5" /> {crm.addDeal || 'Agregar deal'}
+                        <Plus className="h-3.5 w-3.5" /> {crm.addDeal}
                     </button>
                 )}
             </div>
@@ -315,12 +315,12 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#09090B]">{crm.pipeline || 'Pipeline de Ventas'}</h1>
+                    <h1 className="text-2xl font-bold text-[#09090B]">{crm.pipeline}</h1>
                     <div className="flex items-center gap-4 mt-1">
-                        <span className="text-[14px] text-[#71717A]">{totalDeals} abiertos</span>
-                        <span className="text-[14px] font-semibold text-[#10B981]">{formatCOP(totalPipeline)} en pipeline</span>
-                        {wonCount > 0 && <span className="text-[14px] text-[#10B981]">✓ {wonCount} ganados ({formatCOP(wonValue)})</span>}
-                        {lostCount > 0 && <span className="text-[14px] text-[#EF4444]">✗ {lostCount} perdidos</span>}
+                        <span className="text-[14px] text-[#71717A]">{totalDeals} {crm.openDeals}</span>
+                        <span className="text-[14px] font-semibold text-[#10B981]">{formatCOP(totalPipeline)} {crm.inPipeline}</span>
+                        {wonCount > 0 && <span className="text-[14px] text-[#10B981]">✓ {wonCount} {crm.wonCount} ({formatCOP(wonValue)})</span>}
+                        {lostCount > 0 && <span className="text-[14px] text-[#EF4444]">✗ {lostCount} {crm.lostCount}</span>}
                     </div>
                 </div>
             </div>
@@ -348,20 +348,20 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
             {/* Closed deals */}
             {closedDeals.length > 0 && (
                 <div className="space-y-3">
-                    <h2 className="text-[16px] font-semibold text-[#09090B]">{crm.closedDeals || 'Deals cerrados'}</h2>
+                    <h2 className="text-[16px] font-semibold text-[#09090B]">{crm.closedDeals}</h2>
                     <div className="grid gap-3 sm:grid-cols-2">
                         {/* Won */}
                         <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                             <div className="px-4 py-3 bg-[#ECFDF5] border-b border-[#D1FAE5] flex items-center gap-2">
                                 <Trophy className="h-4 w-4 text-[#10B981]" />
-                                <span className="text-[14px] font-semibold text-[#065F46]">{crm.wonDeals || 'Ganados'}</span>
+                                <span className="text-[14px] font-semibold text-[#065F46]">{crm.wonDeals}</span>
                                 <span className="text-[13px] font-bold text-[#10B981] ml-auto">
                                     {formatCOP(closedDeals.filter(d => d.status === 'WON').reduce((sum, d) => sum + d.value, 0))}
                                 </span>
                             </div>
                             <div className="divide-y divide-[#F4F4F5]">
                                 {closedDeals.filter(d => d.status === 'WON').length === 0 ? (
-                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">{crm.noDealas || 'Sin deals ganados aun'}</p>
+                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">{crm.noWonDeals}</p>
                                 ) : (
                                     closedDeals.filter(d => d.status === 'WON').map(deal => (
                                         <div key={deal.id} className="px-4 py-3 flex items-center justify-between group">
@@ -371,16 +371,16 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                                     <span className="text-[14px] font-medium text-[#09090B]">{deal.title}</span>
                                                 </div>
                                                 <span className="text-[12px] text-[#71717A]">
-                                                    {deal.contactName || (crm.contact || 'Sin contacto')} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
+                                                    {deal.contactName || (crm.noContact)} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[14px] font-bold text-[#10B981]">{formatCOP(deal.value)}</span>
                                                 <button
-                                                    onClick={async () => { await reopenDeal(deal.id); router.refresh(); toast.success('Deal reabierto'); }}
+                                                    onClick={async () => { await reopenDeal(deal.id); router.refresh(); toast.success(crm.dealReopened); }}
                                                     className="opacity-0 group-hover:opacity-100 text-[11px] text-[#3B82F6] hover:underline transition-opacity"
                                                 >
-                                                    {ui.open || 'Reabrir'}
+                                                    {crm.reopen}
                                                 </button>
                                             </div>
                                         </div>
@@ -393,14 +393,14 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                         <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
                             <div className="px-4 py-3 bg-[#FEF2F2] border-b border-[#FECACA] flex items-center gap-2">
                                 <Ban className="h-4 w-4 text-[#EF4444]" />
-                                <span className="text-[14px] font-semibold text-[#991B1B]">{crm.lostDeals || 'Perdidos'}</span>
+                                <span className="text-[14px] font-semibold text-[#991B1B]">{crm.lostDeals}</span>
                                 <span className="text-[13px] text-[#EF4444] ml-auto">
-                                    {closedDeals.filter(d => d.status === 'LOST').length} deals
+                                    {closedDeals.filter(d => d.status === 'LOST').length} {crm.deals}
                                 </span>
                             </div>
                             <div className="divide-y divide-[#F4F4F5]">
                                 {closedDeals.filter(d => d.status === 'LOST').length === 0 ? (
-                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">{crm.noDealas || 'Sin deals perdidos'}</p>
+                                    <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">{crm.noLostDeals}</p>
                                 ) : (
                                     closedDeals.filter(d => d.status === 'LOST').map(deal => (
                                         <div key={deal.id} className="px-4 py-3 flex items-center justify-between group">
@@ -410,16 +410,16 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                                     <span className="text-[14px] font-medium text-[#09090B]">{deal.title}</span>
                                                 </div>
                                                 <span className="text-[12px] text-[#71717A]">
-                                                    {deal.contactName || (crm.contact || 'Sin contacto')} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
+                                                    {deal.contactName || (crm.noContact)} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {deal.value > 0 && <span className="text-[13px] text-[#A1A1AA] line-through">{formatCOP(deal.value)}</span>}
                                                 <button
-                                                    onClick={async () => { await reopenDeal(deal.id); router.refresh(); toast.success('Deal reabierto'); }}
+                                                    onClick={async () => { await reopenDeal(deal.id); router.refresh(); toast.success(crm.dealReopened); }}
                                                     className="opacity-0 group-hover:opacity-100 text-[11px] text-[#3B82F6] hover:underline transition-opacity"
                                                 >
-                                                    {ui.open || 'Reabrir'}
+                                                    {crm.reopen}
                                                 </button>
                                             </div>
                                         </div>
