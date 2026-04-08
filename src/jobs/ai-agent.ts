@@ -212,6 +212,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                     calendarEnabled,
                     ecommerceEnabled,
                     dataCaptureEnabled: aiAgent.dataCaptureEnabled,
+                    captureFields: aiAgent.captureFields as CaptureField[] | null,
                     webhookEnabled: !!webhookConfig?.url,
                 }),
             },
@@ -575,12 +576,19 @@ async function handleSendToWebhook(
 
 // ── System prompt builder ───────────────────────────────────────────
 
+interface CaptureField {
+    key: string;
+    label: string;
+    required: boolean;
+}
+
 interface SystemPromptOptions {
     systemPrompt: string;
     contextInfo: string | null;
     calendarEnabled: boolean;
     ecommerceEnabled: boolean;
     dataCaptureEnabled: boolean;
+    captureFields: CaptureField[] | null;
     webhookEnabled: boolean;
 }
 
@@ -619,7 +627,22 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
     }
 
     if (opts.dataCaptureEnabled) {
-        prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
+        if (opts.captureFields && opts.captureFields.length > 0) {
+            const requiredFields = opts.captureFields.filter(f => f.required);
+            const optionalFields = opts.captureFields.filter(f => !f.required);
+            prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Debes capturar los siguientes datos durante la conversacion:';
+            if (requiredFields.length > 0) {
+                prompt += '\n\nCampos OBLIGATORIOS (debes obtenerlos):';
+                requiredFields.forEach(f => { prompt += `\n- ${f.label} (field_name: "${f.key}")`; });
+            }
+            if (optionalFields.length > 0) {
+                prompt += '\n\nCampos opcionales (captura si el cliente los menciona):';
+                optionalFields.forEach(f => { prompt += `\n- ${f.label} (field_name: "${f.key}")`; });
+            }
+            prompt += '\n\nCada vez que el cliente te proporcione uno de estos datos, usa save_captured_data con el field_name correspondiente. No le pidas confirmar el guardado, simplemente guardalo y continua naturalmente.';
+        } else {
+            prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
+        }
         prompt += '\n\nTambién tienes la herramienta save_document para guardar archivos adjuntos que envíe el cliente (hojas de vida, documentos, fotos, etc.). Cuando el cliente envíe un archivo, usa save_document con un nombre descriptivo.';
 
         if (opts.webhookEnabled) {

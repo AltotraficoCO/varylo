@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import {
     ArrowLeft, Search, Sparkles, Loader2, ChevronRight,
     Brain, Calendar, ShoppingBag, Webhook, FileText, Zap,
+    Plus, X, GripVertical,
 } from 'lucide-react';
 import { AGENT_TYPE_CONFIGS, AGENT_CATEGORIES, type AiAgentType } from '@/lib/ai-agent-types';
 import { createAiAgent } from '../actions';
@@ -47,6 +48,12 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
     const [temperature, setTemperature] = useState('0.7');
     const [transferKeywords, setTransferKeywords] = useState('humano, agente, persona');
     const [dataCaptureEnabled, setDataCaptureEnabled] = useState(true);
+    const [captureFields, setCaptureFields] = useState<{ key: string; label: string; required: boolean }[]>([
+        { key: 'nombre', label: 'Nombre', required: true },
+        { key: 'email', label: 'Email', required: false },
+        { key: 'telefono', label: 'Teléfono', required: false },
+    ]);
+    const [newFieldLabel, setNewFieldLabel] = useState('');
     const [calendarEnabled, setCalendarEnabled] = useState(false);
     const [shopifyEnabled, setShopifyEnabled] = useState(false);
     const [woocommerceEnabled, setWoocommerceEnabled] = useState(false);
@@ -250,6 +257,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                 <input type="hidden" name="temperature" value={temperature} />
                 <input type="hidden" name="transferKeywords" value={transferKeywords} />
                 <input type="hidden" name="dataCaptureEnabled" value={dataCaptureEnabled ? 'on' : 'off'} />
+                <input type="hidden" name="captureFields" value={JSON.stringify(captureFields)} />
                 <input type="hidden" name="calendarEnabled" value={calendarEnabled ? 'on' : 'off'} />
                 <input type="hidden" name="calendarId" value="primary" />
                 <input type="hidden" name="ecommerceEnabled" value={(shopifyEnabled || woocommerceEnabled) ? 'on' : 'off'} />
@@ -359,17 +367,86 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                     </div>
                     <div className="divide-y divide-[#F4F4F5]">
                         {/* Data Capture */}
-                        <div className="flex items-center justify-between px-6 py-4">
-                            <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
-                                    <FileText className="h-4 w-4 text-[#10B981]" />
+                        <div className="px-6 py-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-9 w-9 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
+                                        <FileText className="h-4 w-4 text-[#10B981]" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[14px] font-medium text-[#09090B]">Captura de datos</p>
+                                        <p className="text-[12px] text-[#71717A]">Define qué datos capturar del cliente</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">Captura de datos</p>
-                                    <p className="text-[12px] text-[#71717A]">Recopila nombre, email, telefono del cliente</p>
-                                </div>
+                                <Switch checked={dataCaptureEnabled} onCheckedChange={setDataCaptureEnabled} />
                             </div>
-                            <Switch checked={dataCaptureEnabled} onCheckedChange={setDataCaptureEnabled} />
+
+                            {dataCaptureEnabled && (
+                                <div className="ml-12 space-y-2">
+                                    {captureFields.map((field, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 group">
+                                            <span className="text-[#D4D4D8]"><GripVertical className="h-3.5 w-3.5" /></span>
+                                            <div className="flex-1 flex items-center gap-2 rounded-lg border border-[#E4E4E7] px-3 py-2">
+                                                <span className="text-[13px] text-[#09090B] flex-1">{field.label}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCaptureFields(prev =>
+                                                        prev.map((f, i) => i === idx ? { ...f, required: !f.required } : f)
+                                                    )}
+                                                    className={`text-[11px] px-2 py-0.5 rounded-md font-medium transition-colors ${
+                                                        field.required
+                                                            ? 'bg-[#ECFDF5] text-[#10B981]'
+                                                            : 'bg-[#F4F4F5] text-[#A1A1AA]'
+                                                    }`}
+                                                >
+                                                    {field.required ? 'Obligatorio' : 'Opcional'}
+                                                </button>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCaptureFields(prev => prev.filter((_, i) => i !== idx))}
+                                                className="text-[#D4D4D8] hover:text-[#EF4444] transition-colors p-1"
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {/* Add new field */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-[18px]" />
+                                        <Input
+                                            value={newFieldLabel}
+                                            onChange={e => setNewFieldLabel(e.target.value)}
+                                            placeholder="Nuevo campo (ej: Licencia, Ciudad, Empresa...)"
+                                            className="h-9 rounded-lg border-[#E4E4E7] text-[13px] flex-1"
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter' && newFieldLabel.trim()) {
+                                                    e.preventDefault();
+                                                    const key = newFieldLabel.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                                                    if (captureFields.some(f => f.key === key)) return;
+                                                    setCaptureFields(prev => [...prev, { key, label: newFieldLabel.trim(), required: false }]);
+                                                    setNewFieldLabel('');
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                if (!newFieldLabel.trim()) return;
+                                                const key = newFieldLabel.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                                                if (captureFields.some(f => f.key === key)) return;
+                                                setCaptureFields(prev => [...prev, { key, label: newFieldLabel.trim(), required: false }]);
+                                                setNewFieldLabel('');
+                                            }}
+                                            className="h-9 rounded-lg border-[#E4E4E7]"
+                                        >
+                                            <Plus className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Google Calendar */}

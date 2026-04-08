@@ -48,6 +48,11 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const transferKeywordsRaw = formData.get('transferKeywords') as string;
     const channelIds = formData.getAll('channelIds') as string[];
     const dataCaptureEnabled = formData.get('dataCaptureEnabled') !== 'off';
+    const captureFieldsRaw = formData.get('captureFields') as string;
+    let captureFields: any = null;
+    if (captureFieldsRaw) {
+        try { captureFields = JSON.parse(captureFieldsRaw); } catch {}
+    }
     const calendarEnabled = formData.get('calendarEnabled') === 'on';
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
@@ -86,6 +91,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
                 temperature,
                 transferKeywords,
                 dataCaptureEnabled,
+                captureFields: captureFields ?? Prisma.JsonNull,
                 calendarEnabled,
                 calendarId,
                 ecommerceEnabled,
@@ -122,6 +128,11 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const transferKeywordsRaw = formData.get('transferKeywords') as string;
     const channelIds = formData.getAll('channelIds') as string[];
     const dataCaptureEnabled = formData.get('dataCaptureEnabled') !== 'off';
+    const captureFieldsRaw2 = formData.get('captureFields') as string;
+    let captureFields: any = null;
+    if (captureFieldsRaw2) {
+        try { captureFields = JSON.parse(captureFieldsRaw2); } catch {}
+    }
     const calendarEnabled = formData.get('calendarEnabled') === 'on';
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
@@ -153,6 +164,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
                 temperature,
                 transferKeywords,
                 dataCaptureEnabled,
+                captureFields: captureFields ?? Prisma.JsonNull,
                 calendarEnabled,
                 calendarId,
                 ecommerceEnabled,

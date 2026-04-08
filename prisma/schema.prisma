@@ -299,6 +299,7 @@ model AiAgent {
   temperature        Float     @default(0.7)
   transferKeywords   String[]  @default(["humano", "agente", "persona"])
   dataCaptureEnabled Boolean   @default(true)
+  captureFields      Json?     // [{ key: "nombre", label: "Nombre", required: true }, ...]
   calendarEnabled    Boolean   @default(false)
   calendarId         String    @default("primary")
   ecommerceEnabled   Boolean   @default(false)
