@@ -1,5 +1,5 @@
 export const AI_AGENT_TYPES = [
-    'SALES', 'RECRUITER', 'CUSTOMER_SERVICE', 'APPOINTMENT', 'ECOMMERCE',
+    'CRM_SALES', 'SALES', 'RECRUITER', 'CUSTOMER_SERVICE', 'APPOINTMENT', 'ECOMMERCE',
     'LEAD_CAPTURE', 'RECEPTIONIST', 'TECH_SUPPORT', 'ONBOARDING', 'SURVEY', 'CUSTOM',
 ] as const;
 export type AiAgentType = (typeof AI_AGENT_TYPES)[number];
@@ -16,11 +16,43 @@ export interface AgentTypeConfig {
         dataCaptureEnabled: boolean;
         calendarEnabled: boolean;
         ecommerceEnabled: boolean;
+        crmEnabled: boolean;
         webhookEnabled: boolean;
     };
 }
 
 export const AGENT_TYPE_CONFIGS: Record<AiAgentType, AgentTypeConfig> = {
+    CRM_SALES: {
+        label: 'Gestor de Ventas CRM',
+        description: 'Detecta oportunidades, crea deals, mueve el pipeline y cierra ventas automaticamente.',
+        icon: '📊',
+        color: '#10B981',
+        bgColor: '#ECFDF5',
+        category: 'Comercial',
+        defaultPrompt: `Eres un agente de ventas inteligente con acceso al CRM. Tu objetivo es vender los productos/servicios de la empresa y gestionar las oportunidades automaticamente en el pipeline.
+
+Comportamiento:
+- Saluda cordialmente y pregunta en qué puedes ayudar.
+- Identifica las necesidades del cliente haciendo preguntas relevantes.
+- Cuando detectes interes REAL de compra (pregunta por precios, quiere cotizacion, menciona un producto), crea un deal en el pipeline con create_deal.
+- El titulo del deal debe describir lo que el cliente busca (ej: "Plan Pro para restaurante", "50 camisetas talla M").
+- Mueve el deal por las etapas segun avance la conversacion:
+  * Cuando respondas con info detallada → "Propuesta"
+  * Cuando el cliente este considerando/negociando → "Negociación"
+- Si el cliente confirma la compra, cierra el deal como ganado con el valor.
+- Si el cliente rechaza definitivamente, cierra como perdido.
+- NO crees deals para consultas generales, quejas o preguntas simples.
+- Recopila datos del cliente naturalmente (nombre, email, telefono).
+
+Tono: Profesional, consultivo, enfocado en resolver la necesidad del cliente.`,
+        suggestedCapabilities: {
+            dataCaptureEnabled: true,
+            calendarEnabled: false,
+            ecommerceEnabled: false,
+            crmEnabled: true,
+            webhookEnabled: false,
+        },
+    },
     SALES: {
         label: 'Ventas',
         description: 'Califica leads, presenta productos y cierra ventas de forma natural.',
@@ -44,6 +76,7 @@ Tono: Profesional pero cercano, entusiasta sin ser insistente.`,
             dataCaptureEnabled: true,
             calendarEnabled: false,
             ecommerceEnabled: true,
+            crmEnabled: false,
             webhookEnabled: true,
         },
     },
@@ -70,6 +103,7 @@ Tono: Amigable, profesional, sin presión.`,
             dataCaptureEnabled: true,
             calendarEnabled: true,
             ecommerceEnabled: false,
+            crmEnabled: false,
             webhookEnabled: true,
         },
     },
@@ -97,6 +131,7 @@ Tono: Organizado, eficiente y amable.`,
             dataCaptureEnabled: true,
             calendarEnabled: true,
             ecommerceEnabled: false,
+            crmEnabled: false,
             webhookEnabled: false,
         },
     },
@@ -123,6 +158,7 @@ Tono: Servicial, conocedor, entusiasta con los productos.`,
             dataCaptureEnabled: true,
             calendarEnabled: false,
             ecommerceEnabled: true,
+            crmEnabled: false,
             webhookEnabled: false,
         },
     },
@@ -149,6 +185,7 @@ Tono: Empático, paciente y profesional. Nunca discutas con el cliente.`,
             dataCaptureEnabled: true,
             calendarEnabled: false,
             ecommerceEnabled: false,
+            crmEnabled: false,
             webhookEnabled: false,
         },
     },
@@ -175,6 +212,7 @@ Tono: Técnico pero accesible, paciente con usuarios no técnicos.`,
             dataCaptureEnabled: true,
             calendarEnabled: false,
             ecommerceEnabled: false,
+            crmEnabled: false,
             webhookEnabled: true,
         },
     },
@@ -201,6 +239,7 @@ Tono: Profesional, cálido y organizado. Haz que el candidato se sienta bienveni
             dataCaptureEnabled: true,
             calendarEnabled: true,
             ecommerceEnabled: false,
+            crmEnabled: false,
             webhookEnabled: true,
         },
     },
@@ -227,6 +266,7 @@ Tono: Cordial, profesional y eficiente. Primera impresión impecable.`,
             dataCaptureEnabled: true,
             calendarEnabled: false,
             ecommerceEnabled: false,
+            crmEnabled: false,
             webhookEnabled: false,
         },
     },
@@ -253,6 +293,7 @@ Tono: Entusiasta, paciente, motivador. Celebra cada logro del usuario.`,
             dataCaptureEnabled: true,
             calendarEnabled: true,
             ecommerceEnabled: false,
+            crmEnabled: false,
             webhookEnabled: false,
         },
     },
@@ -280,6 +321,7 @@ Tono: Agradecido, respetuoso del tiempo del cliente, genuinamente interesado.`,
             dataCaptureEnabled: true,
             calendarEnabled: false,
             ecommerceEnabled: false,
+            crmEnabled: false,
             webhookEnabled: true,
         },
     },
@@ -295,6 +337,7 @@ Tono: Agradecido, respetuoso del tiempo del cliente, genuinamente interesado.`,
             dataCaptureEnabled: true,
             calendarEnabled: false,
             ecommerceEnabled: false,
+            crmEnabled: false,
             webhookEnabled: false,
         },
     },

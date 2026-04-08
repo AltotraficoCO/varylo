@@ -82,8 +82,23 @@ const CRM_TOOLS: ChatCompletionTool[] = [
     {
         type: 'function',
         function: {
+            name: 'create_deal',
+            description: 'Crea una oportunidad de venta en el pipeline cuando detectes interes REAL de compra del cliente. NO la uses para consultas generales. Solo cuando el cliente pregunte por precios, pida cotizacion, o muestre intencion de comprar.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    title: { type: 'string', description: 'Descripcion corta de lo que el cliente quiere comprar. Ej: "Plan Pro para restaurante", "50 camisetas personalizadas"' },
+                    value: { type: 'number', description: 'Valor estimado de la venta en COP. Si no sabes, pon 0.' },
+                },
+                required: ['title'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
             name: 'move_deal_stage',
-            description: 'Mueve la oportunidad de venta del cliente a una etapa del pipeline. Usa cuando detectes avance en la conversacion de venta. Etapas: Nuevo, Contactado, Propuesta, Negociación, Cerrado.',
+            description: 'Mueve la oportunidad de venta a la siguiente etapa del pipeline. Etapas: Contactado, Propuesta, Negociación, Cerrado.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -97,12 +112,12 @@ const CRM_TOOLS: ChatCompletionTool[] = [
         type: 'function',
         function: {
             name: 'close_deal',
-            description: 'Marca la oportunidad de venta como ganada o perdida. Usa cuando el cliente confirme una compra (ganada) o cuando rechace definitivamente (perdida).',
+            description: 'Marca la oportunidad como ganada o perdida. Usa SOLO cuando el cliente confirme compra (ganada) o rechace definitivamente (perdida).',
             parameters: {
                 type: 'object',
                 properties: {
                     won: { type: 'boolean', description: 'true si el cliente compro, false si rechazo' },
-                    value: { type: 'number', description: 'Valor de la venta en COP (solo si ganada)' },
+                    value: { type: 'number', description: 'Valor final de la venta en COP (solo si ganada)' },
                 },
                 required: ['won'],
             },
@@ -245,6 +260,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                     ecommerceEnabled,
                     dataCaptureEnabled: aiAgent.dataCaptureEnabled,
                     captureFields: aiAgent.captureFields as CaptureField[] | null,
+                    crmEnabled: aiAgent.crmEnabled,
                     webhookEnabled: !!webhookConfig?.url,
                 }),
             },
@@ -264,7 +280,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             ...(webhookConfig?.url ? WEBHOOK_TOOLS : []),
             ...(calendarEnabled ? CALENDAR_TOOLS : []),
             ...(ecommerceEnabled ? ECOMMERCE_TOOLS : []),
-            ...CRM_TOOLS,
+            ...(aiAgent.crmEnabled ? CRM_TOOLS : []),
         ];
 
         // Function calling loop
@@ -346,6 +362,18 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                             }
                             calledTools.add(toolCall.function.name);
                             break;
+
+                        case 'create_deal': {
+                            const { autoCreateDeal } = await import('@/lib/crm-auto');
+                            await autoCreateDeal(conversation.companyId, conversation.contactId, conversation.id, args.title);
+                            // If value provided, update it
+                            if (args.value) {
+                                const deal = await prisma.deal.findFirst({ where: { companyId: conversation.companyId, contactId: conversation.contactId, status: 'OPEN' } });
+                                if (deal) await prisma.deal.update({ where: { id: deal.id }, data: { value: args.value } });
+                            }
+                            result = JSON.stringify({ success: true, message: `Deal "${args.title}" creado en pipeline` });
+                            break;
+                        }
 
                         case 'move_deal_stage': {
                             const { moveDealByStage } = await import('@/lib/crm-auto');
@@ -636,6 +664,7 @@ interface SystemPromptOptions {
     ecommerceEnabled: boolean;
     dataCaptureEnabled: boolean;
     captureFields: CaptureField[] | null;
+    crmEnabled: boolean;
     webhookEnabled: boolean;
 }
 
@@ -697,10 +726,17 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
         }
     }
 
-    prompt += '\n\nTienes herramientas de CRM para gestionar oportunidades de venta:';
-    prompt += '\n- move_deal_stage: Mueve la oportunidad a la siguiente etapa cuando avance la conversacion. Etapas: Contactado (ya respondio), Propuesta (le enviaste cotizacion o info), Negociación (esta considerando), Cerrado (decidio).';
-    prompt += '\n- close_deal: Marca como ganada (won=true) cuando el cliente confirme la compra, o perdida (won=false) cuando rechace.';
-    prompt += '\nUsa estas herramientas automaticamente segun el contexto de la conversacion. No le digas al cliente que estas moviendo deals.';
+    if (opts.crmEnabled) {
+        prompt += '\n\nTienes herramientas de CRM para gestionar oportunidades de venta automaticamente:';
+        prompt += '\n- create_deal: Crea una oportunidad de venta SOLO cuando detectes interes real de compra (el cliente pregunta por precios, quiere cotizacion, pide info de un producto/servicio). NO crees deals para consultas generales, quejas o preguntas simples.';
+        prompt += '\n- move_deal_stage: Mueve la oportunidad a la siguiente etapa segun el avance real de la conversacion:';
+        prompt += '\n  * "Contactado": El cliente respondio y hay dialogo activo';
+        prompt += '\n  * "Propuesta": Le enviaste precios, cotizacion o informacion detallada del producto/servicio';
+        prompt += '\n  * "Negociación": El cliente esta considerando, pidio descuento, compara opciones';
+        prompt += '\n  * "Cerrado": El cliente tomo una decision (compro o rechazo)';
+        prompt += '\n- close_deal: Marca como ganada (won=true, con valor en COP) cuando el cliente CONFIRME la compra, o perdida (won=false) cuando rechace definitivamente.';
+        prompt += '\n\nIMPORTANTE: Usa estas herramientas de forma SILENCIOSA. Nunca le digas al cliente que estas gestionando un pipeline o creando oportunidades. El titulo del deal debe describir lo que el cliente busca (ej: "Plan Pro para restaurante", "10 camisetas talla M").';
+    }
 
     prompt += '\n\nSi el usuario insiste en hablar con un humano o si no puedes resolver su consulta, responde con [TRANSFER_TO_HUMAN] al inicio de tu mensaje seguido de un mensaje de despedida amable.';
     return prompt;

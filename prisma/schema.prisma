@@ -314,6 +314,7 @@ model AiAgent {
   calendarEnabled    Boolean   @default(false)
   calendarId         String    @default("primary")
   ecommerceEnabled   Boolean   @default(false)
+  crmEnabled         Boolean   @default(false)
   webhookConfigJson  Json?     // { url, secret?, headers? }
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

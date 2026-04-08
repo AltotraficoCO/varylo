@@ -275,14 +275,6 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
-                // Auto-create CRM deal for new conversations
-                if (conversation.createdAt.getTime() > Date.now() - 5000) {
-                    const msgText = text || '';
-                    import('@/lib/crm-auto').then(({ autoCreateDeal }) => {
-                        autoCreateDeal(companyId, contact.id, conversation.id, msgText);
-                    }).catch(() => {});
-                }
-
                 // If this is a new conversation, check if we sent a broadcast template
                 // to this contact recently and inject it as the first message
                 if (conversation.createdAt.getTime() > Date.now() - 5000) {
