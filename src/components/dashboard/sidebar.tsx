@@ -21,6 +21,9 @@ import {
     Megaphone,
     Puzzle,
     CalendarDays,
+    Kanban,
+    Package,
+    FileText as FileTextIcon,
 } from 'lucide-react';
 import { SidebarUnreadBadge } from './unread-badge';
 
@@ -98,6 +101,13 @@ export function Sidebar({ role, lang, tags, className, onLinkClick }: SidebarPro
                     label: 'AUTOMATIZACIÓN', items: [
                         { title: 'Chatbots', href: '/company/chatbots', icon: Bot },
                         { title: 'Agentes IA', href: '/company/ai-agents', icon: Sparkles },
+                    ]
+                },
+                {
+                    label: 'CRM', items: [
+                        { title: 'Pipeline', href: '/company/crm/pipeline', icon: Kanban },
+                        { title: 'Productos', href: '/company/crm/products', icon: Package },
+                        { title: 'Cotizaciones', href: '/company/crm/quotes', icon: FileTextIcon },
                     ]
                 },
                 {
