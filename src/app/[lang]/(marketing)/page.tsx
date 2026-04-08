@@ -4,6 +4,7 @@ import { Check, MessageSquare, Bot, Workflow, Users, BarChart3, Sparkles, ArrowR
 import { ContactForm } from './contact-form';
 import { getDictionary, Locale } from '@/lib/dictionary';
 import { prisma } from '@/lib/prisma';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 export default async function LandingPage({ params }: { params: Promise<{ lang: Locale }> }) {
     const { lang } = await params;
@@ -39,18 +40,19 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
                 <nav className="relative z-20 flex items-center justify-between px-12 py-4">
                     <span className="text-2xl font-black tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>Varylo</span>
                     <div className="hidden md:flex items-center gap-8">
-                        <Link href="#features" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Producto</Link>
-                        <Link href="#pricing" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Precios</Link>
-                        <Link href="#faq" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">FAQ</Link>
-                        <Link href="#contact" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Contacto</Link>
+                        <Link href="#features" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">{dict.nav.features}</Link>
+                        <Link href="#pricing" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">{dict.nav.pricing}</Link>
+                        <Link href="#faq" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">{dict.nav.faq}</Link>
+                        <Link href="#contact" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">{dict.nav.contact}</Link>
                     </div>
                     <div className="flex items-center gap-4">
+                        <LanguageSwitcher variant="dark" />
                         <Link href={`/${lang}/login`} className="text-sm font-medium text-slate-400 hover:text-white transition-colors hidden sm:block">
-                            Iniciar sesión
+                            {dict.nav.login}
                         </Link>
                         <Link href={`/${lang}/register`}>
                             <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg px-5 py-2.5 text-sm font-semibold">
-                                Empieza gratis
+                                {dict.nav.getStarted}
                             </Button>
                         </Link>
                     </div>
@@ -417,31 +419,32 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
                         <div className="max-w-xs">
                             <span className="text-2xl font-black tracking-tight block mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>Varylo</span>
                             <p className="text-slate-500 text-sm leading-relaxed">
-                                La plataforma de atención al cliente que tu equipo merece.
+                                {dict.footer.description}
                             </p>
                         </div>
                         <div className="flex gap-16">
                             <div className="flex flex-col gap-3">
-                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Producto</span>
-                                <Link href="#features" className="text-sm text-slate-400 hover:text-white transition-colors">Features</Link>
-                                <Link href="#pricing" className="text-sm text-slate-400 hover:text-white transition-colors">Precios</Link>
-                                <Link href="#faq" className="text-sm text-slate-400 hover:text-white transition-colors">FAQ</Link>
+                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">{dict.footer.product}</span>
+                                <Link href="#features" className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.features}</Link>
+                                <Link href="#pricing" className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.pricing}</Link>
+                                <Link href="#faq" className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.faq}</Link>
                             </div>
                             <div className="flex flex-col gap-3">
-                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Empresa</span>
-                                <Link href="#contact" className="text-sm text-slate-400 hover:text-white transition-colors">Contacto</Link>
-                                <Link href={`/${lang}/terms`} className="text-sm text-slate-400 hover:text-white transition-colors">Términos</Link>
-                                <Link href={`/${lang}/privacy`} className="text-sm text-slate-400 hover:text-white transition-colors">Privacidad</Link>
+                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">{dict.footer.company}</span>
+                                <Link href="#contact" className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.contact}</Link>
+                                <Link href={`/${lang}/terms`} className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.terms}</Link>
+                                <Link href={`/${lang}/privacy`} className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.privacy}</Link>
                             </div>
                             <div className="flex flex-col gap-3">
-                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Cuenta</span>
-                                <Link href={`/${lang}/login`} className="text-sm text-slate-400 hover:text-white transition-colors">Iniciar sesión</Link>
-                                <Link href={`/${lang}/register`} className="text-sm text-slate-400 hover:text-white transition-colors">Crear cuenta</Link>
+                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">{dict.footer.account}</span>
+                                <Link href={`/${lang}/login`} className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.login}</Link>
+                                <Link href={`/${lang}/register`} className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.createAccount}</Link>
                             </div>
                         </div>
                     </div>
                     <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <p className="text-slate-500 text-xs">© 2026 Varylo. Todos los derechos reservados.</p>
+                        <p className="text-slate-500 text-xs">&copy; 2026 {dict.footer.rights}</p>
+                        <LanguageSwitcher variant="dark" />
                     </div>
                 </div>
             </footer>

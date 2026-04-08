@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { fetchUsdToCop } from '@/lib/exchange-rate';
 import { CheckCircle2, Sparkles } from 'lucide-react';
 import { RegisterWizard } from './register-wizard';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 export default async function RegisterPage({
     params,
@@ -102,7 +103,10 @@ export default async function RegisterPage({
             </div>
 
             {/* Right panel — wizard */}
-            <div className="flex flex-1 items-center justify-center bg-white px-6 py-12">
+            <div className="relative flex flex-1 items-center justify-center bg-white px-6 py-12">
+                <div className="absolute top-4 right-4">
+                    <LanguageSwitcher />
+                </div>
                 <div className="w-full max-w-lg">
                     {/* Mobile logo */}
                     <div className="lg:hidden flex justify-center mb-6">

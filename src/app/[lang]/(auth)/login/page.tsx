@@ -3,6 +3,7 @@ import Link from 'next/link';
 import LoginForm from './login-form';
 import { getDictionary, Locale } from '@/lib/dictionary';
 import { CheckCircle2 } from 'lucide-react';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 export default async function LoginPage({ params }: { params: Promise<{ lang: Locale }> }) {
     const { lang } = await params;
@@ -56,7 +57,10 @@ export default async function LoginPage({ params }: { params: Promise<{ lang: Lo
             </div>
 
             {/* Right panel — white form */}
-            <div className="flex flex-1 items-center justify-center bg-white px-6 py-12">
+            <div className="relative flex flex-1 items-center justify-center bg-white px-6 py-12">
+                <div className="absolute top-4 right-4">
+                    <LanguageSwitcher />
+                </div>
                 <div className="w-full max-w-md space-y-8">
                     {/* Mobile logo */}
                     <div className="lg:hidden flex justify-center mb-4">

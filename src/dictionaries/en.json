@@ -179,19 +179,32 @@
     },
     "nav": {
         "home": "Home",
-        "features": "Features",
+        "features": "Product",
         "pricing": "Pricing",
+        "faq": "FAQ",
+        "contact": "Contact",
         "login": "Login",
         "getStarted": "Start free"
     },
     "footer": {
         "rights": "Varylo. All rights reserved.",
+        "description": "The customer support platform your team deserves.",
         "product": "Product",
         "company": "Company",
-        "legal": "Legal",
+        "account": "Account",
+        "features": "Features",
+        "pricing": "Pricing",
+        "faq": "FAQ",
+        "contact": "Contact",
         "privacy": "Privacy",
         "terms": "Terms",
-        "about": "About"
+        "login": "Login",
+        "createAccount": "Create account"
+    },
+    "dashboard": {
+        "myAccount": "My Account",
+        "profile": "Profile",
+        "signOut": "Sign out"
     },
     "auth": {
         "login": {

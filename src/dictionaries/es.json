@@ -179,19 +179,32 @@
     },
     "nav": {
         "home": "Inicio",
-        "features": "Funciones",
+        "features": "Producto",
         "pricing": "Precios",
+        "faq": "FAQ",
+        "contact": "Contacto",
         "login": "Iniciar sesión",
-        "getStarted": "Empezar gratis"
+        "getStarted": "Empieza gratis"
     },
     "footer": {
         "rights": "Varylo. Todos los derechos reservados.",
+        "description": "La plataforma de atención al cliente que tu equipo merece.",
         "product": "Producto",
         "company": "Empresa",
-        "legal": "Legal",
+        "account": "Cuenta",
+        "features": "Features",
+        "pricing": "Precios",
+        "faq": "FAQ",
+        "contact": "Contacto",
         "privacy": "Privacidad",
         "terms": "Términos",
-        "about": "Nosotros"
+        "login": "Iniciar sesión",
+        "createAccount": "Crear cuenta"
+    },
+    "dashboard": {
+        "myAccount": "Mi Cuenta",
+        "profile": "Perfil",
+        "signOut": "Cerrar sesión"
     },
     "auth": {
         "login": {

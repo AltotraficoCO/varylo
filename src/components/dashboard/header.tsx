@@ -16,6 +16,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar, TagData } from './sidebar';
 import { StatusSelector } from './status-selector';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { useState } from 'react';
 import { updateUserStatus } from '@/lib/user-status';
 
@@ -66,6 +67,8 @@ export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OF
             <div className="hidden lg:flex w-full flex-1">
                 <h1 className="text-lg font-semibold">{title}</h1>
             </div>
+
+            <LanguageSwitcher />
 
             {role !== 'super-admin' && (
                 <StatusSelector initialStatus={userStatus} />
