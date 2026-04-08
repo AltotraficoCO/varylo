@@ -17,16 +17,21 @@ export async function getCalendarEvents(start: string, end: string) {
 
     try {
         const accessToken = await getAccessTokenForCompany(session.user.companyId);
-        const events = await listEvents(accessToken, 'primary', toISO(start), toISO(end));
+        const raw = await listEvents(accessToken, 'primary', toISO(start), toISO(end));
         return {
             success: true,
-            events: events.map(e => ({
+            events: (raw as any[]).map(e => ({
                 id: e.id,
                 title: e.summary || '(Sin titulo)',
-                start: e.start?.dateTime || '',
-                end: e.end?.dateTime || '',
+                start: e.start?.dateTime || e.start?.date || '',
+                end: e.end?.dateTime || e.end?.date || '',
                 description: e.description || '',
-                attendees: e.attendees?.map(a => a.email) || [],
+                attendees: e.attendees?.map((a: any) => ({ email: a.email, name: a.displayName || '', status: a.responseStatus || '' })) || [],
+                location: e.location || '',
+                htmlLink: e.htmlLink || '',
+                hangoutLink: e.hangoutLink || '',
+                creator: e.creator?.email || '',
+                organizer: e.organizer?.email || '',
             })),
         };
     } catch (error: any) {

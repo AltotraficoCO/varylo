@@ -12,8 +12,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, X, Plus, CalendarDays, Clock, MapPin, User } from 'lucide-react';
+import { Loader2, X, Plus, CalendarDays, Clock, MapPin, User, ExternalLink, Video, Users } from 'lucide-react';
 import './calendar.css';
+
+type Attendee = { email: string; name: string; status: string };
 
 type CalEvent = {
     id: string;
@@ -21,11 +23,17 @@ type CalEvent = {
     start: string;
     end: string;
     description?: string;
-    attendees?: string[];
+    attendees?: Attendee[];
+    location?: string;
+    htmlLink?: string;
+    hangoutLink?: string;
+    creator?: string;
+    organizer?: string;
 };
 
 export function CalendarClient({ isConnected }: { isConnected: boolean }) {
     const [events, setEvents] = useState<CalEvent[]>([]);
+    const [selectedEvent, setSelectedEvent] = useState<CalEvent | null>(null);
     const [loading, setLoading] = useState(false);
     const [showCreate, setShowCreate] = useState(false);
     const [createData, setCreateData] = useState({
@@ -195,6 +203,11 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                     selectable={true}
                     dateClick={handleDateClick}
                     eventDrop={handleEventDrop}
+                    eventClick={(info) => {
+                        info.jsEvent.preventDefault();
+                        const found = events.find(e => e.id === info.event.id);
+                        if (found) setSelectedEvent(found);
+                    }}
                     datesSet={handleDatesSet}
                     height="auto"
                     contentHeight={680}
@@ -346,6 +359,170 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
                             >
                                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
                                 Crear reunion
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Event detail modal */}
+            {selectedEvent && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center"
+                    onClick={() => setSelectedEvent(null)}
+                >
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                    <div
+                        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header with colored bar */}
+                        <div className="h-2 bg-gradient-to-r from-[#10B981] to-[#059669]" />
+                        <div className="flex items-start justify-between px-6 pt-5 pb-0">
+                            <h3 className="text-[18px] font-bold text-[#09090B] leading-tight pr-4">
+                                {selectedEvent.title}
+                            </h3>
+                            <button
+                                onClick={() => setSelectedEvent(null)}
+                                className="h-8 w-8 rounded-lg flex items-center justify-center text-[#A1A1AA] hover:text-[#09090B] hover:bg-[#F4F4F5] transition-colors shrink-0"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-4">
+                            {/* Date & Time */}
+                            <div className="flex items-start gap-3">
+                                <CalendarDays className="h-4.5 w-4.5 text-[#71717A] mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-[14px] font-medium text-[#09090B]">
+                                        {new Date(selectedEvent.start).toLocaleDateString('es-CO', {
+                                            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                                        })}
+                                    </p>
+                                    <p className="text-[13px] text-[#71717A]">
+                                        {new Date(selectedEvent.start).toLocaleTimeString('es-CO', {
+                                            hour: 'numeric', minute: '2-digit', hour12: true
+                                        })}
+                                        {' — '}
+                                        {new Date(selectedEvent.end).toLocaleTimeString('es-CO', {
+                                            hour: 'numeric', minute: '2-digit', hour12: true
+                                        })}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Google Meet link */}
+                            {selectedEvent.hangoutLink && (
+                                <div className="flex items-center gap-3">
+                                    <Video className="h-4.5 w-4.5 text-[#71717A] shrink-0" />
+                                    <a
+                                        href={selectedEvent.hangoutLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[14px] text-[#3B82F6] hover:underline font-medium flex items-center gap-1"
+                                    >
+                                        Unirse a Google Meet
+                                        <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                </div>
+                            )}
+
+                            {/* Location */}
+                            {selectedEvent.location && (
+                                <div className="flex items-start gap-3">
+                                    <MapPin className="h-4.5 w-4.5 text-[#71717A] mt-0.5 shrink-0" />
+                                    <p className="text-[14px] text-[#3F3F46]">{selectedEvent.location}</p>
+                                </div>
+                            )}
+
+                            {/* Description */}
+                            {selectedEvent.description && (
+                                <div className="rounded-lg bg-[#FAFAFA] border border-[#F4F4F5] p-3">
+                                    <p className="text-[13px] text-[#3F3F46] whitespace-pre-wrap leading-relaxed">
+                                        {selectedEvent.description}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Attendees */}
+                            {selectedEvent.attendees && selectedEvent.attendees.length > 0 && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <Users className="h-4 w-4 text-[#71717A]" />
+                                        <span className="text-[13px] font-medium text-[#71717A]">
+                                            {selectedEvent.attendees.length} participante{selectedEvent.attendees.length > 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-1.5 ml-6">
+                                        {selectedEvent.attendees.map((a, i) => {
+                                            const statusColor = a.status === 'accepted' ? '#10B981'
+                                                : a.status === 'declined' ? '#EF4444'
+                                                : a.status === 'tentative' ? '#F59E0B'
+                                                : '#A1A1AA';
+                                            const statusLabel = a.status === 'accepted' ? 'Aceptado'
+                                                : a.status === 'declined' ? 'Rechazado'
+                                                : a.status === 'tentative' ? 'Quizas'
+                                                : 'Pendiente';
+                                            return (
+                                                <div key={i} className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className="h-7 w-7 rounded-full bg-[#F4F4F5] flex items-center justify-center text-[11px] font-semibold text-[#71717A] shrink-0">
+                                                            {(a.name || a.email).charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-[13px] font-medium text-[#09090B] truncate">
+                                                                {a.name || a.email}
+                                                            </p>
+                                                            {a.name && (
+                                                                <p className="text-[11px] text-[#A1A1AA] truncate">{a.email}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: statusColor }} />
+                                                        <span className="text-[11px] text-[#71717A]">{statusLabel}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Organizer */}
+                            {selectedEvent.organizer && (
+                                <div className="flex items-center gap-3 pt-1">
+                                    <User className="h-4 w-4 text-[#A1A1AA] shrink-0" />
+                                    <p className="text-[12px] text-[#A1A1AA]">
+                                        Organizado por {selectedEvent.organizer}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex justify-between items-center px-6 py-4 border-t border-[#F4F4F5] bg-[#FAFAFA]">
+                            {selectedEvent.htmlLink ? (
+                                <a
+                                    href={selectedEvent.htmlLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[13px] text-[#3B82F6] hover:underline font-medium flex items-center gap-1"
+                                >
+                                    Abrir en Google Calendar
+                                    <ExternalLink className="h-3 w-3" />
+                                </a>
+                            ) : (
+                                <div />
+                            )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedEvent(null)}
+                                className="rounded-lg border-[#E4E4E7] text-[13px]"
+                            >
+                                Cerrar
                             </Button>
                         </div>
                     </div>
