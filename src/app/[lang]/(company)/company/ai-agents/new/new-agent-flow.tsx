@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import {
     ArrowLeft, Search, Sparkles, Loader2, ChevronRight,
     Brain, Calendar, ShoppingBag, Webhook, FileText, Zap,
-    Plus, X, GripVertical, Kanban,
+    Plus, X, GripVertical,
 } from 'lucide-react';
 import { AGENT_TYPE_CONFIGS, AGENT_CATEGORIES, type AiAgentType } from '@/lib/ai-agent-types';
 import { createAiAgent } from '../actions';
@@ -61,7 +61,6 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
     const [calendarEnabled, setCalendarEnabled] = useState(false);
     const [shopifyEnabled, setShopifyEnabled] = useState(false);
     const [woocommerceEnabled, setWoocommerceEnabled] = useState(false);
-    const [crmEnabled, setCrmEnabled] = useState(false);
     const [webhookEnabled, setWebhookEnabled] = useState(false);
     const [webhookUrl, setWebhookUrl] = useState('');
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
@@ -84,7 +83,6 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
         setCalendarEnabled(config.suggestedCapabilities.calendarEnabled && hasGoogleCalendar);
         setShopifyEnabled(config.suggestedCapabilities.ecommerceEnabled && hasShopify);
         setWoocommerceEnabled(config.suggestedCapabilities.ecommerceEnabled && hasWooCommerce);
-        setCrmEnabled(config.suggestedCapabilities.crmEnabled);
         setWebhookEnabled(config.suggestedCapabilities.webhookEnabled);
         setStep(2);
     }
@@ -267,7 +265,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                 <input type="hidden" name="calendarEnabled" value={calendarEnabled ? 'on' : 'off'} />
                 <input type="hidden" name="calendarId" value="primary" />
                 <input type="hidden" name="ecommerceEnabled" value={(shopifyEnabled || woocommerceEnabled) ? 'on' : 'off'} />
-                <input type="hidden" name="crmEnabled" value={crmEnabled ? 'on' : 'off'} />
+                <input type="hidden" name="crmEnabled" value="off" />
                 {webhookEnabled && webhookUrl && <input type="hidden" name="webhookUrl" value={webhookUrl} />}
                 {selectedChannels.map(id => (
                     <input key={id} type="hidden" name="channelIds" value={id} />
@@ -514,20 +512,6 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                 onCheckedChange={setWoocommerceEnabled}
                                 disabled={!hasWooCommerce}
                             />
-                        </div>
-
-                        {/* CRM Pipeline */}
-                        <div className="flex items-center justify-between px-6 py-4">
-                            <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
-                                    <Kanban className="h-4 w-4 text-[#10B981]" />
-                                </div>
-                                <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">{t.crmPipeline}</p>
-                                    <p className="text-[12px] text-[#71717A]">{t.crmPipelineDescFull}</p>
-                                </div>
-                            </div>
-                            <Switch checked={crmEnabled} onCheckedChange={setCrmEnabled} />
                         </div>
 
                         {/* Webhook */}

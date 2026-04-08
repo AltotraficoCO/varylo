@@ -6,7 +6,7 @@ import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { CALENDAR_TOOLS, executeCalendarTool } from '@/lib/calendar-tools';
 import { ECOMMERCE_TOOLS, executeEcommerceTool } from '@/lib/ecommerce-tools';
 import { mapFieldToContact, validateCapturedValue, inferValidationType } from '@/lib/data-capture-utils';
-import { autoCreateDeal, moveDealByStage, closeDeal } from '@/lib/crm-auto';
+// CRM removed
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
@@ -79,52 +79,7 @@ const WEBHOOK_TOOLS: ChatCompletionTool[] = [
     },
 ];
 
-const CRM_TOOLS: ChatCompletionTool[] = [
-    {
-        type: 'function',
-        function: {
-            name: 'create_deal',
-            description: 'Crea una oportunidad de venta en el pipeline cuando detectes interes REAL de compra del cliente. NO la uses para consultas generales. Solo cuando el cliente pregunte por precios, pida cotizacion, o muestre intencion de comprar.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    title: { type: 'string', description: 'Descripcion corta de lo que el cliente quiere comprar. Ej: "Plan Pro para restaurante", "50 camisetas personalizadas"' },
-                    value: { type: 'number', description: 'Valor estimado de la venta en COP. Si no sabes, pon 0.' },
-                },
-                required: ['title'],
-            },
-        },
-    },
-    {
-        type: 'function',
-        function: {
-            name: 'move_deal_stage',
-            description: 'Mueve la oportunidad de venta a la siguiente etapa del pipeline. Etapas: Contactado, Propuesta, Negociación, Cerrado.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    stage_name: { type: 'string', description: 'Nombre de la etapa: Contactado, Propuesta, Negociación, o Cerrado' },
-                },
-                required: ['stage_name'],
-            },
-        },
-    },
-    {
-        type: 'function',
-        function: {
-            name: 'close_deal',
-            description: 'Marca la oportunidad como ganada o perdida. Usa SOLO cuando el cliente confirme compra (ganada) o rechace definitivamente (perdida).',
-            parameters: {
-                type: 'object',
-                properties: {
-                    won: { type: 'boolean', description: 'true si el cliente compro, false si rechazo' },
-                    value: { type: 'number', description: 'Valor final de la venta en COP (solo si ganada)' },
-                },
-                required: ['won'],
-            },
-        },
-    },
-];
+// CRM_TOOLS removed
 
 // ── Main handler ────────────────────────────────────────────────────
 
@@ -186,7 +141,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             return { handled: false };
         }
 
-        console.log(`[AI Agent] ${aiAgent.name} | crmEnabled: ${aiAgent.crmEnabled} | model: ${aiAgent.model}`);
+        console.log(`[AI Agent] ${aiAgent.name} | model: ${aiAgent.model}`);
 
         // Check for transfer keywords
         const lowerMessage = inboundMessage.toLowerCase().trim();
@@ -263,7 +218,6 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                     ecommerceEnabled,
                     dataCaptureEnabled: aiAgent.dataCaptureEnabled,
                     captureFields: aiAgent.captureFields as CaptureField[] | null,
-                    crmEnabled: aiAgent.crmEnabled,
                     webhookEnabled: !!webhookConfig?.url,
                 }),
             },
@@ -283,7 +237,6 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             ...(webhookConfig?.url ? WEBHOOK_TOOLS : []),
             ...(calendarEnabled ? CALENDAR_TOOLS : []),
             ...(ecommerceEnabled ? ECOMMERCE_TOOLS : []),
-            ...(aiAgent.crmEnabled ? CRM_TOOLS : []),
         ];
 
         // Function calling loop
@@ -366,29 +319,6 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                             calledTools.add(toolCall.function.name);
                             break;
 
-                        case 'create_deal': {
-                            await autoCreateDeal(conversation.companyId, conversation.contactId, conversation.id, args.title);
-                            // If value provided, update it
-                            if (args.value) {
-                                const deal = await prisma.deal.findFirst({ where: { companyId: conversation.companyId, contactId: conversation.contactId, status: 'OPEN' } });
-                                if (deal) await prisma.deal.update({ where: { id: deal.id }, data: { value: args.value } });
-                            }
-                            result = JSON.stringify({ success: true, message: `Deal "${args.title}" creado en pipeline` });
-                            break;
-                        }
-
-                        case 'move_deal_stage': {
-                            const moveResult = await moveDealByStage(conversation.companyId, conversation.contactId, args.stage_name);
-                            result = JSON.stringify(moveResult);
-                            break;
-                        }
-
-                        case 'close_deal': {
-                            const closeResult = await closeDeal(conversation.companyId, conversation.contactId, args.won, args.value);
-                            result = JSON.stringify(closeResult);
-                            break;
-                        }
-
                         default:
                             result = await executeCalendarTool(
                                 toolCall.function.name,
@@ -462,24 +392,6 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             content: replyContent,
             fromName: aiAgent.name,
         });
-
-        // CRM: auto-create deal if none exists + move to Contactado
-        if (aiAgent.crmEnabled) {
-            try {
-                console.log(`[CRM] Creating deal for contact ${conversation.contactId}...`);
-                await autoCreateDeal(
-                    conversation.companyId,
-                    conversation.contactId,
-                    conversationId,
-                    inboundMessage,
-                );
-                console.log(`[CRM] Moving deal to Contactado...`);
-                await moveDealByStage(conversation.companyId, conversation.contactId, 'Contactado');
-                console.log(`[CRM] Deal created and moved successfully`);
-            } catch (err) {
-                console.error('[CRM] Auto-deal error:', err);
-            }
-        }
 
         return { handled: true };
     } catch (error) {
@@ -682,7 +594,6 @@ interface SystemPromptOptions {
     ecommerceEnabled: boolean;
     dataCaptureEnabled: boolean;
     captureFields: CaptureField[] | null;
-    crmEnabled: boolean;
     webhookEnabled: boolean;
 }
 
@@ -742,20 +653,6 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
         if (opts.webhookEnabled) {
             prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. IMPORTANTE: Debes llamar send_to_webhook SIEMPRE al concluir la recopilación de datos del cliente. Cuando hayas terminado de capturar toda la información necesaria (datos personales, documentos, etc.), usa send_to_webhook para enviar todo. No olvides confirmar al cliente que sus datos fueron enviados exitosamente.';
         }
-    }
-
-    if (opts.crmEnabled) {
-        prompt += '\n\n=== INSTRUCCIONES CRM (OBLIGATORIAS) ===';
-        prompt += '\nEl sistema crea automaticamente una oportunidad de venta para cada cliente. Tu trabajo es MOVER la oportunidad por las etapas del pipeline:';
-        prompt += '\n\n1. move_deal_stage: DEBES llamar esta herramienta cuando:';
-        prompt += '\n   - "Propuesta": Acabas de dar precios o info detallada → LLAMA move_deal_stage("Propuesta") INMEDIATAMENTE';
-        prompt += '\n   - "Negociación": El cliente dice "lo pienso", pide descuento, compara → LLAMA move_deal_stage("Negociación")';
-        prompt += '\n   - "Cerrado": El cliente tomo una decision final';
-        prompt += '\n\n2. close_deal: DEBES llamar cuando:';
-        prompt += '\n   - Cliente confirma compra → close_deal(won=true, value=MONTO_EN_COP)';
-        prompt += '\n   - Cliente rechaza definitivamente → close_deal(won=false)';
-        prompt += '\n\nREGLA CRITICA: Cada vez que das precios, SIEMPRE llama move_deal_stage("Propuesta"). OBLIGATORIO.';
-        prompt += '\nREGLA: Nunca menciones al cliente que gestionas un pipeline.';
     }
 
     prompt += '\n\nSi el usuario insiste en hablar con un humano o si no puedes resolver su consulta, responde con [TRANSFER_TO_HUMAN] al inicio de tu mensaje seguido de un mensaje de despedida amable.';

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
     ArrowLeft, Sparkles, Loader2, Calendar, ShoppingBag, Webhook, FileText,
-    Plus, X, GripVertical, Kanban, Pencil,
+    Plus, X, GripVertical, Pencil,
 } from 'lucide-react';
 import { updateAiAgent } from '../../actions';
 import { useDictionary } from '@/lib/i18n-context';
@@ -67,7 +67,6 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
     const [calendarEnabled, setCalendarEnabled] = useState(agent.calendarEnabled);
     const [shopifyEnabled, setShopifyEnabled] = useState(agent.ecommerceEnabled && hasShopify);
     const [woocommerceEnabled, setWoocommerceEnabled] = useState(agent.ecommerceEnabled && hasWooCommerce);
-    const [crmEnabled, setCrmEnabled] = useState(agent.crmEnabled);
     const [webhookEnabled, setWebhookEnabled] = useState(!!agent.webhookConfigJson?.url);
     const [webhookUrl, setWebhookUrl] = useState(agent.webhookConfigJson?.url || '');
     const [selectedChannels, setSelectedChannels] = useState<string[]>(agent.channelIds);
@@ -119,7 +118,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                 <input type="hidden" name="calendarEnabled" value={calendarEnabled ? 'on' : 'off'} />
                 <input type="hidden" name="calendarId" value="primary" />
                 <input type="hidden" name="ecommerceEnabled" value={(shopifyEnabled || woocommerceEnabled) ? 'on' : 'off'} />
-                <input type="hidden" name="crmEnabled" value={crmEnabled ? 'on' : 'off'} />
+                <input type="hidden" name="crmEnabled" value="off" />
                 {webhookEnabled && webhookUrl && <input type="hidden" name="webhookUrl" value={webhookUrl} />}
                 {selectedChannels.map(id => (
                     <input key={id} type="hidden" name="channelIds" value={id} />
@@ -265,18 +264,6 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                                 </div>
                             </div>
                             <Switch checked={woocommerceEnabled} onCheckedChange={setWoocommerceEnabled} disabled={!hasWooCommerce} />
-                        </div>
-
-                        {/* CRM Pipeline */}
-                        <div className="flex items-center justify-between px-6 py-4">
-                            <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-lg bg-[#ECFDF5] flex items-center justify-center"><Kanban className="h-4 w-4 text-[#10B981]" /></div>
-                                <div>
-                                    <p className="text-[14px] font-medium text-[#09090B]">{t.crmPipeline}</p>
-                                    <p className="text-[12px] text-[#71717A]">{t.crmPipelineDesc}</p>
-                                </div>
-                            </div>
-                            <Switch checked={crmEnabled} onCheckedChange={setCrmEnabled} />
                         </div>
 
                         {/* Webhook */}

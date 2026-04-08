@@ -21,9 +21,6 @@ import {
     Megaphone,
     Puzzle,
     CalendarDays,
-    Kanban,
-    Package,
-    FileText as FileTextIcon,
 } from 'lucide-react';
 import { SidebarUnreadBadge } from './unread-badge';
 
@@ -57,10 +54,6 @@ export interface SidebarDict {
     automation: string;
     chatbots: string;
     aiAgents: string;
-    crm: string;
-    pipeline: string;
-    products: string;
-    quotes: string;
     management: string;
     team: string;
     calendar: string;
@@ -150,13 +143,6 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[]): { s
                     ]
                 },
                 {
-                    label: t.crm, items: [
-                        { title: t.pipeline, href: '/company/crm/pipeline', icon: Kanban },
-                        { title: t.products, href: '/company/crm/products', icon: Package },
-                        { title: t.quotes, href: '/company/crm/quotes', icon: FileTextIcon },
-                    ]
-                },
-                {
                     label: t.management, items: [
                         { title: t.team, href: '/company/agents', icon: UsersRound },
                         { title: t.calendar, href: '/company/calendar', icon: CalendarDays },
@@ -188,10 +174,6 @@ const defaultDict: SidebarDict = {
     automation: 'AUTOMATIZACIÓN',
     chatbots: 'Chatbots',
     aiAgents: 'Agentes IA',
-    crm: 'CRM',
-    pipeline: 'Pipeline',
-    products: 'Productos',
-    quotes: 'Cotizaciones',
     management: 'GESTIÓN',
     team: 'Equipo',
     calendar: 'Calendario',
