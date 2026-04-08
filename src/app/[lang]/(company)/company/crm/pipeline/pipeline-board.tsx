@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ContactAvatar } from '@/components/contact-avatar';
 import { Plus, X, Loader2, DollarSign, User, CalendarDays, MoreHorizontal, Trophy, XCircle, GripVertical, CheckCircle2, Ban } from 'lucide-react';
-import { createDeal, moveDeal, updateDealStatus, deleteDeal } from '../actions';
+import { createDeal, moveDeal, updateDealStatus, deleteDeal, reopenDeal } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -354,7 +354,7 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                     <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">Sin deals ganados aun</p>
                                 ) : (
                                     closedDeals.filter(d => d.status === 'WON').map(deal => (
-                                        <div key={deal.id} className="px-4 py-3 flex items-center justify-between">
+                                        <div key={deal.id} className="px-4 py-3 flex items-center justify-between group">
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <CheckCircle2 className="h-3.5 w-3.5 text-[#10B981]" />
@@ -364,7 +364,15 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                                     {deal.contactName || 'Sin contacto'} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
                                                 </span>
                                             </div>
-                                            <span className="text-[14px] font-bold text-[#10B981]">{formatCOP(deal.value)}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[14px] font-bold text-[#10B981]">{formatCOP(deal.value)}</span>
+                                                <button
+                                                    onClick={async () => { await reopenDeal(deal.id); router.refresh(); toast.success('Deal reabierto'); }}
+                                                    className="opacity-0 group-hover:opacity-100 text-[11px] text-[#3B82F6] hover:underline transition-opacity"
+                                                >
+                                                    Reabrir
+                                                </button>
+                                            </div>
                                         </div>
                                     ))
                                 )}
@@ -385,7 +393,7 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                     <p className="px-4 py-6 text-center text-[13px] text-[#A1A1AA]">Sin deals perdidos</p>
                                 ) : (
                                     closedDeals.filter(d => d.status === 'LOST').map(deal => (
-                                        <div key={deal.id} className="px-4 py-3 flex items-center justify-between">
+                                        <div key={deal.id} className="px-4 py-3 flex items-center justify-between group">
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <XCircle className="h-3.5 w-3.5 text-[#EF4444]" />
@@ -395,7 +403,15 @@ export function PipelineBoard({ stages, contacts, agents, closedDeals, lang }: {
                                                     {deal.contactName || 'Sin contacto'} · {new Date(deal.closedAt).toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}
                                                 </span>
                                             </div>
-                                            {deal.value > 0 && <span className="text-[13px] text-[#A1A1AA] line-through">{formatCOP(deal.value)}</span>}
+                                            <div className="flex items-center gap-2">
+                                                {deal.value > 0 && <span className="text-[13px] text-[#A1A1AA] line-through">{formatCOP(deal.value)}</span>}
+                                                <button
+                                                    onClick={async () => { await reopenDeal(deal.id); router.refresh(); toast.success('Deal reabierto'); }}
+                                                    className="opacity-0 group-hover:opacity-100 text-[11px] text-[#3B82F6] hover:underline transition-opacity"
+                                                >
+                                                    Reabrir
+                                                </button>
+                                            </div>
                                         </div>
                                     ))
                                 )}

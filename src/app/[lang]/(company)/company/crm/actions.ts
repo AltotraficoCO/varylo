@@ -125,6 +125,23 @@ export async function updateDealStatus(dealId: string, status: 'OPEN' | 'WON' | 
     return { success: true };
 }
 
+export async function reopenDeal(dealId: string) {
+    const companyId = await getCompanyId();
+    // Find the first stage to put it back
+    const firstStage = await prisma.pipelineStage.findFirst({
+        where: { companyId },
+        orderBy: { sortOrder: 'asc' },
+    });
+    if (!firstStage) return { success: false, error: 'No hay etapas en el pipeline' };
+
+    await prisma.deal.update({
+        where: { id: dealId, companyId },
+        data: { status: 'OPEN', closedAt: null, stageId: firstStage.id },
+    });
+    revalidatePath('/company/crm/pipeline');
+    return { success: true };
+}
+
 export async function deleteDeal(dealId: string) {
     const companyId = await getCompanyId();
     await prisma.deal.delete({ where: { id: dealId, companyId } });
