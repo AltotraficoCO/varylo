@@ -204,7 +204,38 @@
     "dashboard": {
         "myAccount": "Mi Cuenta",
         "profile": "Perfil",
-        "signOut": "Cerrar sesión"
+        "signOut": "Cerrar sesión",
+        "companyTitle": "Panel de Empresa",
+        "agentTitle": "Panel de Agente",
+        "superAdminTitle": "Panel de Administración",
+        "sidebar": {
+            "dashboard": "Dashboard",
+            "communication": "COMUNICACIÓN",
+            "conversations": "Conversaciones",
+            "all": "Todas",
+            "contacts": "Contactos",
+            "broadcasts": "Difusiones",
+            "automation": "AUTOMATIZACIÓN",
+            "chatbots": "Chatbots",
+            "aiAgents": "Agentes IA",
+            "crm": "CRM",
+            "pipeline": "Pipeline",
+            "products": "Productos",
+            "quotes": "Cotizaciones",
+            "management": "GESTIÓN",
+            "team": "Equipo",
+            "calendar": "Calendario",
+            "analytics": "Analíticas",
+            "settings": "Configuración",
+            "administration": "ADMINISTRACIÓN",
+            "companies": "Empresas",
+            "billing": "Planes & Facturación",
+            "siteSettings": "Sitio Web",
+            "metrics": "MÉTRICAS",
+            "inbox": "Inbox",
+            "myProfile": "Mi Perfil",
+            "footer": "Desarrollado con IA y con ❤️"
+        }
     },
     "auth": {
         "login": {

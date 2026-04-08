@@ -1,6 +1,6 @@
 import { Sidebar, companyAdminItems } from '@/components/dashboard/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
-import { Locale } from '@/lib/dictionary';
+import { getDictionary, Locale } from '@/lib/dictionary';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -13,6 +13,7 @@ export default async function CompanyLayout({
 }) {
     const { lang } = await params;
     const session = await auth();
+    const dict = await getDictionary(lang as Locale);
 
     let tags: any[] = [];
     let userStatus: 'ONLINE' | 'BUSY' | 'OFFLINE' = 'OFFLINE';
@@ -50,16 +51,18 @@ export default async function CompanyLayout({
 
     return (
         <div className="grid w-full min-h-screen lg:grid-cols-[240px_1fr]">
-            <Sidebar role="company" lang={lang} tags={tags} className="hidden lg:block" />
+            <Sidebar role="company" lang={lang} tags={tags} className="hidden lg:block" dict={dict.dashboard.sidebar} />
             <div className="flex flex-col min-h-screen">
                 <DashboardHeader
-                    title="Panel de Empresa"
+                    title={dict.dashboard.companyTitle}
                     lang={lang}
                     role="company"
                     tags={tags}
                     userStatus={userStatus}
                     userName={session?.user?.name || undefined}
                     userEmail={session?.user?.email || undefined}
+                    dict={dict.dashboard}
+                    sidebarDict={dict.dashboard.sidebar}
                 />
                 <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:px-10 lg:py-8">
                     {children}
