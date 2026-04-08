@@ -186,6 +186,8 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             return { handled: false };
         }
 
+        console.log(`[AI Agent] ${aiAgent.name} | crmEnabled: ${aiAgent.crmEnabled} | model: ${aiAgent.model}`);
+
         // Check for transfer keywords
         const lowerMessage = inboundMessage.toLowerCase().trim();
         const shouldTransfer = aiAgent.transferKeywords.some(keyword =>
