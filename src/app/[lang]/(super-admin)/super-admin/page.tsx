@@ -12,6 +12,7 @@ import {
     Zap,
 } from 'lucide-react';
 import Link from 'next/link';
+import { getDictionary, Locale } from '@/lib/dictionary';
 
 async function getStats() {
     try {
@@ -76,14 +77,14 @@ const PLAN_COLORS: Record<string, 'default' | 'secondary' | 'outline'> = {
     SCALE: 'secondary',
 };
 
-function formatNumber(n: number): string {
+function formatNumber(n: number, locale: string): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-    return n.toLocaleString('es-CO');
+    return n.toLocaleString(locale);
 }
 
-function formatCOP(amount: number): string {
-    return new Intl.NumberFormat('es-CO', {
+function formatCOP(amount: number, locale: string): string {
+    return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: 'COP',
         minimumFractionDigits: 0,
@@ -96,37 +97,41 @@ export default async function SuperAdminDashboard({
     params: Promise<{ lang: string }>;
 }) {
     const { lang } = await params;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.dashboard.superAdminHome;
+    const tc = dict.dashboard.common;
+    const locale = tc.locale || 'es-CO';
     const stats = await getStats();
 
     const statCards = [
         {
-            title: 'Empresas',
+            title: t.companies,
             value: stats.totalCompanies,
-            subtitle: `${stats.activeCompanies} activas`,
+            subtitle: t.nActive.replace('{n}', String(stats.activeCompanies)),
             icon: Building2,
             href: `/${lang}/super-admin/companies`,
             color: 'text-blue-600 bg-blue-50',
         },
         {
-            title: 'Usuarios',
+            title: t.users,
             value: stats.totalUsers,
-            subtitle: 'registrados',
+            subtitle: t.registered,
             icon: Users,
             href: `/${lang}/super-admin/companies`,
             color: 'text-violet-600 bg-violet-50',
         },
         {
-            title: 'Conversaciones',
-            value: formatNumber(stats.totalConversations),
-            subtitle: `${formatNumber(stats.totalMessages)} mensajes`,
+            title: t.conversations,
+            value: formatNumber(stats.totalConversations, locale),
+            subtitle: t.nMessages.replace('{n}', formatNumber(stats.totalMessages, locale)),
             icon: MessageSquare,
             href: `/${lang}/super-admin/analytics`,
             color: 'text-emerald-600 bg-emerald-50',
         },
         {
-            title: 'Créditos en circulación',
-            value: formatCOP(stats.totalCredits),
-            subtitle: 'balance total',
+            title: t.circulatingCredits,
+            value: formatCOP(stats.totalCredits, locale),
+            subtitle: t.totalBalance,
             icon: CreditCard,
             href: `/${lang}/super-admin/billing`,
             color: 'text-amber-600 bg-amber-50',
@@ -136,9 +141,9 @@ export default async function SuperAdminDashboard({
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight">Panel de Control</h2>
+                <h2 className="text-2xl font-bold tracking-tight">{t.controlPanel}</h2>
                 <p className="text-muted-foreground">
-                    Resumen general de la plataforma Varylo.
+                    {t.subtitle}
                 </p>
             </div>
 
@@ -157,7 +162,7 @@ export default async function SuperAdminDashboard({
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">
-                                    {typeof card.value === 'number' ? card.value.toLocaleString('es-CO') : card.value}
+                                    {typeof card.value === 'number' ? card.value.toLocaleString(locale) : card.value}
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                                     {card.subtitle}
@@ -173,22 +178,25 @@ export default async function SuperAdminDashboard({
                 {/* Recent Companies */}
                 <Card className="lg:col-span-3">
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="text-base">Empresas recientes</CardTitle>
+                        <CardTitle className="text-base">{t.recentCompanies}</CardTitle>
                         <Link
                             href={`/${lang}/super-admin/companies`}
                             className="text-sm text-primary hover:underline"
                         >
-                            Ver todas
+                            {t.viewAll}
                         </Link>
                     </CardHeader>
                     <CardContent>
                         {stats.recentCompanies.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-8">
-                                No hay empresas registradas aún.
+                                {t.noCompaniesYet}
                             </p>
                         ) : (
                             <div className="space-y-3">
-                                {stats.recentCompanies.map((company: any) => (
+                                {stats.recentCompanies.map((company: any) => {
+                                    const userCount = company._count.users;
+                                    const usersText = userCount !== 1 ? t.nUsersPlural.replace('{n}', String(userCount)) : t.nUsers.replace('{n}', String(userCount));
+                                    return (
                                     <div
                                         key={company.id}
                                         className="flex items-center justify-between p-3 rounded-lg border"
@@ -200,8 +208,8 @@ export default async function SuperAdminDashboard({
                                             <div>
                                                 <p className="text-sm font-medium">{company.name}</p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    {company._count.users} usuario{company._count.users !== 1 ? 's' : ''} &middot;{' '}
-                                                    {new Date(company.createdAt).toLocaleDateString('es-CO')}
+                                                    {usersText} &middot;{' '}
+                                                    {new Date(company.createdAt).toLocaleDateString(locale)}
                                                 </p>
                                             </div>
                                         </div>
@@ -216,7 +224,8 @@ export default async function SuperAdminDashboard({
                                             />
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </CardContent>
@@ -225,31 +234,31 @@ export default async function SuperAdminDashboard({
                 {/* Quick Actions */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle className="text-base">Acciones rápidas</CardTitle>
+                        <CardTitle className="text-base">{t.quickActions}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
                         {[
                             {
-                                label: 'Gestionar empresas',
-                                desc: 'Crear, editar y administrar empresas',
+                                label: t.manageCompanies,
+                                desc: t.manageCompaniesDesc,
                                 href: `/${lang}/super-admin/companies`,
                                 icon: Building2,
                             },
                             {
-                                label: 'Planes y pagos',
-                                desc: 'Configurar planes y Wompi',
+                                label: t.plansAndPayments,
+                                desc: t.plansAndPaymentsDesc,
                                 href: `/${lang}/super-admin/billing`,
                                 icon: CreditCard,
                             },
                             {
-                                label: 'Analíticas',
-                                desc: 'Métricas de uso de la plataforma',
+                                label: t.analyticsAction,
+                                desc: t.analyticsActionDesc,
                                 href: `/${lang}/super-admin/analytics`,
                                 icon: Activity,
                             },
                             {
-                                label: 'Sitio Web',
-                                desc: 'Favicon, footer y landing page',
+                                label: t.websiteAction,
+                                desc: t.websiteActionDesc,
                                 href: `/${lang}/super-admin/site-settings`,
                                 icon: Zap,
                             },

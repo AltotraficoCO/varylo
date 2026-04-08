@@ -11,20 +11,7 @@ import {
     Hash,
     Activity,
 } from 'lucide-react';
-
-function formatNumber(n: number): string {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-    return n.toLocaleString('es-CO');
-}
-
-function formatCOP(amount: number): string {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0,
-    }).format(amount);
-}
+import { getDictionary, Locale } from '@/lib/dictionary';
 
 async function safeCount(fn: () => Promise<number>): Promise<number> {
     try { return await fn(); } catch { return 0; }
@@ -114,29 +101,49 @@ const PLAN_COLORS: Record<string, string> = {
     SCALE: 'bg-violet-100 text-violet-700',
 };
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.dashboard.superAdminAnalytics;
+    const tc = dict.dashboard.common;
+    const locale = tc.locale || 'es-CO';
+
+    function formatNumber(n: number): string {
+        if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+        if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+        return n.toLocaleString(locale);
+    }
+
+    function formatCOP(amount: number): string {
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+        }).format(amount);
+    }
+
     const data = await getAnalytics();
 
     const mainStats = [
-        { title: 'Empresas', value: data.totalCompanies, delta: `+${data.newCompanies30d} (30d)`, icon: Building2, color: 'text-blue-600 bg-blue-50' },
-        { title: 'Usuarios', value: data.totalUsers, delta: `+${data.newUsers30d} (30d)`, icon: Users, color: 'text-violet-600 bg-violet-50' },
-        { title: 'Conversaciones', value: data.totalConversations, delta: `+${data.newConversations7d} (7d)`, icon: MessageSquare, color: 'text-emerald-600 bg-emerald-50' },
-        { title: 'Mensajes', value: data.totalMessages, delta: `+${formatNumber(data.newMessages7d)} (7d)`, icon: TrendingUp, color: 'text-amber-600 bg-amber-50' },
+        { title: t.companies, value: data.totalCompanies, delta: `+${data.newCompanies30d} ${t.last30d}`, icon: Building2, color: 'text-blue-600 bg-blue-50' },
+        { title: t.users, value: data.totalUsers, delta: `+${data.newUsers30d} ${t.last30d}`, icon: Users, color: 'text-violet-600 bg-violet-50' },
+        { title: t.conversations, value: data.totalConversations, delta: `+${data.newConversations7d} ${t.last7d}`, icon: MessageSquare, color: 'text-emerald-600 bg-emerald-50' },
+        { title: t.messagesLabel, value: data.totalMessages, delta: `+${formatNumber(data.newMessages7d)} ${t.last7d}`, icon: TrendingUp, color: 'text-amber-600 bg-amber-50' },
     ];
 
     const platformStats = [
-        { title: 'Contactos', value: data.totalContacts, icon: Hash },
-        { title: 'Canales', value: data.totalChannels, icon: Activity },
-        { title: 'Agentes IA', value: data.totalAiAgents, icon: Sparkles },
-        { title: 'Chatbots', value: data.totalChatbots, icon: Bot },
+        { title: t.contacts, value: data.totalContacts, icon: Hash },
+        { title: t.channels, value: data.totalChannels, icon: Activity },
+        { title: t.aiAgents, value: data.totalAiAgents, icon: Sparkles },
+        { title: t.chatbots, value: data.totalChatbots, icon: Bot },
     ];
 
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight">Analíticas</h2>
+                <h2 className="text-2xl font-bold tracking-tight">{t.title}</h2>
                 <p className="text-muted-foreground">
-                    Métricas de uso y rendimiento de la plataforma.
+                    {t.subtitle}
                 </p>
             </div>
 
@@ -164,7 +171,7 @@ export default async function AnalyticsPage() {
                 {/* Platform resources */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-base">Recursos de la plataforma</CardTitle>
+                        <CardTitle className="text-base">{t.platformResources}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {platformStats.map((stat) => (
@@ -180,11 +187,11 @@ export default async function AnalyticsPage() {
                         ))}
                         <div className="border-t pt-4 space-y-3">
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Créditos en circulación</span>
+                                <span className="text-sm text-muted-foreground">{t.circulatingCredits}</span>
                                 <span className="font-semibold text-sm">{formatCOP(data.totalCredits)}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Gasto IA acumulado</span>
+                                <span className="text-sm text-muted-foreground">{t.accumulatedAiSpend}</span>
                                 <span className="font-semibold text-sm">{formatCOP(data.totalAiUsageCost)}</span>
                             </div>
                         </div>
@@ -194,11 +201,11 @@ export default async function AnalyticsPage() {
                 {/* Plan distribution */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-base">Distribución por plan</CardTitle>
+                        <CardTitle className="text-base">{t.distributionByPlan}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {data.planDistribution.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-6">Sin datos</p>
+                            <p className="text-sm text-muted-foreground text-center py-6">{t.noData}</p>
                         ) : (
                             <div className="space-y-4">
                                 {data.planDistribution.map((item) => {
@@ -234,11 +241,11 @@ export default async function AnalyticsPage() {
                 {/* Top companies */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-base">Top empresas por conversaciones</CardTitle>
+                        <CardTitle className="text-base">{t.topCompaniesByConv}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {data.topCompanies.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-6">Sin datos</p>
+                            <p className="text-sm text-muted-foreground text-center py-6">{t.noData}</p>
                         ) : (
                             <div className="space-y-3">
                                 {data.topCompanies.map((company, idx) => (

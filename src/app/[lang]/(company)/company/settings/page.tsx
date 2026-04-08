@@ -15,23 +15,27 @@ import { IntegrationsClient } from "../integrations/integrations-client";
 import { getActiveSubscription, getPaymentSources, getBillingHistory, getAvailablePlans } from "./billing-actions";
 import { getWompiConfig } from "@/lib/wompi-config";
 import { Role } from '@prisma/client';
-
-const TABS = [
-    { key: 'general', label: 'General', icon: Building2 },
-    { key: 'channels', label: 'Canales', icon: Plug },
-    { key: 'integrations', label: 'Integraciones', icon: Puzzle },
-    { key: 'ai', label: 'Créditos', icon: Coins },
-    { key: 'billing', label: 'Facturación', icon: CreditCard },
-    { key: 'api', label: 'API', icon: Key },
-    { key: 'tags', label: 'Etiquetas', icon: Tag },
-    { key: 'templates', label: 'Plantillas', icon: FileText },
-];
+import { getDictionary, Locale } from '@/lib/dictionary';
 
 export default async function SettingsPage(props: {
-    searchParams: Promise<{ tab?: string }>
+    params: Promise<{ lang: string }>;
+    searchParams: Promise<{ tab?: string }>;
 }) {
-    const searchParams = await props.searchParams;
+    const [{ lang }, searchParams] = await Promise.all([props.params, props.searchParams]);
     const activeTab = searchParams.tab || 'general';
+    const dict = await getDictionary(lang as Locale);
+    const ts = dict.dashboard.settings;
+
+    const TABS = [
+        { key: 'general', label: ts.tabs.general, icon: Building2 },
+        { key: 'channels', label: ts.tabs.channels, icon: Plug },
+        { key: 'integrations', label: ts.tabs.integrations, icon: Puzzle },
+        { key: 'ai', label: ts.tabs.credits, icon: Coins },
+        { key: 'billing', label: ts.tabs.billing, icon: CreditCard },
+        { key: 'api', label: ts.tabs.api, icon: Key },
+        { key: 'tags', label: ts.tabs.tags, icon: Tag },
+        { key: 'templates', label: ts.tabs.templates, icon: FileText },
+    ];
 
     const session = await auth();
     const companyId = session?.user?.companyId;
@@ -112,9 +116,9 @@ export default async function SettingsPage(props: {
         <div className="w-full">
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-2xl font-semibold text-foreground">Configuración</h1>
+                <h1 className="text-2xl font-semibold text-foreground">{ts.title}</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                    Administra tu empresa, canales y preferencias.
+                    {ts.subtitle}
                 </p>
             </div>
 

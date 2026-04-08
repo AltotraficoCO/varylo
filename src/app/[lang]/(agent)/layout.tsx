@@ -1,6 +1,7 @@
 import { Sidebar, agentItems } from '@/components/dashboard/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
 import { getDictionary, Locale } from '@/lib/dictionary';
+import { DictionaryProvider } from '@/lib/i18n-context';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -39,23 +40,25 @@ export default async function AgentLayout({
     }
 
     return (
-        <div className="grid min-h-screen w-full lg:grid-cols-[240px_1fr]">
-            <Sidebar role="agent" lang={lang} className="hidden lg:block" dict={dict.dashboard.sidebar} />
-            <div className="flex flex-col min-h-screen">
-                <DashboardHeader
-                    title={dict.dashboard.agentTitle}
-                    lang={lang}
-                    role="agent"
-                    userStatus={userStatus}
-                    userName={session?.user?.name || undefined}
-                    userEmail={session?.user?.email || undefined}
-                    dict={dict.dashboard}
-                    sidebarDict={dict.dashboard.sidebar}
-                />
-                <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-                    {children}
-                </main>
+        <DictionaryProvider dictionary={dict}>
+            <div className="grid min-h-screen w-full lg:grid-cols-[240px_1fr]">
+                <Sidebar role="agent" lang={lang} className="hidden lg:block" dict={dict.dashboard.sidebar} />
+                <div className="flex flex-col min-h-screen">
+                    <DashboardHeader
+                        title={dict.dashboard.agentTitle}
+                        lang={lang}
+                        role="agent"
+                        userStatus={userStatus}
+                        userName={session?.user?.name || undefined}
+                        userEmail={session?.user?.email || undefined}
+                        dict={dict.dashboard}
+                        sidebarDict={dict.dashboard.sidebar}
+                    />
+                    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+                        {children}
+                    </main>
+                </div>
             </div>
-        </div>
+        </DictionaryProvider>
     );
 }

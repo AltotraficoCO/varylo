@@ -13,11 +13,7 @@ import { Building2, Users, MessageSquare } from "lucide-react"
 import { EditCompanyDialog } from './edit-company-dialog';
 import { CreateCompanyDialog } from './create-company-dialog';
 import { ensureTablesExist } from './actions';
-
-const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'destructive' }> = {
-    ACTIVE: { label: 'Activa', variant: 'default' },
-    SUSPENDED: { label: 'Suspendida', variant: 'destructive' },
-};
+import { getDictionary, Locale } from '@/lib/dictionary';
 
 const PLAN_COLORS: Record<string, 'default' | 'secondary' | 'outline'> = {
     STARTER: 'outline',
@@ -25,22 +21,32 @@ const PLAN_COLORS: Record<string, 'default' | 'secondary' | 'outline'> = {
     SCALE: 'secondary',
 };
 
-const SUB_STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    ACTIVE: { label: 'Activa', variant: 'default' },
-    TRIAL: { label: 'Prueba', variant: 'secondary' },
-    PAST_DUE: { label: 'Pago pendiente', variant: 'destructive' },
-    CANCELLED: { label: 'Cancelada', variant: 'outline' },
-};
+export default async function CompaniesPage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.dashboard.companiesAdmin;
+    const tc = dict.dashboard.common;
+    const locale = tc.locale || 'es-CO';
 
-function formatCOP(amount: number): string {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0,
-    }).format(amount);
-}
+    function formatCOP(amount: number): string {
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+        }).format(amount);
+    }
 
-export default async function CompaniesPage() {
+    const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'destructive' }> = {
+        ACTIVE: { label: tc.active, variant: 'default' },
+        SUSPENDED: { label: tc.suspended, variant: 'destructive' },
+    };
+
+    const SUB_STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+        ACTIVE: { label: t.subStatusActive, variant: 'default' },
+        TRIAL: { label: t.subStatusTrial, variant: 'secondary' },
+        PAST_DUE: { label: t.subStatusPending, variant: 'destructive' },
+        CANCELLED: { label: t.subStatusCancelled, variant: 'outline' },
+    };
     // Ensure all subscription tables/columns exist before querying
     await ensureTablesExist();
 
@@ -80,9 +86,9 @@ export default async function CompaniesPage() {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Empresas</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">{t.title}</h2>
                     <p className="text-muted-foreground">
-                        Gestión de todas las empresas en la plataforma.
+                        {t.subtitle}
                     </p>
                 </div>
                 <CreateCompanyDialog />
@@ -97,7 +103,7 @@ export default async function CompaniesPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold">{totalCompanies}</p>
-                            <p className="text-xs text-muted-foreground">Total empresas</p>
+                            <p className="text-xs text-muted-foreground">{t.totalCompanies}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -108,7 +114,7 @@ export default async function CompaniesPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold">{activeCompanies}</p>
-                            <p className="text-xs text-muted-foreground">Activas</p>
+                            <p className="text-xs text-muted-foreground">{t.activeCompanies}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -119,7 +125,7 @@ export default async function CompaniesPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold">{totalUsers}</p>
-                            <p className="text-xs text-muted-foreground">Usuarios totales</p>
+                            <p className="text-xs text-muted-foreground">{t.totalUsers}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -131,14 +137,14 @@ export default async function CompaniesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Empresa</TableHead>
-                                <TableHead>Plan</TableHead>
-                                <TableHead className="hidden md:table-cell">Suscripción</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead className="hidden sm:table-cell">Usuarios</TableHead>
-                                <TableHead className="hidden lg:table-cell">Créditos</TableHead>
-                                <TableHead className="hidden lg:table-cell">Registro</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
+                                <TableHead>{t.company}</TableHead>
+                                <TableHead>{t.plan}</TableHead>
+                                <TableHead className="hidden md:table-cell">{t.subscription}</TableHead>
+                                <TableHead>{t.status}</TableHead>
+                                <TableHead className="hidden sm:table-cell">{t.usersCol}</TableHead>
+                                <TableHead className="hidden lg:table-cell">{t.creditsCol}</TableHead>
+                                <TableHead className="hidden lg:table-cell">{t.registration}</TableHead>
+                                <TableHead className="text-right">{t.actions}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -146,7 +152,7 @@ export default async function CompaniesPage() {
                                 <TableRow>
                                     <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                                        No hay empresas registradas.
+                                        {t.noCompanies}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -182,14 +188,14 @@ export default async function CompaniesPage() {
                                                                 {(() => {
                                                                     const daysLeft = Math.ceil((new Date(sub.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                                                                     return daysLeft > 0
-                                                                        ? `${daysLeft} días restantes`
-                                                                        : 'Vencida';
+                                                                        ? t.nDaysLeft.replace('{n}', String(daysLeft))
+                                                                        : t.expired;
                                                                 })()}
                                                             </span>
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-xs text-muted-foreground">Sin suscripción</span>
+                                                    <span className="text-xs text-muted-foreground">{t.noSubscription}</span>
                                                 )}
                                             </TableCell>
                                             <TableCell>
@@ -207,7 +213,7 @@ export default async function CompaniesPage() {
                                                 {formatCOP(company.creditBalance)}
                                             </TableCell>
                                             <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                                                {new Date(company.createdAt).toLocaleDateString('es-CO')}
+                                                {new Date(company.createdAt).toLocaleDateString(locale)}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <EditCompanyDialog company={company} />

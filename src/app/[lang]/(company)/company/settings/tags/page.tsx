@@ -3,26 +3,29 @@ import { AddTagDialog } from './add-tag-dialog';
 import { Button } from "@/components/ui/button";
 import { Tag as TagIcon, Plus } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
+import { getDictionary, Locale } from '@/lib/dictionary';
 
-export default async function TagsPage() {
+export default async function TagsPage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.dashboard.tags;
     const tags = await getTags();
 
     return (
         <div className="max-w-5xl mx-auto py-8 px-6">
             <div className="flex items-start justify-between mb-8">
                 <div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-2">Etiquetas</h1>
+                    <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-2">{t.title}</h1>
                     <p className="text-muted-foreground text-sm max-w-2xl">
-                        Las etiquetas le ayudan a clasificar y priorizar conversaciones y clientes potenciales.
-                        Puede asignar una etiqueta a una conversación o contacto usando el panel lateral.
+                        {t.description}
                     </p>
                     <a href="#" className="text-primary text-sm hover:underline mt-2 inline-block">
-                        Aprende más sobre etiquetas &gt;
+                        {t.learnMore}
                     </a>
                 </div>
                 <AddTagDialog>
                     <Button className="gap-2">
-                        <Plus className="h-4 w-4" /> Añadir etiqueta
+                        <Plus className="h-4 w-4" /> {t.addTag}
                     </Button>
                 </AddTagDialog>
             </div>
@@ -31,7 +34,7 @@ export default async function TagsPage() {
                 {tags.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-muted-foreground text-center">
                         <TagIcon className="h-16 w-16 mb-4 opacity-20" />
-                        <p className="text-lg">No hay etiquetas disponibles en esta cuenta.</p>
+                        <p className="text-lg">{t.noTags}</p>
                     </div>
                 ) : (
                     <div className="bg-white rounded-lg border divide-y">
@@ -48,8 +51,7 @@ export default async function TagsPage() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    {/* Actions Edit/Delete could go here */}
-                                    {tag.showInSidebar && <Badge variant="secondary" className="text-[10px]">Barra lateral</Badge>}
+                                    {tag.showInSidebar && <Badge variant="secondary" className="text-[10px]">{t.sidebarColumn}</Badge>}
                                 </div>
                             </div>
                         ))}
