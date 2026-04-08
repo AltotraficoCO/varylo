@@ -1,11 +1,10 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { EditAiAgentDialog } from './edit-ai-agent-dialog';
 import { DeleteAiAgentDialog } from './delete-ai-agent-dialog';
 import { AiAgentStatusToggle } from './ai-agent-status-toggle';
 import { AGENT_TYPE_CONFIGS } from '@/lib/ai-agent-types';
 import type { AiAgentType } from '@/lib/ai-agent-types';
-import { Sparkles, Bot, Plus } from 'lucide-react';
+import { Sparkles, Bot, Plus, Pencil } from 'lucide-react';
 import Link from 'next/link';
 
 // Rotating color palette for agent icon backgrounds
@@ -199,27 +198,12 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
 
                                 {/* Actions */}
                                 <div className="flex items-center gap-2 mt-auto pt-2 border-t" style={{ borderColor: '#E4E4E7' }}>
-                                    <EditAiAgentDialog
-                                        agent={{
-                                            id: agent.id,
-                                            name: agent.name,
-                                            agentType: agent.agentType,
-                                            systemPrompt: agent.systemPrompt,
-                                            contextInfo: agent.contextInfo,
-                                            model: agent.model,
-                                            temperature: agent.temperature,
-                                            transferKeywords: agent.transferKeywords,
-                                            channelIds: agent.channels.map(c => c.id),
-                                            dataCaptureEnabled: agent.dataCaptureEnabled,
-                                            calendarEnabled: agent.calendarEnabled,
-                                            calendarId: agent.calendarId,
-                                            ecommerceEnabled: agent.ecommerceEnabled,
-                                            webhookConfigJson: agent.webhookConfigJson as { url: string; secret?: string; headers?: Record<string, string> } | null,
-                                        }}
-                                        channels={channels.map(c => ({ id: c.id, type: c.type }))}
-                                        hasGoogleCalendar={hasGoogleCalendar}
-                                        hasEcommerce={hasEcommerce}
-                                    />
+                                    <Link
+                                        href={`/${lang}/company/ai-agents/${agent.id}/edit`}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E4E7] px-3 py-1.5 text-[13px] font-medium text-[#3F3F46] hover:bg-[#F4F4F5] transition-colors"
+                                    >
+                                        <Pencil className="h-3 w-3" /> Editar
+                                    </Link>
                                     <DeleteAiAgentDialog agentId={agent.id} agentName={agent.name} />
                                     <div className="ml-auto">
                                         <AiAgentStatusToggle id={agent.id} initialStatus={agent.active} />
