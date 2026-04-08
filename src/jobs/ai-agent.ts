@@ -463,6 +463,13 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             fromName: aiAgent.name,
         });
 
+        // Auto-move deal to "Contactado" when AI responds (if CRM enabled and deal exists)
+        if (aiAgent.crmEnabled) {
+            import('@/lib/crm-auto').then(({ moveDealByStage }) => {
+                moveDealByStage(conversation.companyId, conversation.contactId, 'Contactado').catch(() => {});
+            }).catch(() => {});
+        }
+
         return { handled: true };
     } catch (error) {
         console.error(`[AI Agent] Error handling conversation ${conversationId}:`, error);
@@ -727,15 +734,24 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
     }
 
     if (opts.crmEnabled) {
-        prompt += '\n\nTienes herramientas de CRM para gestionar oportunidades de venta automaticamente:';
-        prompt += '\n- create_deal: Crea una oportunidad de venta SOLO cuando detectes interes real de compra (el cliente pregunta por precios, quiere cotizacion, pide info de un producto/servicio). NO crees deals para consultas generales, quejas o preguntas simples.';
-        prompt += '\n- move_deal_stage: Mueve la oportunidad a la siguiente etapa segun el avance real de la conversacion:';
-        prompt += '\n  * "Contactado": El cliente respondio y hay dialogo activo';
-        prompt += '\n  * "Propuesta": Le enviaste precios, cotizacion o informacion detallada del producto/servicio';
-        prompt += '\n  * "Negociación": El cliente esta considerando, pidio descuento, compara opciones';
-        prompt += '\n  * "Cerrado": El cliente tomo una decision (compro o rechazo)';
-        prompt += '\n- close_deal: Marca como ganada (won=true, con valor en COP) cuando el cliente CONFIRME la compra, o perdida (won=false) cuando rechace definitivamente.';
-        prompt += '\n\nIMPORTANTE: Usa estas herramientas de forma SILENCIOSA. Nunca le digas al cliente que estas gestionando un pipeline o creando oportunidades. El titulo del deal debe describir lo que el cliente busca (ej: "Plan Pro para restaurante", "10 camisetas talla M").';
+        prompt += '\n\n=== INSTRUCCIONES CRM (OBLIGATORIAS) ===';
+        prompt += '\nTienes herramientas de CRM que DEBES usar en cada conversacion de venta:';
+        prompt += '\n\n1. create_deal: DEBES llamar esta herramienta cuando el cliente:';
+        prompt += '\n   - Pregunte por precios de algun producto o servicio';
+        prompt += '\n   - Pida una cotizacion';
+        prompt += '\n   - Muestre interes en comprar algo';
+        prompt += '\n   - Pregunte por disponibilidad de un producto';
+        prompt += '\n   NO la uses para consultas generales o quejas.';
+        prompt += '\n\n2. move_deal_stage: DEBES mover la etapa cuando:';
+        prompt += '\n   - "Propuesta": Acabas de darle precios o informacion detallada al cliente → LLAMA move_deal_stage("Propuesta") INMEDIATAMENTE despues de responder con precios';
+        prompt += '\n   - "Negociación": El cliente dice "lo voy a pensar", pide descuento, compara → LLAMA move_deal_stage("Negociación")';
+        prompt += '\n   - "Cerrado": El cliente decidio comprar o rechazar';
+        prompt += '\n\n3. close_deal: DEBES llamar cuando:';
+        prompt += '\n   - El cliente confirma compra → close_deal(won=true, value=MONTO)';
+        prompt += '\n   - El cliente rechaza definitivamente → close_deal(won=false)';
+        prompt += '\n\nREGLA: Cada vez que des precios, SIEMPRE llama move_deal_stage("Propuesta"). Es OBLIGATORIO.';
+        prompt += '\nREGLA: Nunca le digas al cliente que estas gestionando un pipeline.';
+        prompt += '\nREGLA: El titulo del deal debe describir QUE quiere el cliente (ej: "Plan Pro", "20 camisetas").';
     }
 
     prompt += '\n\nSi el usuario insiste en hablar con un humano o si no puedes resolver su consulta, responde con [TRANSFER_TO_HUMAN] al inicio de tu mensaje seguido de un mensaje de despedida amable.';

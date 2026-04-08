@@ -64,25 +64,31 @@ export async function moveDealByStage(companyId: string, contactId: string, stag
     try {
         const deal = await prisma.deal.findFirst({
             where: { companyId, contactId, status: 'OPEN' },
+            include: { stage: { select: { sortOrder: true } } },
         });
 
         if (!deal) return { success: false, message: 'No hay deal abierto para este contacto' };
 
-        const stage = await prisma.pipelineStage.findFirst({
+        const targetStage = await prisma.pipelineStage.findFirst({
             where: {
                 companyId,
                 name: { contains: stageName, mode: 'insensitive' },
             },
         });
 
-        if (!stage) return { success: false, message: `Etapa "${stageName}" no encontrada` };
+        if (!targetStage) return { success: false, message: `Etapa "${stageName}" no encontrada` };
+
+        // Only move forward, never backward
+        if (targetStage.sortOrder <= deal.stage.sortOrder) {
+            return { success: true, message: `Deal ya esta en etapa igual o posterior` };
+        }
 
         await prisma.deal.update({
             where: { id: deal.id },
-            data: { stageId: stage.id },
+            data: { stageId: targetStage.id },
         });
 
-        return { success: true, message: `Deal movido a "${stage.name}"` };
+        return { success: true, message: `Deal movido a "${targetStage.name}"` };
     } catch (error) {
         return { success: false, message: 'Error al mover el deal' };
     }
