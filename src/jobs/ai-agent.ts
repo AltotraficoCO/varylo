@@ -78,6 +78,38 @@ const WEBHOOK_TOOLS: ChatCompletionTool[] = [
     },
 ];
 
+const CRM_TOOLS: ChatCompletionTool[] = [
+    {
+        type: 'function',
+        function: {
+            name: 'move_deal_stage',
+            description: 'Mueve la oportunidad de venta del cliente a una etapa del pipeline. Usa cuando detectes avance en la conversacion de venta. Etapas: Nuevo, Contactado, Propuesta, Negociación, Cerrado.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    stage_name: { type: 'string', description: 'Nombre de la etapa: Contactado, Propuesta, Negociación, o Cerrado' },
+                },
+                required: ['stage_name'],
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'close_deal',
+            description: 'Marca la oportunidad de venta como ganada o perdida. Usa cuando el cliente confirme una compra (ganada) o cuando rechace definitivamente (perdida).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    won: { type: 'boolean', description: 'true si el cliente compro, false si rechazo' },
+                    value: { type: 'number', description: 'Valor de la venta en COP (solo si ganada)' },
+                },
+                required: ['won'],
+            },
+        },
+    },
+];
+
 // ── Main handler ────────────────────────────────────────────────────
 
 export async function handleAiAgentResponse(conversationId: string, inboundMessage: string): Promise<AiAgentResult> {
@@ -232,6 +264,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             ...(webhookConfig?.url ? WEBHOOK_TOOLS : []),
             ...(calendarEnabled ? CALENDAR_TOOLS : []),
             ...(ecommerceEnabled ? ECOMMERCE_TOOLS : []),
+            ...CRM_TOOLS,
         ];
 
         // Function calling loop
@@ -313,6 +346,20 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                             }
                             calledTools.add(toolCall.function.name);
                             break;
+
+                        case 'move_deal_stage': {
+                            const { moveDealByStage } = await import('@/lib/crm-auto');
+                            const moveResult = await moveDealByStage(conversation.companyId, conversation.contactId, args.stage_name);
+                            result = JSON.stringify(moveResult);
+                            break;
+                        }
+
+                        case 'close_deal': {
+                            const { closeDeal } = await import('@/lib/crm-auto');
+                            const closeResult = await closeDeal(conversation.companyId, conversation.contactId, args.won, args.value);
+                            result = JSON.stringify(closeResult);
+                            break;
+                        }
 
                         default:
                             result = await executeCalendarTool(
@@ -649,6 +696,11 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
             prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. IMPORTANTE: Debes llamar send_to_webhook SIEMPRE al concluir la recopilación de datos del cliente. Cuando hayas terminado de capturar toda la información necesaria (datos personales, documentos, etc.), usa send_to_webhook para enviar todo. No olvides confirmar al cliente que sus datos fueron enviados exitosamente.';
         }
     }
+
+    prompt += '\n\nTienes herramientas de CRM para gestionar oportunidades de venta:';
+    prompt += '\n- move_deal_stage: Mueve la oportunidad a la siguiente etapa cuando avance la conversacion. Etapas: Contactado (ya respondio), Propuesta (le enviaste cotizacion o info), Negociación (esta considerando), Cerrado (decidio).';
+    prompt += '\n- close_deal: Marca como ganada (won=true) cuando el cliente confirme la compra, o perdida (won=false) cuando rechace.';
+    prompt += '\nUsa estas herramientas automaticamente segun el contexto de la conversacion. No le digas al cliente que estas moviendo deals.';
 
     prompt += '\n\nSi el usuario insiste en hablar con un humano o si no puedes resolver su consulta, responde con [TRANSFER_TO_HUMAN] al inicio de tu mensaje seguido de un mensaje de despedida amable.';
     return prompt;
