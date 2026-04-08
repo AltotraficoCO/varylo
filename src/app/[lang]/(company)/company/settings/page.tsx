@@ -75,7 +75,7 @@ export default async function SettingsPage(props: {
             where: { companyId, platform: 'n8n' },
             select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
-        }),
+        }).catch(() => [] as any[]),
         prisma.subscription.findFirst({
             where: { companyId, status: { in: ['ACTIVE', 'TRIAL'] } },
             select: { id: true },

@@ -27,7 +27,7 @@ export default async function IntegrationsPage() {
             where: { companyId },
             select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
-        }),
+        }).catch(() => [] as any[]),
     ]);
 
     return (
