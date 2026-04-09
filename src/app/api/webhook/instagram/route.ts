@@ -192,11 +192,28 @@ export async function POST(req: NextRequest) {
                 });
 
                 if (!contact) {
+                    // Fetch real Instagram username from Meta Graph API
+                    let igName = 'Instagram User';
+                    try {
+                        const channelConfig = channel.configJson as { accessToken?: string } | null;
+                        if (channelConfig?.accessToken) {
+                            const profileRes = await fetch(
+                                `https://graph.facebook.com/v21.0/${senderId}?fields=name,username&access_token=${channelConfig.accessToken}`
+                            );
+                            if (profileRes.ok) {
+                                const profile = await profileRes.json();
+                                igName = profile.name || profile.username || igName;
+                            }
+                        }
+                    } catch {
+                        // Fallback to default name
+                    }
+
                     contact = await prisma.contact.create({
                         data: {
                             companyId,
                             phone: senderId,
-                            name: "Instagram User",
+                            name: igName,
                             companyName: "Instagram",
                             originChannel: ChannelType.INSTAGRAM,
                         }
