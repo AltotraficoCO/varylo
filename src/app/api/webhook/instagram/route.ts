@@ -108,6 +108,8 @@ export async function POST(req: NextRequest) {
 
         const body = JSON.parse(rawBuffer.toString('utf-8'));
 
+        console.log('[Instagram Webhook] Incoming payload:', JSON.stringify(body, null, 2));
+
         // Check format
         const entry = body.entry?.[0];
         const messaging = entry?.messaging?.[0];
@@ -165,7 +167,18 @@ export async function POST(req: NextRequest) {
             }
 
             if (!channel) {
+                // Log all Instagram channels to debug ID mismatch
+                const allIgChannels = await prisma.channel.findMany({
+                    where: { type: ChannelType.INSTAGRAM },
+                    select: { id: true, companyId: true, status: true, configJson: true },
+                });
                 console.error(`[Instagram Webhook] No channel found for recipientId: ${recipientId}, senderId: ${senderId}`);
+                console.error(`[Instagram Webhook] Available channels:`, JSON.stringify(allIgChannels.map(c => ({
+                    id: c.id,
+                    status: c.status,
+                    pageId: (c.configJson as any)?.pageId,
+                    igAccountId: (c.configJson as any)?.igAccountId,
+                })), null, 2));
                 return NextResponse.json({ status: 'no_channel' });
             }
 
