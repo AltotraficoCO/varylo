@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
         console.log('[Messenger Webhook] Incoming payload:', JSON.stringify(body, null, 2));
 
         if (body.object !== 'page') {
+            console.log('[Messenger Webhook] Ignored - object is:', body.object);
             return NextResponse.json({ status: 'ignored' });
         }
 
