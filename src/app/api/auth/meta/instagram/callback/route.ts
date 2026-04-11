@@ -112,7 +112,20 @@ export async function GET(req: NextRequest) {
         // Step 6: Generate verify token for webhook verification
         const verifyToken = 'varylo_' + crypto.randomUUID().replace(/-/g, '').slice(0, 24);
 
-        // Step 7: Save or update channel in database
+        // Step 7: Save or update channel in database.
+        // First, disconnect any OTHER company's channel using the same igAccountId
+        // to prevent duplicate routing in the webhook.
+        if (igAccountId) {
+            await prisma.channel.updateMany({
+                where: {
+                    type: ChannelType.INSTAGRAM,
+                    companyId: { not: companyId },
+                    configJson: { path: ['igAccountId'], equals: igAccountId },
+                },
+                data: { status: 'DISCONNECTED' },
+            });
+        }
+
         const existingChannel = await prisma.channel.findFirst({
             where: { companyId, type: ChannelType.INSTAGRAM },
         });

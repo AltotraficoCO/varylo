@@ -142,27 +142,35 @@ export async function POST(req: NextRequest) {
             // Validate message length
             if (text.length > MAX_MESSAGE_LENGTH) return NextResponse.json({ status: 'ignored' });
 
-            // Find the channel by pageId or instagramId using JSON filtering
+            // Find the channel by pageId or instagramId using JSON filtering.
+            // Use orderBy updatedAt desc to always pick the most recently connected channel
+            // in case the same Instagram account is connected to multiple companies.
             let channel = await prisma.channel.findFirst({
                 where: {
                     type: ChannelType.INSTAGRAM,
+                    status: 'CONNECTED',
                     configJson: { path: ['pageId'], equals: recipientId },
                 },
+                orderBy: { updatedAt: 'desc' },
             });
             if (!channel) {
                 channel = await prisma.channel.findFirst({
                     where: {
                         type: ChannelType.INSTAGRAM,
+                        status: 'CONNECTED',
                         configJson: { path: ['igAccountId'], equals: recipientId },
                     },
+                    orderBy: { updatedAt: 'desc' },
                 });
             }
             if (!channel) {
                 channel = await prisma.channel.findFirst({
                     where: {
                         type: ChannelType.INSTAGRAM,
+                        status: 'CONNECTED',
                         configJson: { path: ['instagramId'], equals: recipientId },
                     },
+                    orderBy: { updatedAt: 'desc' },
                 });
             }
 
