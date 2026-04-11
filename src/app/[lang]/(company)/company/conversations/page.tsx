@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2 } from "lucide-react";
+import { Search, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2, MessageSquare } from "lucide-react";
 import Link from 'next/link';
 import { cn } from "@/lib/utils";
 import ChatInput from './chat-input';
@@ -286,6 +286,10 @@ export default async function ConversationsPage({
                                         {selectedConversation.channel?.type === ChannelType.INSTAGRAM ? (
                                             <Badge variant="outline" className="text-[10px] h-4 px-1 border-pink-200 text-pink-600 bg-pink-50 flex items-center gap-1">
                                                 <Instagram className="h-3 w-3" /> Instagram
+                                            </Badge>
+                                        ) : selectedConversation.channel?.type === ChannelType.MESSENGER ? (
+                                            <Badge variant="outline" className="text-[10px] h-4 px-1 border-blue-200 text-blue-600 bg-blue-50 flex items-center gap-1">
+                                                <MessageSquare className="h-3 w-3" /> Messenger
                                             </Badge>
                                         ) : selectedConversation.channel?.type === ChannelType.WHATSAPP ? (
                                             <Badge variant="outline" className="text-[10px] h-4 px-1 border-green-200 text-green-600 bg-green-50 flex items-center gap-1">

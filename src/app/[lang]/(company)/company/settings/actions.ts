@@ -304,6 +304,69 @@ export async function disconnectInstagram() {
     }
 }
 
+// MESSENGER ACTIONS
+
+export async function disconnectMessenger() {
+    const session = await auth();
+    if (!session?.user?.companyId) {
+        return { success: false, message: 'No authorized session.' };
+    }
+
+    try {
+        const channel = await prisma.channel.findFirst({
+            where: { companyId: session.user.companyId, type: ChannelType.MESSENGER },
+        });
+
+        if (channel) {
+            await prisma.channel.update({
+                where: { id: channel.id },
+                data: { status: ChannelStatus.DISCONNECTED, configJson: {} },
+            });
+        }
+
+        revalidatePath('/[lang]/company/settings', 'page');
+        return { success: true };
+    } catch {
+        return { success: false, message: 'Failed to disconnect.' };
+    }
+}
+
+export async function testMessengerConnection() {
+    const session = await auth();
+    if (!session?.user?.companyId) {
+        return { success: false, message: 'No authorized session.' };
+    }
+
+    try {
+        const channel = await prisma.channel.findFirst({
+            where: { companyId: session.user.companyId, type: ChannelType.MESSENGER },
+        });
+
+        if (!channel?.configJson) {
+            return { success: false, message: 'No Messenger configuration found.' };
+        }
+
+        const config = channel.configJson as { pageId?: string; accessToken?: string };
+        if (!config.pageId || !config.accessToken) {
+            return { success: false, message: 'Incomplete configuration.' };
+        }
+
+        const res = await fetch(
+            `https://graph.facebook.com/v21.0/${config.pageId}?fields=name&access_token=${config.accessToken}`
+        );
+
+        if (res.ok) {
+            const data = await res.json();
+            return { success: true, message: `Conectado: ${data.name || 'Página de Facebook'}` };
+        }
+
+        const err = await res.json().catch(() => ({}));
+        return { success: false, message: `Error: ${(err as any)?.error?.message || 'Verifica tu configuración.'}` };
+    } catch {
+        return { success: false, message: 'Error interno al probar.' };
+    }
+}
+
 // OPENAI API KEY ACTIONS
 
 export async function saveOpenAIKey(prevState: string | undefined, formData: FormData) {

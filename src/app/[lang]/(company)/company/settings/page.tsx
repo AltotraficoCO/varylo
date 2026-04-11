@@ -51,7 +51,7 @@ export default async function SettingsPage(props: {
         n8nWebhooks = [];
     }
 
-    const [company, whatsappChannel, webchatChannel, instagramChannel, tags, companyAgents, ecommerceStoresRaw, activeSubscription] = await Promise.all([
+    const [company, whatsappChannel, webchatChannel, instagramChannel, messengerChannel, tags, companyAgents, ecommerceStoresRaw, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -69,6 +69,7 @@ export default async function SettingsPage(props: {
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WHATSAPP } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WEB_CHAT } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.INSTAGRAM } }),
+        prisma.channel.findFirst({ where: { companyId, type: ChannelType.MESSENGER } }),
         prisma.tag.findMany({
             where: { companyId },
             orderBy: { createdAt: 'desc' },
@@ -111,6 +112,10 @@ export default async function SettingsPage(props: {
     // Instagram config
     const instagramConnected = instagramChannel?.status === 'CONNECTED';
     const instagramConfigJson = instagramChannel?.configJson as { pageId?: string; accessToken?: string; verifyToken?: string; pageName?: string } | null;
+
+    // Messenger config
+    const messengerConnected = messengerChannel?.status === 'CONNECTED';
+    const messengerConfigJson = messengerChannel?.configJson as { pageId?: string; accessToken?: string; pageName?: string } | null;
 
     return (
         <div className="w-full">
@@ -207,6 +212,12 @@ export default async function SettingsPage(props: {
                                 channelId: instagramConnected ? instagramChannel?.id || null : null,
                                 automationPriority: instagramChannel?.automationPriority || 'CHATBOT_FIRST',
                                 pageName: instagramConfigJson?.pageName,
+                            }}
+                            messengerConfig={{
+                                hasAccessToken: messengerConnected && !!messengerConfigJson?.accessToken,
+                                channelId: messengerConnected ? messengerChannel?.id || null : null,
+                                automationPriority: messengerChannel?.automationPriority || 'CHATBOT_FIRST',
+                                pageName: messengerConfigJson?.pageName,
                             }}
                             hasActiveSubscription={!!activeSubscription}
                         />

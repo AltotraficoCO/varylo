@@ -5,6 +5,7 @@ import { MessageSquare, Globe, Instagram, Lock, CreditCard } from 'lucide-react'
 import { WhatsAppConnectionForm } from './whatsapp-form';
 import { WebChatForm } from './webchat-form';
 import { InstagramDMForm } from './instagram-dm-form';
+import { MessengerForm } from './messenger-form';
 import Link from 'next/link';
 import { useDictionary } from '@/lib/i18n-context';
 
@@ -32,10 +33,16 @@ type ChannelsSectionProps = {
         automationPriority: string;
         pageName?: string;
     };
+    messengerConfig: {
+        hasAccessToken: boolean;
+        channelId: string | null;
+        automationPriority: string;
+        pageName?: string;
+    };
     hasActiveSubscription: boolean;
 };
 
-export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig, hasActiveSubscription }: ChannelsSectionProps) {
+export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig, messengerConfig, hasActiveSubscription }: ChannelsSectionProps) {
     const dict = useDictionary();
     const t = dict.settingsUI?.channelsSection || {};
 
@@ -86,6 +93,14 @@ export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig
                     channelId={instagramConfig.channelId}
                     automationPriority={instagramConfig.automationPriority}
                     pageName={instagramConfig.pageName}
+                />
+
+                {/* Messenger */}
+                <MessengerForm
+                    hasAccessToken={messengerConfig.hasAccessToken}
+                    channelId={messengerConfig.channelId}
+                    automationPriority={messengerConfig.automationPriority}
+                    pageName={messengerConfig.pageName}
                 />
 
                 {/* Web Chat */}

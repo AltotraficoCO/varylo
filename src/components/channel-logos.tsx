@@ -21,6 +21,20 @@ export function InstagramLogo({ className = "h-6 w-6" }: { className?: string })
     );
 }
 
+export function MessengerLogo({ className = "h-6 w-6" }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className}>
+            <defs>
+                <linearGradient id="ms-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#0099FF" />
+                    <stop offset="100%" stopColor="#A033FF" />
+                </linearGradient>
+            </defs>
+            <path fill="url(#ms-grad)" d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.301 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8.1l3.131 3.26L19.752 8.1l-6.561 6.863z"/>
+        </svg>
+    );
+}
+
 export function WebChatLogo({ className = "h-6 w-6" }: { className?: string }) {
     return (
         <svg viewBox="0 0 24 24" className={className} fill="#6366F1">

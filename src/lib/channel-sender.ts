@@ -341,6 +341,17 @@ export async function sendChannelMessage({
         }
     } else if (channel.type === ChannelType.WEB_CHAT) {
         // Web chat: no external API to call, message is stored in DB below
+    } else if (channel.type === ChannelType.MESSENGER) {
+        const config = channel.configJson as { accessToken?: string; pageId?: string } | null;
+        if (config?.accessToken) {
+            // Messenger uses same API as Instagram DMs (Graph /PAGE_ID/messages)
+            const result = await sendInstagramMessageWithToken(contact.phone, content, config.accessToken, config.pageId);
+            if (!result.success) {
+                throw new Error(`Messenger API error: ${result.message}`);
+            }
+        } else {
+            throw new Error('Messenger channel not configured');
+        }
     } else if (channel.type === ChannelType.INSTAGRAM) {
         const config = channel.configJson as { accessToken?: string; pageId?: string } | null;
         if (config?.accessToken) {
