@@ -328,6 +328,12 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                 @keyframes wave-out { from{transform:translateX(-50%) scale(60)} to{transform:translateX(-50%) scale(0)} }
                 .lang-wave.wave-in  { animation:wave-in  .75s cubic-bezier(.4,0,.2,1) forwards; }
                 .lang-wave.wave-out { animation:wave-out .8s  cubic-bezier(.4,0,.2,1) forwards; }
+                /* Varylo logo in wave */
+                .lang-wave-logo { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9993; pointer-events:none; }
+                @keyframes logo-pop { 0%{opacity:0;transform:translate(-50%,-50%) scale(.4)} 40%{opacity:1;transform:translate(-50%,-50%) scale(1.08)} 60%{transform:translate(-50%,-50%) scale(.96)} 80%{transform:translate(-50%,-50%) scale(1.02)} 100%{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+                @keyframes logo-out { 0%{opacity:1} 100%{opacity:0;transform:translate(-50%,-50%) scale(.6)} }
+                .lang-wave-logo.logo-in  { animation:logo-pop .5s cubic-bezier(.34,1.56,.64,1) .25s both; }
+                .lang-wave-logo.logo-out { animation:logo-out .3s ease-in forwards; }
                 /* Hero letter-spacing split on scroll */
                 .hero-title-wrap { will-change:letter-spacing; overflow:hidden; }
             `}</style>
@@ -462,23 +468,28 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                         <h2 className="text-4xl sm:text-6xl font-black leading-[.9] max-w-xl" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.04em' }}>{d.features.title}</h2>
                         <p className="text-white/40 mt-5 text-base leading-relaxed max-w-lg">{d.features.subtitle}</p>
                     </div>
-                    {/* Bento grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                        {/* Large card — spans 2 cols on lg */}
-                        {featureList.map((f: any, i: number) => { const Icon = FEATURE_ICONS[i]; const isWide = i === 0; return (
-                            <div key={i} className={`s-item feat-card group relative rounded-2xl border border-white/[.07] bg-white/[.02] p-7 cursor-default overflow-hidden transition-all duration-300 hover:border-white/[.12] hover:bg-white/[.035]
-                                ${isWide ? 'lg:col-span-2' : ''}`}>
-                                {/* Ghost icon background */}
-                                <div className="absolute -right-4 -bottom-4 opacity-[.04] pointer-events-none">
-                                    <Icon size={120} className="text-white" />
+                    {/* Feature grid — 3×2, no orphans */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {featureList.map((f: any, i: number) => { const Icon = FEATURE_ICONS[i]; return (
+                            <div key={i} className="s-item feat-card group relative rounded-2xl border border-white/[.07] bg-white/[.025] cursor-default overflow-hidden transition-all duration-300 hover:border-white/[.13] hover:bg-white/[.04]">
+                                {/* Ghost icon */}
+                                <div className="absolute -right-3 -bottom-3 opacity-[.04] pointer-events-none select-none">
+                                    <Icon size={110} className="text-white" />
                                 </div>
-                                <div className="relative">
-                                    <div className="w-10 h-10 rounded-xl border border-emerald-500/20 bg-emerald-500/10 flex items-center justify-center mb-6
-                                        group-hover:border-emerald-500/40 group-hover:bg-emerald-500/15 transition-all duration-300">
-                                        <Icon size={18} className="text-emerald-400" />
+                                <div className="relative p-7 flex flex-col h-full min-h-[200px]">
+                                    {/* Top row: icon + index */}
+                                    <div className="flex items-start justify-between mb-5">
+                                        <div className="w-11 h-11 rounded-xl border border-emerald-500/20 bg-emerald-500/10 flex items-center justify-center
+                                            group-hover:border-emerald-500/40 group-hover:bg-emerald-500/18 transition-all duration-300">
+                                            <Icon size={20} className="text-emerald-400" />
+                                        </div>
+                                        <span className="text-[11px] font-mono text-white/[.12] mt-1">{String(i + 1).padStart(2, '0')}</span>
                                     </div>
-                                    <h3 className="text-base lg:text-lg font-bold mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>{f.title}</h3>
-                                    <p className="text-white/45 text-sm leading-relaxed">{f.description}</p>
+                                    {/* Text */}
+                                    <h3 className="text-base lg:text-[17px] font-bold mb-2.5 leading-snug" style={{ fontFamily: 'Outfit, sans-serif' }}>{f.title}</h3>
+                                    <p className="text-white/42 text-sm leading-relaxed flex-1">{f.description}</p>
+                                    {/* Bottom accent line */}
+                                    <div className="mt-5 h-px bg-gradient-to-r from-emerald-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 </div>
                             </div>
                         ); })}
@@ -843,7 +854,15 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
 
             {/* ══ SWIPE LANGUAGE TOGGLE — sticky bottom ════════════════════════════ */}
             {wavePhase !== 'idle' && (
-                <div className={`lang-wave ${wavePhase === 'in' ? 'wave-in' : 'wave-out'}`} />
+                <>
+                    <div className={`lang-wave ${wavePhase === 'in' ? 'wave-in' : 'wave-out'}`} />
+                    {/* Varylo logo pops in the center of the wave */}
+                    <div className={`lang-wave-logo ${wavePhase === 'in' ? 'logo-in' : 'logo-out'}`}>
+                        <span style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 900, fontSize: '2.8rem', letterSpacing: '-.04em', color: '#000', lineHeight: 1 }}>
+                            Varylo
+                        </span>
+                    </div>
+                </>
             )}
             <div className="lang-toggle">
                 <div className="lang-track">
