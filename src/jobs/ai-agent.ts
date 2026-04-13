@@ -9,7 +9,7 @@ import { mapFieldToContact, validateCapturedValue, inferValidationType } from '@
 // CRM removed
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
-import type { ChatCompletionMessageParam, ChatCompletionTool, ChatCompletionContentPart } from 'openai/resources/chat/completions';
+import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
 import type OpenAI from 'openai';
 
 interface AiAgentResult {
@@ -248,39 +248,17 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             },
         ];
 
-        // Pre-fetch all inbound images in parallel so OpenAI can access them
-        // (Supabase Storage URLs may not be publicly reachable from OpenAI servers)
-        const imageMessages = conversation.messages.filter(
-            m => m.direction === 'INBOUND' && m.mediaUrl && m.mediaType === 'image',
-        );
-        const imageBase64Map = new Map<string, string>();
-        await Promise.all(imageMessages.map(async (m) => {
-            try {
-                const res = await fetch(m.mediaUrl!);
-                if (!res.ok) return;
-                const buf = Buffer.from(await res.arrayBuffer());
-                const mime = res.headers.get('content-type')?.split(';')[0] || m.mimeType || 'image/jpeg';
-                imageBase64Map.set(m.mediaUrl!, `data:${mime};base64,${buf.toString('base64')}`);
-            } catch {
-                // If download fails, the message will be sent as text-only
-            }
-        }));
-
         for (const msg of conversation.messages) {
             const role = msg.direction === 'INBOUND' ? 'user' : 'assistant';
 
-            // Pass images as multimodal content so the agent can see them
-            const base64DataUrl = msg.mediaUrl ? imageBase64Map.get(msg.mediaUrl) : undefined;
-            if (msg.direction === 'INBOUND' && base64DataUrl) {
-                const parts: ChatCompletionContentPart[] = [];
-                if (msg.content?.trim()) {
-                    parts.push({ type: 'text', text: msg.content });
-                }
-                parts.push({
-                    type: 'image_url',
-                    image_url: { url: base64DataUrl, detail: 'auto' },
-                });
-                messages.push({ role: 'user', content: parts });
+            // For inbound media messages, replace content with a placeholder so the
+            // agent is forced to call analyze_file (which uses detail:high) instead of
+            // attempting OCR from a low-res inline image and hallucinating failures.
+            if (msg.direction === 'INBOUND' && msg.mediaUrl) {
+                const label = msg.mediaType === 'image'
+                    ? '[imagen recibida — usa analyze_file para leer su contenido]'
+                    : `[archivo recibido: ${msg.mediaType || 'documento'} — usa save_document para guardarlo]`;
+                messages.push({ role: 'user', content: label });
             } else {
                 messages.push({ role, content: msg.content || '' });
             }
