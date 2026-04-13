@@ -248,18 +248,37 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             },
         ];
 
+        // Pre-fetch all inbound images in parallel so OpenAI can access them
+        // (Supabase Storage URLs may not be publicly reachable from OpenAI servers)
+        const imageMessages = conversation.messages.filter(
+            m => m.direction === 'INBOUND' && m.mediaUrl && m.mediaType === 'image',
+        );
+        const imageBase64Map = new Map<string, string>();
+        await Promise.all(imageMessages.map(async (m) => {
+            try {
+                const res = await fetch(m.mediaUrl!);
+                if (!res.ok) return;
+                const buf = Buffer.from(await res.arrayBuffer());
+                const mime = res.headers.get('content-type')?.split(';')[0] || m.mimeType || 'image/jpeg';
+                imageBase64Map.set(m.mediaUrl!, `data:${mime};base64,${buf.toString('base64')}`);
+            } catch {
+                // If download fails, the message will be sent as text-only
+            }
+        }));
+
         for (const msg of conversation.messages) {
             const role = msg.direction === 'INBOUND' ? 'user' : 'assistant';
 
             // Pass images as multimodal content so the agent can see them
-            if (msg.direction === 'INBOUND' && msg.mediaUrl && msg.mediaType === 'image') {
+            const base64DataUrl = msg.mediaUrl ? imageBase64Map.get(msg.mediaUrl) : undefined;
+            if (msg.direction === 'INBOUND' && base64DataUrl) {
                 const parts: ChatCompletionContentPart[] = [];
                 if (msg.content?.trim()) {
                     parts.push({ type: 'text', text: msg.content });
                 }
                 parts.push({
                     type: 'image_url',
-                    image_url: { url: msg.mediaUrl, detail: 'auto' },
+                    image_url: { url: base64DataUrl, detail: 'auto' },
                 });
                 messages.push({ role: 'user', content: parts });
             } else {
@@ -591,6 +610,26 @@ async function handleAnalyzeFile(
             });
         }
 
+        // Download the image server-side and convert to base64 so OpenAI
+        // can access it regardless of Supabase bucket visibility settings.
+        let imageDataUrl: string;
+        try {
+            const imgRes = await fetch(lastMediaMessage.mediaUrl);
+            if (!imgRes.ok) {
+                console.error(`[AI Agent] Image download failed: HTTP ${imgRes.status} - ${lastMediaMessage.mediaUrl}`);
+                return JSON.stringify({
+                    success: false,
+                    message: `No se pudo descargar la imagen (HTTP ${imgRes.status}). Por favor intenta de nuevo.`,
+                });
+            }
+            const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+            const mime = imgRes.headers.get('content-type')?.split(';')[0] || lastMediaMessage.mimeType || 'image/jpeg';
+            imageDataUrl = `data:${mime};base64,${imgBuffer.toString('base64')}`;
+        } catch (fetchErr) {
+            console.error('[AI Agent] Image fetch error:', fetchErr);
+            return JSON.stringify({ success: false, message: 'No se pudo descargar la imagen para analizarla.' });
+        }
+
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             temperature: 0.1,
@@ -599,7 +638,7 @@ async function handleAnalyzeFile(
                     role: 'user',
                     content: [
                         { type: 'text', text: args.instruction },
-                        { type: 'image_url', image_url: { url: lastMediaMessage.mediaUrl, detail: 'high' } },
+                        { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
                     ],
                 },
             ],
