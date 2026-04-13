@@ -403,7 +403,7 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                                 <div className="hero-line-2 overflow-hidden -mt-2">
                                     <h1 className="text-white font-black uppercase leading-[.88]"
                                         style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(5rem,12vw,11.5rem)' }}>
-                                        {displayLang === 'es' ? 'TODOS' : 'ALL YOUR'}
+                                        {displayLang === 'es' ? 'TODOS LOS' : 'ALL YOUR'}
                                     </h1>
                                 </div>
                                 {/* Line 3: emerald, same scale */}
