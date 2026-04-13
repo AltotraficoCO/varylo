@@ -644,6 +644,10 @@ async function handleAnalyzeFile(
             temperature: 0.1,
             messages: [
                 {
+                    role: 'system',
+                    content: 'You are a professional OCR (Optical Character Recognition) service. Your only job is to accurately read and transcribe all visible text from images, exactly as it appears. Reproduce every character you see without interpreting, summarizing, or omitting anything. Do not add commentary.',
+                },
+                {
                     role: 'user',
                     content: [
                         { type: 'text', text: args.instruction },
