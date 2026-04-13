@@ -595,35 +595,43 @@ async function handleAnalyzeFile(
 
         console.log(`[analyze_file] Found image | mediaType=${lastMediaMessage.mediaType} | mimeType=${lastMediaMessage.mimeType} | url=${lastMediaMessage.mediaUrl}`);
 
-        // Download the image server-side and convert to base64 so OpenAI
-        // can access it regardless of Supabase bucket visibility settings.
-        let imageDataUrl: string;
-        try {
-            // Add Supabase auth header for Supabase Storage URLs (bucket may not be public)
-            const fetchHeaders: Record<string, string> = {};
-            if (lastMediaMessage.mediaUrl.includes('supabase') && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-                fetchHeaders['Authorization'] = `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
+        // Build a URL OpenAI can access: generate a short-lived Supabase signed URL
+        // so OpenAI fetches the image directly without base64 overhead or MIME issues.
+        let accessUrl = lastMediaMessage.mediaUrl;
+        const SUPABASE_URL = process.env.SUPABASE_URL;
+        const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        if (lastMediaMessage.mediaUrl.includes('supabase') && SUPABASE_URL && SUPABASE_KEY) {
+            try {
+                const pathMatch = lastMediaMessage.mediaUrl.match(/\/storage\/v1\/object\/(?:public\/)?media\/(.+)$/);
+                if (pathMatch) {
+                    const objectPath = pathMatch[1];
+                    const signRes = await fetch(
+                        `${SUPABASE_URL}/storage/v1/object/sign/media/${objectPath}`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                Authorization: `Bearer ${SUPABASE_KEY}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ expiresIn: 120 }),
+                        },
+                    );
+                    console.log(`[analyze_file] Sign URL status: ${signRes.status}`);
+                    if (signRes.ok) {
+                        const { signedURL } = await signRes.json() as { signedURL?: string };
+                        if (signedURL) {
+                            accessUrl = `${SUPABASE_URL}${signedURL}`;
+                            console.log(`[analyze_file] Using signed URL`);
+                        }
+                    } else {
+                        const errBody = await signRes.text().catch(() => '');
+                        console.error(`[analyze_file] Sign URL failed: ${errBody.slice(0, 200)}`);
+                    }
+                }
+            } catch (signErr) {
+                console.error('[analyze_file] Sign URL error:', signErr);
             }
-            const imgRes = await fetch(lastMediaMessage.mediaUrl, { headers: fetchHeaders });
-            console.log(`[analyze_file] Download status: ${imgRes.status} | content-type: ${imgRes.headers.get('content-type')}`);
-            if (!imgRes.ok) {
-                const body = await imgRes.text().catch(() => '');
-                console.error(`[analyze_file] Download failed: HTTP ${imgRes.status} | body: ${body.slice(0, 200)}`);
-                return JSON.stringify({
-                    success: false,
-                    message: `No se pudo descargar la imagen (HTTP ${imgRes.status}). Por favor intenta de nuevo.`,
-                });
-            }
-            const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
-            console.log(`[analyze_file] Image downloaded: ${imgBuffer.length} bytes`);
-            // Force a valid image MIME type — Supabase may return application/octet-stream
-            const rawMime = imgRes.headers.get('content-type')?.split(';')[0] || lastMediaMessage.mimeType || '';
-            const mime = rawMime.startsWith('image/') ? rawMime : (lastMediaMessage.mimeType?.startsWith('image/') ? lastMediaMessage.mimeType : 'image/jpeg');
-            console.log(`[analyze_file] Using MIME type: ${mime}`);
-            imageDataUrl = `data:${mime};base64,${imgBuffer.toString('base64')}`;
-        } catch (fetchErr) {
-            console.error('[analyze_file] Fetch error:', fetchErr);
-            return JSON.stringify({ success: false, message: 'No se pudo descargar la imagen para analizarla.' });
         }
 
         console.log(`[analyze_file] Calling gpt-4o vision...`);
@@ -635,14 +643,14 @@ async function handleAnalyzeFile(
                     role: 'user',
                     content: [
                         { type: 'text', text: args.instruction },
-                        { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
+                        { type: 'image_url', image_url: { url: accessUrl, detail: 'high' } },
                     ],
                 },
             ],
         });
 
         const analysisText = response.choices[0]?.message?.content || '';
-        console.log(`[analyze_file] gpt-4o response (${response.usage?.total_tokens} tokens): ${analysisText.slice(0, 300)}`);
+        console.log(`[analyze_file] gpt-4o response (${response.usage?.total_tokens} tokens): ${analysisText.slice(0, 500)}`);
 
         // Track tokens for vision call (gpt-4o, higher cost)
         if (response.usage) {
@@ -690,13 +698,22 @@ async function handleAnalyzeFile(
             });
         }
 
+        if (!analysisText.trim()) {
+            console.error('[analyze_file] gpt-4o returned empty response');
+            return JSON.stringify({
+                success: false,
+                message: 'El análisis no devolvió ningún contenido. Pide al usuario que envíe la imagen de nuevo.',
+            });
+        }
+
         return JSON.stringify({
             success: true,
-            analysis: analysisText,
-            message: `Análisis completado y guardado en "${args.field_name}".`,
+            extractedData: analysisText,
+            savedAs: args.field_name,
+            instruction: `Datos extraídos de la imagen. Compártelos TEXTUALMENTE con el usuario tal como aparecen abajo, sin parafrasear:\n\n${analysisText}`,
         });
     } catch (err) {
-        console.error('[AI Agent] Error analyzing file:', err);
+        console.error('[analyze_file] Unexpected error:', err instanceof Error ? err.message : err);
         return JSON.stringify({ success: false, message: 'Error al analizar la imagen.' });
     }
 }
@@ -832,7 +849,7 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
             prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
         }
         prompt += '\n\nTambién tienes la herramienta save_document para guardar archivos adjuntos que envíe el cliente (hojas de vida, documentos, fotos, etc.). Cuando el cliente envíe un archivo, usa save_document con un nombre descriptivo.';
-        prompt += '\n\nTienes la herramienta analyze_file para leer el contenido de imágenes usando visión por computadora (OCR). Cuando el cliente envíe una imagen de una cédula, factura, recibo, formulario, foto de producto u otro documento visual, usa analyze_file con una instrucción específica de qué extraer. El resultado queda guardado automáticamente. Para archivos PDF u otros documentos no visuales, usa save_document en su lugar.';
+        prompt += '\n\nTienes la herramienta analyze_file para leer el contenido de imágenes usando visión por computadora (OCR). Cuando el cliente envíe una imagen de una cédula, factura, recibo, formulario, foto de producto u otro documento visual, usa analyze_file con una instrucción específica de qué extraer. IMPORTANTE: cuando analyze_file devuelva success:true, comparte los datos extraídos TEXTUALMENTE con el usuario, sin parafrasear ni resumir. Si el resultado indica que no se pudo leer la imagen, pide al usuario una foto más nítida. Para archivos PDF u otros documentos no visuales, usa save_document en su lugar.';
 
         if (opts.webhookEnabled) {
             prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. IMPORTANTE: Debes llamar send_to_webhook SIEMPRE al concluir la recopilación de datos del cliente. Cuando hayas terminado de capturar toda la información necesaria (datos personales, documentos, etc.), usa send_to_webhook para enviar todo. No olvides confirmar al cliente que sus datos fueron enviados exitosamente.';
