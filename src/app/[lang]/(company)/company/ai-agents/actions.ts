@@ -41,6 +41,8 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const contextInfo = formData.get('contextInfo') as string;
     const allowedModels = [
         'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+        'claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20251030', 'claude-sonnet-4-6', 'claude-opus-4-6',
+        // legacy aliases — kept so existing agents can still be edited without forced model change
         'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
         'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash',
     ];
@@ -127,6 +129,8 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const contextInfo = formData.get('contextInfo') as string;
     const allowedModels = [
         'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+        'claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20251030', 'claude-sonnet-4-6', 'claude-opus-4-6',
+        // legacy aliases — kept so existing agents can still be edited without forced model change
         'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
         'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash',
     ];

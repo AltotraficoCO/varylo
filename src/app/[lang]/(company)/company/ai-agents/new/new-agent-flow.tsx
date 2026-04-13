@@ -336,9 +336,9 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                         <option value="gpt-4o">GPT-4o — Más inteligente</option>
                                     </optgroup>
                                     <optgroup label="Anthropic Claude">
-                                        <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku — Rápido</option>
-                                        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet — Equilibrado</option>
-                                        <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet — Avanzado</option>
+                                        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Rápido</option>
+                                        <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Equilibrado</option>
+                                        <option value="claude-opus-4-6">Claude Opus 4.6 — Avanzado</option>
                                     </optgroup>
                                     <optgroup label="Google Gemini">
                                         <option value="gemini-2.0-flash">Gemini 2.0 Flash — Rápido y económico</option>

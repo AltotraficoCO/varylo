@@ -180,9 +180,9 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                                 <SelectContent>
                                     <SelectItem value="gpt-4o-mini">GPT-4o Mini — Rápido y económico</SelectItem>
                                     <SelectItem value="gpt-4o">GPT-4o — Más inteligente</SelectItem>
-                                    <SelectItem value="claude-3-5-haiku-20241022">Claude 3.5 Haiku — Rápido</SelectItem>
-                                    <SelectItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet — Equilibrado</SelectItem>
-                                    <SelectItem value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet — Avanzado</SelectItem>
+                                    <SelectItem value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Rápido</SelectItem>
+                                    <SelectItem value="claude-sonnet-4-6">Claude Sonnet 4.6 — Equilibrado</SelectItem>
+                                    <SelectItem value="claude-opus-4-6">Claude Opus 4.6 — Avanzado</SelectItem>
                                     <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash — Rápido y económico</SelectItem>
                                     <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro — Avanzado</SelectItem>
                                 </SelectContent>

@@ -8,7 +8,12 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
     'gpt-4o': { input: 21000, output: 84000 },
     'gpt-4-turbo': { input: 84000, output: 252000 },
     'gpt-3.5-turbo': { input: 4200, output: 6300 },
-    // Anthropic Claude
+    // Anthropic Claude (current models)
+    'claude-haiku-4-5-20251001': { input: 6300, output: 25200 },
+    'claude-sonnet-4-5-20251030': { input: 25200, output: 126000 },
+    'claude-sonnet-4-6': { input: 25200, output: 126000 },
+    'claude-opus-4-6': { input: 126000, output: 630000 },
+    // Anthropic legacy aliases (for agents already configured)
     'claude-3-5-haiku-20241022': { input: 6300, output: 25200 },
     'claude-3-5-sonnet-20241022': { input: 25200, output: 126000 },
     'claude-3-7-sonnet-20250219': { input: 25200, output: 126000 },

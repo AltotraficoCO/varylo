@@ -40,9 +40,22 @@ export type AIProvider = 'openai' | 'anthropic' | 'google';
 
 // ── Provider detection ───────────────────────────────────────────────
 
+// Deprecated model → current replacement. Keeps existing agents working after Anthropic EOLs.
+const MODEL_ALIASES: Record<string, string> = {
+    'claude-3-5-haiku-20241022': 'claude-haiku-4-5-20251001',
+    'claude-3-5-sonnet-20241022': 'claude-sonnet-4-6',
+    'claude-3-7-sonnet-20250219': 'claude-sonnet-4-6',
+    'claude-opus-4-5': 'claude-opus-4-6',
+};
+
+export function resolveModel(model: string): string {
+    return MODEL_ALIASES[model] ?? model;
+}
+
 export function detectProvider(model: string): AIProvider {
-    if (model.startsWith('claude-')) return 'anthropic';
-    if (model.startsWith('gemini-')) return 'google';
+    const resolved = resolveModel(model);
+    if (resolved.startsWith('claude-')) return 'anthropic';
+    if (resolved.startsWith('gemini-')) return 'google';
     return 'openai';
 }
 
@@ -263,7 +276,8 @@ export async function callAIProvider(params: {
     tools: NormalizedTool[];
     companyId: string;
 }): Promise<NormalizedCompletion> {
-    const provider = detectProvider(params.model);
+    const model = resolveModel(params.model);
+    const provider = detectProvider(model);
 
     // ── OpenAI ──────────────────────────────────────────────────────
     if (provider === 'openai') {
@@ -272,7 +286,7 @@ export async function callAIProvider(params: {
         const openaiTools = params.tools.length > 0 ? toOpenAITools(params.tools) : undefined;
 
         const response = await client.chat.completions.create({
-            model: params.model,
+            model,
             temperature: params.temperature,
             messages: openaiMessages,
             ...(openaiTools ? { tools: openaiTools } : {}),
@@ -309,7 +323,7 @@ export async function callAIProvider(params: {
         const anthropicTools = params.tools.length > 0 ? toAnthropicTools(params.tools) : undefined;
 
         const response = await client.messages.create({
-            model: params.model,
+            model,
             max_tokens: 4096,
             temperature: params.temperature,
             ...(system ? { system } : {}),
@@ -369,7 +383,7 @@ export async function callAIProvider(params: {
         }
 
         const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${key}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
