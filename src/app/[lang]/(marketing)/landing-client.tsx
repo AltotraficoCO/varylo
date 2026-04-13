@@ -122,7 +122,7 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
         const onUp = () => {
             if (!isDragging.current) return;
             isDragging.current = false;
-            if (priceRailRef.current) priceRailRef.current.style.cursor = 'grab';
+            priceRailRef.current?.classList.remove('is-dragging');
             let vel = dragVelocity.current;
             const tick = () => {
                 if (!priceRailRef.current || Math.abs(vel) < 0.4) return;
@@ -153,6 +153,7 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
     // Price drag — mousedown only (move/up handled by document listeners)
     const onPriceDragStart = (e: React.MouseEvent) => {
         if (!priceRailRef.current) return;
+        e.preventDefault();
         if (momentumAnim.current) cancelAnimationFrame(momentumAnim.current);
         isDragging.current = true;
         dragStartX.current = e.pageX;
@@ -160,7 +161,7 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
         lastDragX.current = e.pageX;
         lastDragTime.current = Date.now();
         dragVelocity.current = 0;
-        priceRailRef.current.style.cursor = 'grabbing';
+        priceRailRef.current.classList.add('is-dragging');
     };
 
     useGSAP(() => {
@@ -309,8 +310,9 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                 .ticket-wrapper { cursor:default; }
                 .ticket-wrapper:hover { filter: drop-shadow(0 20px 50px rgba(16,185,129,.14)); }
                 .ticket-body { overflow:hidden; }
-                .price-rail-scroll { overflow-x:auto; cursor:grab; scroll-behavior:smooth; -ms-overflow-style:none; scrollbar-width:none; }
+                .price-rail-scroll { overflow-x:auto; cursor:grab; -ms-overflow-style:none; scrollbar-width:none; }
                 .price-rail-scroll::-webkit-scrollbar { display:none; }
+                .price-rail-scroll.is-dragging { cursor:grabbing; user-select:none; }
                 /* FAQ */
                 .faq-body { transition: max-height .38s cubic-bezier(.4,0,.2,1), opacity .28s ease, padding .28s ease; }
                 /* Swipe lang toggle */
@@ -433,9 +435,9 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                         {problemList.map((p: any, i: number) => { const Icon = PROBLEM_ICONS[i]; return (
                             <div key={i} className="s-item group flex gap-6 lg:gap-12 items-start py-9 border-t border-white/[.05] last:border-b cursor-default
                                 hover:bg-white/[.015] transition-colors duration-300 rounded-xl px-4 -mx-4">
-                                {/* Ghost number */}
+                                {/* Number */}
                                 <span className="text-[56px] lg:text-[72px] font-black leading-none shrink-0 w-16 lg:w-20 text-right select-none"
-                                    style={{ fontFamily: 'Outfit, sans-serif', color: 'rgba(255,255,255,.06)' }}>
+                                    style={{ fontFamily: 'Outfit, sans-serif', color: 'rgba(255,255,255,.28)' }}>
                                     {String(i + 1).padStart(2, '0')}
                                 </span>
                                 {/* Content */}
@@ -500,19 +502,44 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
             <div className="border-t border-white/[.06]" />
 
             {/* ══ METRICS ═════════════════════════════════════════════════════════ */}
-            <section className="metrics-section py-28 lg:py-36 relative overflow-hidden bg-[#050e08]">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_50%_50%,rgba(16,185,129,.08),transparent)] pointer-events-none" />
+            <section className="metrics-section py-28 lg:py-40 relative overflow-hidden bg-black">
+                {/* Scan line background */}
+                <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(16,185,129,.015) 3px, rgba(16,185,129,.015) 4px)' }} />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_50%,rgba(16,185,129,.07),transparent)] pointer-events-none" />
                 <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16 relative">
-                    <div className="text-center mb-16">
-                        <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-4 block">Resultados</span>
-                        <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.03em' }}>{d.solution.title}</h2>
-                        <p className="text-white/50 mt-4 text-base">{d.solution.subtitle}</p>
+                    {/* Top label + title */}
+                    <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 mb-20">
+                        <div>
+                            <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-5 block">Resultados reales</span>
+                            <h2 className="text-4xl sm:text-6xl font-black leading-[.9]" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.04em' }}>{d.solution.title}</h2>
+                        </div>
+                        <p className="text-white/35 text-sm leading-relaxed max-w-xs lg:text-right">{d.solution.subtitle}</p>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/[.06] rounded-2xl overflow-hidden border border-white/[.06]">
+                    {/* Metric cards — horizontal bar layout */}
+                    <div className="space-y-3">
                         {metrics.map((m: any, i: number) => (
-                            <div key={i} className="metric-num bg-[#050e08] px-8 py-10 text-center">
-                                <div className="text-4xl sm:text-6xl font-black text-white mb-2" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.04em' }}>{m.value}</div>
-                                <p className="text-white/45 text-xs uppercase tracking-wider font-medium">{m.label}</p>
+                            <div key={i} className="metric-num group relative flex items-center gap-6 lg:gap-10 rounded-2xl border border-white/[.06] bg-white/[.02] px-7 py-6
+                                hover:border-emerald-500/20 hover:bg-white/[.035] transition-all duration-400 cursor-default overflow-hidden">
+                                {/* Animated left bar */}
+                                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500/30 group-hover:bg-emerald-500 transition-colors duration-300 rounded-l-2xl" />
+                                {/* Index */}
+                                <span className="text-[11px] font-mono text-white/[.15] w-6 shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                                {/* Value */}
+                                <div className="w-32 lg:w-40 shrink-0">
+                                    <span className="text-3xl lg:text-5xl font-black text-white group-hover:text-emerald-300 transition-colors duration-300"
+                                        style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.04em' }}>{m.value}</span>
+                                </div>
+                                {/* Label */}
+                                <div className="flex-1">
+                                    <p className="text-white/70 text-sm lg:text-base font-medium">{m.label}</p>
+                                </div>
+                                {/* Progress bar */}
+                                <div className="hidden lg:block w-48 h-1 bg-white/[.06] rounded-full overflow-hidden shrink-0">
+                                    <div className="h-full bg-emerald-500/40 group-hover:bg-emerald-500 transition-all duration-700 rounded-full"
+                                        style={{ width: `${[87, 65, 99, 92][i] || 75}%` }} />
+                                </div>
+                                {/* Arrow */}
+                                <ArrowUpRight size={16} className="text-white/10 group-hover:text-emerald-500/60 transition-colors duration-300 shrink-0" />
                             </div>
                         ))}
                     </div>
@@ -775,27 +802,48 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
             <div className="border-t border-white/[.06]" />
 
             {/* ══ FAQ ══════════════════════════════════════════════════════════════ */}
-            <section id="faq" className="py-28 lg:py-36">
-                <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16">
-                    <div className="grid lg:grid-cols-[1fr_1.4fr] gap-16 max-w-6xl">
+            <section id="faq" className="py-28 lg:py-40 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-emerald-500/[.04] blur-[120px] pointer-events-none" />
+                <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16 relative">
+                    {/* Header */}
+                    <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
                         <div>
-                            <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-4 block">FAQ</span>
-                            <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight sticky top-24" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.03em' }}>{d.faq.title}</h2>
+                            <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-5 block">Preguntas frecuentes</span>
+                            <h2 className="text-4xl sm:text-6xl font-black leading-[.9]" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.04em' }}>{d.faq.title}</h2>
                         </div>
-                        <div className="faq-list">
-                            {faqs.map((q: any, i: number) => (
-                                <div key={i} className="faq-row border-b border-white/[.07]">
-                                    <button onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                                        className="w-full flex items-center justify-between py-5 text-left group">
-                                        <span className="text-sm font-semibold text-white/85 group-hover:text-white pr-6 transition-colors" style={{ fontFamily: 'Outfit, sans-serif' }}>{q.question}</span>
-                                        <ChevronDown size={16} className={`text-white/30 shrink-0 transition-transform duration-300 ${openFaq === i ? 'rotate-180 text-emerald-400' : ''}`} />
-                                    </button>
-                                    <div className={`faq-body overflow-hidden ${openFaq === i ? 'max-h-72 opacity-100 pb-5' : 'max-h-0 opacity-0 pb-0'}`}>
-                                        <p className="text-white/50 text-sm leading-relaxed">{q.answer}</p>
+                        <p className="text-white/30 text-sm max-w-xs">{faqs.length} preguntas · respuestas claras</p>
+                    </div>
+
+                    {/* FAQ items — 2-col on large screens */}
+                    <div className="faq-list grid lg:grid-cols-2 gap-3">
+                        {faqs.map((q: any, i: number) => (
+                            <div key={i} className={`faq-row rounded-2xl border transition-all duration-300 overflow-hidden
+                                ${openFaq === i
+                                    ? 'border-emerald-500/30 bg-emerald-500/[.04]'
+                                    : 'border-white/[.07] bg-white/[.02] hover:border-white/[.12] hover:bg-white/[.03]'}`}>
+                                <button
+                                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                                    className="w-full flex items-start gap-4 p-6 text-left">
+                                    {/* Number */}
+                                    <span className={`text-xs font-mono mt-0.5 shrink-0 w-5 transition-colors duration-300 ${openFaq === i ? 'text-emerald-400' : 'text-white/20'}`}>
+                                        {String(i + 1).padStart(2, '0')}
+                                    </span>
+                                    {/* Question */}
+                                    <span className={`flex-1 text-sm font-semibold leading-snug transition-colors duration-300 ${openFaq === i ? 'text-white' : 'text-white/70'}`}
+                                        style={{ fontFamily: 'Outfit, sans-serif' }}>{q.question}</span>
+                                    {/* Icon */}
+                                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all duration-300
+                                        ${openFaq === i ? 'border-emerald-500/50 bg-emerald-500/15 rotate-45' : 'border-white/[.12] bg-white/[.04]'}`}>
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                            <path d="M5 2v6M2 5h6" stroke={openFaq === i ? '#10b981' : 'rgba(255,255,255,.4)'} strokeWidth="1.5" strokeLinecap="round"/>
+                                        </svg>
                                     </div>
+                                </button>
+                                <div className={`faq-body overflow-hidden ${openFaq === i ? 'max-h-80 opacity-100 pb-6' : 'max-h-0 opacity-0 pb-0'}`}>
+                                    <p className="text-white/50 text-sm leading-relaxed px-6 pl-15" style={{ paddingLeft: '3.75rem' }}>{q.answer}</p>
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </section>
@@ -803,18 +851,37 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
             <div className="border-t border-white/[.06]" />
 
             {/* ══ CTA ══════════════════════════════════════════════════════════════ */}
-            <section className="cta-section py-28 lg:py-40 relative overflow-hidden">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_100%,rgba(16,185,129,.09),transparent)] pointer-events-none" />
-                <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16 relative">
-                    <div className="cta-text max-w-3xl">
-                        <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-[.95] mb-8"
-                            style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.045em' }}>{d.cta.title}</h2>
-                        <p className="text-white/50 text-lg mb-10 leading-relaxed max-w-xl">{d.cta.subtitle}</p>
-                        <Link href={`/${displayLang}/register`}>
-                            <button className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-8 py-4 rounded-full text-base transition-colors shadow-xl shadow-emerald-500/20">
-                                {d.cta.button} <ArrowRight className="h-4 w-4" />
-                            </button>
-                        </Link>
+            <section className="cta-section relative overflow-hidden bg-black">
+                {/* Full bleed emerald card */}
+                <div className="mx-4 lg:mx-12 my-12 lg:my-20 rounded-3xl border border-emerald-500/20 bg-[#071a10] overflow-hidden relative">
+                    {/* Grid texture */}
+                    <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(16,185,129,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,.04) 1px,transparent 1px)', backgroundSize: '60px 60px' }} />
+                    {/* Orb */}
+                    <div className="absolute right-[-10%] top-[-20%] w-[600px] h-[600px] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none" />
+                    <div className="absolute left-[-5%] bottom-[-20%] w-[400px] h-[400px] rounded-full bg-emerald-700/08 blur-[100px] pointer-events-none" />
+
+                    <div className="cta-text relative max-w-[1280px] mx-auto px-8 lg:px-20 py-20 lg:py-28">
+                        <div className="grid lg:grid-cols-[1fr_auto] gap-12 lg:gap-20 items-center">
+                            <div>
+                                {/* Badge */}
+                                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-8">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    {d.hero.badge}
+                                </div>
+                                <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-[.92] mb-6"
+                                    style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.045em' }}>{d.cta.title}</h2>
+                                <p className="text-white/45 text-lg leading-relaxed max-w-lg">{d.cta.subtitle}</p>
+                            </div>
+                            <div className="flex flex-col gap-4 lg:items-end">
+                                <Link href={`/${displayLang}/register`}>
+                                    <button className="group flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black px-8 py-4 rounded-2xl text-base transition-all duration-200 shadow-2xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02]">
+                                        {d.cta.button}
+                                        <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                                    </button>
+                                </Link>
+                                <p className="text-white/25 text-xs text-center lg:text-right">Sin tarjeta de crédito · 14 días gratis</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
