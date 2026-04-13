@@ -39,7 +39,11 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const agentType = formData.get('agentType') as string || 'CUSTOM';
     const systemPrompt = formData.get('systemPrompt') as string;
     const contextInfo = formData.get('contextInfo') as string;
-    const allowedModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+    const allowedModels = [
+        'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+        'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
+        'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash',
+    ];
     const model = allowedModels.includes(formData.get('model') as string)
         ? (formData.get('model') as string)
         : 'gpt-4o-mini';
@@ -121,7 +125,11 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const agentType = formData.get('agentType') as string || 'CUSTOM';
     const systemPrompt = formData.get('systemPrompt') as string;
     const contextInfo = formData.get('contextInfo') as string;
-    const allowedModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+    const allowedModels = [
+        'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+        'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
+        'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash',
+    ];
     const model = allowedModels.includes(formData.get('model') as string)
         ? (formData.get('model') as string)
         : 'gpt-4o-mini';

@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma';
-import { getOpenAIForCompany } from '@/lib/openai';
+import { getOpenAI } from '@/lib/openai';
+import { callAIProvider, detectProvider } from '@/lib/ai-provider';
+import type { NormalizedMessage, NormalizedTool, NormalizedToolCall } from '@/lib/ai-provider';
 import { sendChannelMessage, sendWhatsAppTypingIndicator } from '@/lib/channel-sender';
 import { checkCreditBalance, deductCredits, logUsageOnly } from '@/lib/credits';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
@@ -9,8 +11,6 @@ import { mapFieldToContact, validateCapturedValue, inferValidationType } from '@
 // CRM removed
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
-import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
-import type OpenAI from 'openai';
 
 interface AiAgentResult {
     handled: boolean;
@@ -21,90 +21,90 @@ const MAX_TOOL_ITERATIONS = 8;
 
 // ── Tool definitions ────────────────────────────────────────────────
 
-const DATA_CAPTURE_TOOLS: ChatCompletionTool[] = [
+const DATA_CAPTURE_TOOLS: NormalizedTool[] = [
     {
-        type: 'function',
-        function: {
-            name: 'save_captured_data',
-            description: 'Guarda un dato capturado del cliente durante la conversacion. Usa esta herramienta cada vez que el cliente te proporcione informacion personal o relevante como nombre, email, telefono, cedula, empresa, direccion, etc.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    field_name: {
-                        type: 'string',
-                        description: 'Nombre del campo en snake_case. Ejemplos: nombre, email, telefono, cedula, empresa, direccion, ciudad, producto_interes',
-                    },
-                    field_value: {
-                        type: 'string',
-                        description: 'El valor que proporciono el cliente',
-                    },
+        name: 'save_captured_data',
+        description: 'Guarda un dato capturado del cliente durante la conversacion. Usa esta herramienta cada vez que el cliente te proporcione informacion personal o relevante como nombre, email, telefono, cedula, empresa, direccion, etc.',
+        parameters: {
+            type: 'object',
+            properties: {
+                field_name: {
+                    type: 'string',
+                    description: 'Nombre del campo en snake_case. Ejemplos: nombre, email, telefono, cedula, empresa, direccion, ciudad, producto_interes',
                 },
-                required: ['field_name', 'field_value'],
+                field_value: {
+                    type: 'string',
+                    description: 'El valor que proporciono el cliente',
+                },
             },
+            required: ['field_name', 'field_value'],
         },
     },
 ];
 
-const DOCUMENT_CAPTURE_TOOLS: ChatCompletionTool[] = [
+const DOCUMENT_CAPTURE_TOOLS: NormalizedTool[] = [
     {
-        type: 'function',
-        function: {
-            name: 'save_document',
-            description: 'Guarda un documento o archivo enviado por el cliente (imagen, PDF, hoja de vida, etc). Usa esta herramienta cuando el cliente envie un archivo adjunto y quieras registrarlo.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    field_name: {
-                        type: 'string',
-                        description: 'Nombre descriptivo del documento en snake_case. Ej: hoja_de_vida, cedula, foto_producto, contrato, factura',
-                    },
+        name: 'save_document',
+        description: 'Guarda un documento o archivo enviado por el cliente (imagen, PDF, hoja de vida, etc). Usa esta herramienta cuando el cliente envie un archivo adjunto y quieras registrarlo.',
+        parameters: {
+            type: 'object',
+            properties: {
+                field_name: {
+                    type: 'string',
+                    description: 'Nombre descriptivo del documento en snake_case. Ej: hoja_de_vida, cedula, foto_producto, contrato, factura',
                 },
-                required: ['field_name'],
             },
+            required: ['field_name'],
         },
     },
 ];
 
-const FILE_ANALYSIS_TOOLS: ChatCompletionTool[] = [
+const FILE_ANALYSIS_TOOLS: NormalizedTool[] = [
     {
-        type: 'function',
-        function: {
-            name: 'analyze_file',
-            description: 'Lee y transcribe el contenido de una imagen enviada por el cliente usando visión por computadora (OCR). Úsala para leer documentos, facturas, formularios, fotos de productos u otras imágenes con texto.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    field_name: {
-                        type: 'string',
-                        description: 'Nombre del campo donde guardar el resultado en snake_case. Ej: datos_documento, texto_factura, contenido_formulario, descripcion_foto',
-                    },
-                    instruction: {
-                        type: 'string',
-                        description: 'Instrucción de qué transcribir. Usa siempre lenguaje de transcripción. Ej: "Transcribe todo el texto visible campo por campo", "Lee y transcribe todos los valores de la factura", "Describe el contenido visible en la imagen"',
-                    },
+        name: 'analyze_file',
+        description: 'Lee y transcribe el contenido de una imagen enviada por el cliente usando visión por computadora (OCR). Úsala para leer documentos, facturas, formularios, fotos de productos u otras imágenes con texto.',
+        parameters: {
+            type: 'object',
+            properties: {
+                field_name: {
+                    type: 'string',
+                    description: 'Nombre del campo donde guardar el resultado en snake_case. Ej: datos_documento, texto_factura, contenido_formulario, descripcion_foto',
                 },
-                required: ['field_name', 'instruction'],
+                instruction: {
+                    type: 'string',
+                    description: 'Instrucción de qué transcribir. Usa siempre lenguaje de transcripción. Ej: "Transcribe todo el texto visible campo por campo", "Lee y transcribe todos los valores de la factura", "Describe el contenido visible en la imagen"',
+                },
             },
+            required: ['field_name', 'instruction'],
         },
     },
 ];
 
-const WEBHOOK_TOOLS: ChatCompletionTool[] = [
+const WEBHOOK_TOOLS: NormalizedTool[] = [
     {
-        type: 'function',
-        function: {
-            name: 'send_to_webhook',
-            description: 'Envia todos los datos capturados del cliente al sistema externo (ERP/CRM). Usa esta herramienta cuando hayas terminado de recopilar la informacion del cliente y la conversacion de captura haya concluido.',
-            parameters: {
-                type: 'object',
-                properties: {},
-                required: [],
-            },
+        name: 'send_to_webhook',
+        description: 'Envia todos los datos capturados del cliente al sistema externo (ERP/CRM). Usa esta herramienta cuando hayas terminado de recopilar la informacion del cliente y la conversacion de captura haya concluido.',
+        parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
         },
     },
 ];
 
 // CRM_TOOLS removed
+
+// ── Helper: convert legacy ChatCompletionTool to NormalizedTool ─────
+
+type LegacyFunctionTool = { type: 'function'; function: { name: string; description?: string; parameters?: unknown } };
+
+function legacyToNormalizedTool(t: LegacyFunctionTool): NormalizedTool {
+    return {
+        name: t.function.name,
+        description: t.function.description || '',
+        parameters: (t.function.parameters || { type: 'object', properties: {} }) as NormalizedTool['parameters'],
+    };
+}
 
 // ── Main handler ────────────────────────────────────────────────────
 
@@ -202,8 +202,9 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         // Parse webhook config
         const webhookConfig = aiAgent.webhookConfigJson as WebhookConfig | null;
 
-        // Run independent checks in parallel
-        const [calendarResult, ecommerceResult, openaiResult, creditResult] = await Promise.all([
+        // Detect provider from model and run independent checks in parallel
+        const provider = detectProvider(aiAgent.model);
+        const [calendarEnabled, ecommerceEnabled, creditResult] = await Promise.all([
             aiAgent.calendarEnabled
                 ? prisma.company.findUnique({
                     where: { id: conversation.companyId },
@@ -216,24 +217,17 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                     select: { active: true },
                 }).then(i => !!i?.active)
                 : Promise.resolve(false),
-            getOpenAIForCompany(conversation.companyId),
-            checkCreditBalance(conversation.companyId),
+            checkCreditBalance(conversation.companyId, provider),
         ]);
 
-        const calendarEnabled = calendarResult;
-        const ecommerceEnabled = ecommerceResult;
-        const { client: openai, usesOwnKey } = openaiResult;
-
         // Credit check: if not using own key, must have credits
-        if (!usesOwnKey) {
-            if (!creditResult.hasCredits) {
-                console.log(`[AI Agent] Company ${conversation.companyId} has no credits, skipping AI`);
-                return { handled: false };
-            }
+        if (!creditResult.usesOwnKey && !creditResult.hasCredits) {
+            console.log(`[AI Agent] Company ${conversation.companyId} has no credits, skipping AI`);
+            return { handled: false };
         }
 
         // Build chat history
-        const messages: ChatCompletionMessageParam[] = [
+        const messages: NormalizedMessage[] = [
             {
                 role: 'system',
                 content: buildSystemPrompt({
@@ -265,13 +259,13 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         }
 
         // Build tools array (conditional based on agent config)
-        const tools: ChatCompletionTool[] = [
+        const tools: NormalizedTool[] = [
             ...(aiAgent.dataCaptureEnabled ? DATA_CAPTURE_TOOLS : []),
             ...(aiAgent.dataCaptureEnabled ? DOCUMENT_CAPTURE_TOOLS : []),
             ...(aiAgent.dataCaptureEnabled ? FILE_ANALYSIS_TOOLS : []),
             ...(webhookConfig?.url ? WEBHOOK_TOOLS : []),
-            ...(calendarEnabled ? CALENDAR_TOOLS : []),
-            ...(ecommerceEnabled ? ECOMMERCE_TOOLS : []),
+            ...(calendarEnabled ? (CALENDAR_TOOLS as LegacyFunctionTool[]).map(legacyToNormalizedTool) : []),
+            ...(ecommerceEnabled ? (ECOMMERCE_TOOLS as LegacyFunctionTool[]).map(legacyToNormalizedTool) : []),
         ];
 
         // Function calling loop
@@ -279,39 +273,41 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         let totalCompletionTokens = 0;
         let totalTokens = 0;
         let replyContent: string | null = null;
+        let usesOwnKey = creditResult.usesOwnKey;
         const calledTools = new Set<string>();
 
         for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-            const response = await openai.chat.completions.create({
+            const completion = await callAIProvider({
                 model: aiAgent.model,
                 temperature: aiAgent.temperature,
                 messages,
-                ...(tools.length > 0 ? { tools } : {}),
+                tools,
+                companyId: conversation.companyId,
             });
 
-            if (response.usage) {
-                totalPromptTokens += response.usage.prompt_tokens;
-                totalCompletionTokens += response.usage.completion_tokens;
-                totalTokens += response.usage.total_tokens;
-            }
+            // Update usesOwnKey from actual provider response (more accurate)
+            usesOwnKey = completion.usesOwnKey;
 
-            const choice = response.choices[0];
-            if (!choice) break;
+            totalPromptTokens += completion.usage.promptTokens;
+            totalCompletionTokens += completion.usage.completionTokens;
+            totalTokens += completion.usage.totalTokens;
 
-            const assistantMessage = choice.message;
+            if (completion.toolCalls.length > 0) {
+                // Add assistant message with tool calls to history
+                messages.push({
+                    role: 'assistant',
+                    content: completion.content,
+                    toolCalls: completion.toolCalls,
+                });
 
-            if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-                messages.push(assistantMessage);
-
-                for (const toolCall of assistantMessage.tool_calls) {
-                    if (toolCall.type !== 'function') continue;
-                    const args = JSON.parse(toolCall.function.arguments);
+                for (const toolCall of completion.toolCalls) {
+                    const args = toolCall.arguments as Record<string, string>;
                     let result: string;
 
-                    switch (toolCall.function.name) {
+                    switch (toolCall.name) {
                         case 'save_captured_data':
                             result = await handleSaveCapturedData(
-                                args,
+                                args as { field_name: string; field_value: string },
                                 conversation.companyId,
                                 conversation.id,
                                 conversation.contactId,
@@ -320,7 +316,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
 
                         case 'save_document':
                             result = await handleSaveDocument(
-                                args,
+                                args as { field_name: string },
                                 conversation.companyId,
                                 conversation.id,
                                 conversation.contactId,
@@ -330,12 +326,11 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
 
                         case 'analyze_file':
                             result = await handleAnalyzeFile(
-                                args,
+                                args as { field_name: string; instruction: string },
                                 conversation.companyId,
                                 conversation.id,
                                 conversation.contactId,
                                 conversation.messages,
-                                openai,
                                 usesOwnKey,
                             );
                             break;
@@ -352,23 +347,23 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                         case 'check_inventory':
                         case 'get_payment_methods':
                         case 'create_order':
-                            if (toolCall.function.name === 'create_order' && !calledTools.has('search_products')) {
+                            if (toolCall.name === 'create_order' && !calledTools.has('search_products')) {
                                 result = JSON.stringify({
                                     error: 'No puedes crear un pedido sin antes buscar los productos. DEBES llamar search_products primero para obtener los IDs reales de los productos, y luego get_product_details para obtener los IDs de las variantes. Los IDs son números que devuelve la API, NO los inventes.',
                                 });
                             } else {
                                 result = await executeEcommerceTool(
-                                    toolCall.function.name,
+                                    toolCall.name,
                                     args,
                                     conversation.companyId,
                                 );
                             }
-                            calledTools.add(toolCall.function.name);
+                            calledTools.add(toolCall.name);
                             break;
 
                         default:
                             result = await executeCalendarTool(
-                                toolCall.function.name,
+                                toolCall.name,
                                 args,
                                 conversation.companyId,
                                 aiAgent.calendarId,
@@ -378,7 +373,8 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
 
                     messages.push({
                         role: 'tool',
-                        tool_call_id: toolCall.id,
+                        toolCallId: toolCall.id,
+                        toolName: toolCall.name,
                         content: result,
                     });
                 }
@@ -387,7 +383,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             }
 
             // No tool calls — final text response
-            replyContent = assistantMessage.content;
+            replyContent = completion.content;
             break;
         }
 
@@ -573,9 +569,9 @@ async function handleAnalyzeFile(
     conversationId: string,
     contactId: string | null,
     conversationMessages: MediaMessage[],
-    openai: OpenAI,
     usesOwnKey: boolean,
 ): Promise<string> {
+    const openai = getOpenAI();
     console.log(`[analyze_file] called | field="${args.field_name}" | instruction="${args.instruction}"`);
     try {
         const lastMediaMessage = [...conversationMessages]

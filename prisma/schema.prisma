@@ -127,6 +127,10 @@ model Company {
 
   openaiApiKey          String?
   openaiApiKeyUpdatedAt DateTime?
+  anthropicApiKey          String?
+  anthropicApiKeyUpdatedAt DateTime?
+  geminiApiKey          String?
+  geminiApiKeyUpdatedAt DateTime?
   creditBalance         Int           @default(0)
 
   assignmentStrategy    AssignmentStrategy @default(LEAST_BUSY)

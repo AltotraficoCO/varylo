@@ -12,6 +12,8 @@ import { CreditBalanceCard } from "./credit-balance-card";
 import { BillingSection } from "./billing-section";
 import { ApiKeysSection } from "./api-keys-section";
 import { IntegrationsClient } from "../integrations/integrations-client";
+import { AnthropicKeyForm } from "./anthropic-form";
+import { GeminiKeyForm } from "./gemini-form";
 import { getActiveSubscription, getPaymentSources, getBillingHistory, getAvailablePlans } from "./billing-actions";
 import { getWompiConfig } from "@/lib/wompi-config";
 import { Role } from '@prisma/client';
@@ -58,6 +60,10 @@ export default async function SettingsPage(props: {
                 name: true,
                 openaiApiKey: true,
                 openaiApiKeyUpdatedAt: true,
+                anthropicApiKey: true,
+                anthropicApiKeyUpdatedAt: true,
+                geminiApiKey: true,
+                geminiApiKeyUpdatedAt: true,
                 creditBalance: true,
                 googleCalendarEmail: true,
                 googleCalendarConnectedAt: true,
@@ -96,6 +102,10 @@ export default async function SettingsPage(props: {
     const companyName = company?.name || '';
     const hasOpenAIKey = !!company?.openaiApiKey;
     const openaiKeyUpdatedAt = company?.openaiApiKeyUpdatedAt?.toISOString() || null;
+    const hasAnthropicKey = !!company?.anthropicApiKey;
+    const anthropicKeyUpdatedAt = company?.anthropicApiKeyUpdatedAt?.toISOString() || null;
+    const hasGeminiKey = !!company?.geminiApiKey;
+    const geminiKeyUpdatedAt = company?.geminiApiKeyUpdatedAt?.toISOString() || null;
     const creditBalance = company?.creditBalance || 0;
     const userEmail = session?.user?.email || '';
     const hasGoogleCalendar = !!company?.googleCalendarRefreshToken;
@@ -247,12 +257,22 @@ export default async function SettingsPage(props: {
                     )}
 
                     {activeTab === 'ai' && (
-                        <CreditBalanceCard
-                            balance={creditBalance}
-                            hasOwnKey={hasOpenAIKey}
-                            companyId={companyId}
-                            companyEmail={userEmail}
-                        />
+                        <div className="space-y-6">
+                            <CreditBalanceCard
+                                balance={creditBalance}
+                                hasOwnKey={hasOpenAIKey}
+                                companyId={companyId}
+                                companyEmail={userEmail}
+                            />
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="text-base font-semibold">API Keys de proveedores IA</h3>
+                                    <p className="text-sm text-muted-foreground mt-0.5">Conecta tus propias keys para usar modelos de múltiples proveedores en tus agentes.</p>
+                                </div>
+                                <AnthropicKeyForm hasApiKey={hasAnthropicKey} updatedAt={anthropicKeyUpdatedAt} />
+                                <GeminiKeyForm hasApiKey={hasGeminiKey} updatedAt={geminiKeyUpdatedAt} />
+                            </div>
+                        </div>
                     )}
 
                     {activeTab === 'billing' && (

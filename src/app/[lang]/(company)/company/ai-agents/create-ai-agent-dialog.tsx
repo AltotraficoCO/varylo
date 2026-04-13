@@ -178,8 +178,13 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="gpt-4o-mini">{t.modelFast}</SelectItem>
-                                    <SelectItem value="gpt-4o">{t.modelSmart}</SelectItem>
+                                    <SelectItem value="gpt-4o-mini">GPT-4o Mini — Rápido y económico</SelectItem>
+                                    <SelectItem value="gpt-4o">GPT-4o — Más inteligente</SelectItem>
+                                    <SelectItem value="claude-3-5-haiku-20241022">Claude 3.5 Haiku — Rápido</SelectItem>
+                                    <SelectItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet — Equilibrado</SelectItem>
+                                    <SelectItem value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet — Avanzado</SelectItem>
+                                    <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash — Rápido y económico</SelectItem>
+                                    <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro — Avanzado</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

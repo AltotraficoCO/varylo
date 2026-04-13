@@ -432,6 +432,111 @@ export async function removeOpenAIKey() {
     }
 }
 
+// ANTHROPIC API KEY ACTIONS
+
+export async function saveAnthropicKey(prevState: string | undefined, formData: FormData) {
+    const session = await auth();
+    if (!session?.user?.companyId) return 'Error: No authorized session found.';
+
+    const apiKey = formData.get('anthropicApiKey') as string;
+    if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+        return 'Error: La API Key de Anthropic debe comenzar con "sk-ant-".';
+    }
+
+    try {
+        // Validate key by calling the Anthropic API
+        const { default: Anthropic } = await import('@anthropic-ai/sdk');
+        const testClient = new Anthropic({ apiKey });
+        await testClient.models.list();
+    } catch {
+        return 'Error: La API Key no es válida. Verifica que sea correcta.';
+    }
+
+    try {
+        const { encrypt } = await import('@/lib/encryption');
+        const encryptedKey = encrypt(apiKey);
+        await prisma.company.update({
+            where: { id: session.user.companyId },
+            data: { anthropicApiKey: encryptedKey, anthropicApiKeyUpdatedAt: new Date() },
+        });
+        revalidatePath('/[lang]/company/settings', 'page');
+        return 'Success: API Key de Anthropic guardada correctamente.';
+    } catch (error) {
+        console.error('Failed to save Anthropic key:', error);
+        return 'Error: No se pudo guardar la API Key.';
+    }
+}
+
+export async function removeAnthropicKey() {
+    const session = await auth();
+    if (!session?.user?.companyId) return { success: false, message: 'No authorized session.' };
+
+    try {
+        await prisma.company.update({
+            where: { id: session.user.companyId },
+            data: { anthropicApiKey: null, anthropicApiKeyUpdatedAt: null },
+        });
+        revalidatePath('/[lang]/company/settings', 'page');
+        return { success: true, message: 'API Key eliminada.' };
+    } catch (error) {
+        console.error('Failed to remove Anthropic key:', error);
+        return { success: false, message: 'Failed to remove key.' };
+    }
+}
+
+// GEMINI API KEY ACTIONS
+
+export async function saveGeminiKey(prevState: string | undefined, formData: FormData) {
+    const session = await auth();
+    if (!session?.user?.companyId) return 'Error: No authorized session found.';
+
+    const apiKey = formData.get('geminiApiKey') as string;
+    if (!apiKey || apiKey.length < 20) {
+        return 'Error: La API Key de Gemini no es válida.';
+    }
+
+    try {
+        // Validate key by calling the Gemini API
+        const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+        );
+        if (!res.ok) return 'Error: La API Key de Gemini no es válida. Verifica que sea correcta.';
+    } catch {
+        return 'Error: No se pudo verificar la API Key de Gemini.';
+    }
+
+    try {
+        const { encrypt } = await import('@/lib/encryption');
+        const encryptedKey = encrypt(apiKey);
+        await prisma.company.update({
+            where: { id: session.user.companyId },
+            data: { geminiApiKey: encryptedKey, geminiApiKeyUpdatedAt: new Date() },
+        });
+        revalidatePath('/[lang]/company/settings', 'page');
+        return 'Success: API Key de Gemini guardada correctamente.';
+    } catch (error) {
+        console.error('Failed to save Gemini key:', error);
+        return 'Error: No se pudo guardar la API Key.';
+    }
+}
+
+export async function removeGeminiKey() {
+    const session = await auth();
+    if (!session?.user?.companyId) return { success: false, message: 'No authorized session.' };
+
+    try {
+        await prisma.company.update({
+            where: { id: session.user.companyId },
+            data: { geminiApiKey: null, geminiApiKeyUpdatedAt: null },
+        });
+        revalidatePath('/[lang]/company/settings', 'page');
+        return { success: true, message: 'API Key eliminada.' };
+    } catch (error) {
+        console.error('Failed to remove Gemini key:', error);
+        return { success: false, message: 'Failed to remove key.' };
+    }
+}
+
 // WEB CHAT ACTIONS
 
 export async function activateWebChat() {

@@ -331,8 +331,19 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                     onChange={e => setModel(e.target.value)}
                                     className="w-full h-10 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[14px] text-[#09090B]"
                                 >
-                                    <option value="gpt-4o-mini">{t.modelFastEconomic}</option>
-                                    <option value="gpt-4o">{t.modelSmarter}</option>
+                                    <optgroup label="OpenAI">
+                                        <option value="gpt-4o-mini">GPT-4o Mini — Rápido y económico</option>
+                                        <option value="gpt-4o">GPT-4o — Más inteligente</option>
+                                    </optgroup>
+                                    <optgroup label="Anthropic Claude">
+                                        <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku — Rápido</option>
+                                        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet — Equilibrado</option>
+                                        <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet — Avanzado</option>
+                                    </optgroup>
+                                    <optgroup label="Google Gemini">
+                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash — Rápido y económico</option>
+                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro — Avanzado</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div className="space-y-1.5">
