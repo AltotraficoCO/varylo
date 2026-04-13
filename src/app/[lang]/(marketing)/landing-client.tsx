@@ -391,25 +391,25 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                             </div>
 
                             {/* Display type — 3 lines, different treatments */}
-                            <div className="hero-title-wrap overflow-hidden" style={{ letterSpacing: '-.045em' }}>
-                                {/* Line 1: ghost / outline feel */}
-                                <div className="hero-line-1 overflow-hidden">
-                                    <h1 className="font-black uppercase leading-[.88]"
-                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(3.5rem,8vw,7.5rem)', color: 'rgba(255,255,255,.14)', WebkitTextStroke: '1px rgba(255,255,255,.18)' }}>
+                            <div className="hero-title-wrap" style={{ letterSpacing: '-.045em' }}>
+                                {/* Line 1: ghost */}
+                                <div className="hero-line-1">
+                                    <h1 className="font-black uppercase leading-[.88] whitespace-nowrap"
+                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(2.5rem,5.5vw,5rem)', color: 'rgba(255,255,255,.18)', WebkitTextStroke: '1px rgba(255,255,255,.22)' }}>
                                         {displayLang === 'es' ? 'UNIFICA' : 'CONNECT'}
                                     </h1>
                                 </div>
-                                {/* Line 2: solid white, largest */}
-                                <div className="hero-line-2 overflow-hidden -mt-2">
-                                    <h1 className="text-white font-black uppercase leading-[.88]"
-                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(5rem,12vw,11.5rem)' }}>
+                                {/* Line 2: white — capped so "TODOS LOS" stays on one line */}
+                                <div className="hero-line-2 -mt-1">
+                                    <h1 className="text-white font-black uppercase leading-[.88] whitespace-nowrap"
+                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'min(9.5vw, 6rem)' }}>
                                         {displayLang === 'es' ? 'TODOS LOS' : 'ALL YOUR'}
                                     </h1>
                                 </div>
-                                {/* Line 3: emerald, same scale */}
-                                <div className="hero-line-3 overflow-hidden -mt-2">
-                                    <h1 className="font-black uppercase leading-[.88]"
-                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(5rem,12vw,11.5rem)', color: '#10b981' }}>
+                                {/* Line 3: emerald — largest */}
+                                <div className="hero-line-3 -mt-1">
+                                    <h1 className="font-black uppercase leading-[.88] whitespace-nowrap"
+                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(5rem,12vw,10.5rem)', color: '#10b981' }}>
                                         {displayLang === 'es' ? 'CANALES' : 'CHANNELS'}
                                     </h1>
                                 </div>
