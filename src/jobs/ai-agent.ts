@@ -576,17 +576,24 @@ async function handleAnalyzeFile(
     openai: OpenAI,
     usesOwnKey: boolean,
 ): Promise<string> {
+    console.log(`[analyze_file] called | field="${args.field_name}" | instruction="${args.instruction}"`);
     try {
         const lastMediaMessage = [...conversationMessages]
             .reverse()
             .find(m => m.direction === 'INBOUND' && m.mediaUrl && m.mediaType === 'image');
 
         if (!lastMediaMessage?.mediaUrl) {
+            const allMedia = conversationMessages
+                .filter(m => m.direction === 'INBOUND' && m.mediaUrl)
+                .map(m => `${m.mediaType}:${m.mediaUrl}`);
+            console.error(`[analyze_file] No image found. All inbound media: ${JSON.stringify(allMedia)}`);
             return JSON.stringify({
                 success: false,
                 message: 'No se encontró ninguna imagen en los mensajes recientes. Solo puedo analizar imágenes (JPG, PNG, etc.). Para archivos PDF u otros documentos, usa save_document.',
             });
         }
+
+        console.log(`[analyze_file] Found image | mediaType=${lastMediaMessage.mediaType} | mimeType=${lastMediaMessage.mimeType} | url=${lastMediaMessage.mediaUrl}`);
 
         // Download the image server-side and convert to base64 so OpenAI
         // can access it regardless of Supabase bucket visibility settings.
@@ -598,21 +605,28 @@ async function handleAnalyzeFile(
                 fetchHeaders['Authorization'] = `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
             }
             const imgRes = await fetch(lastMediaMessage.mediaUrl, { headers: fetchHeaders });
+            console.log(`[analyze_file] Download status: ${imgRes.status} | content-type: ${imgRes.headers.get('content-type')}`);
             if (!imgRes.ok) {
-                console.error(`[AI Agent] Image download failed: HTTP ${imgRes.status} - ${lastMediaMessage.mediaUrl}`);
+                const body = await imgRes.text().catch(() => '');
+                console.error(`[analyze_file] Download failed: HTTP ${imgRes.status} | body: ${body.slice(0, 200)}`);
                 return JSON.stringify({
                     success: false,
                     message: `No se pudo descargar la imagen (HTTP ${imgRes.status}). Por favor intenta de nuevo.`,
                 });
             }
             const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
-            const mime = imgRes.headers.get('content-type')?.split(';')[0] || lastMediaMessage.mimeType || 'image/jpeg';
+            console.log(`[analyze_file] Image downloaded: ${imgBuffer.length} bytes`);
+            // Force a valid image MIME type — Supabase may return application/octet-stream
+            const rawMime = imgRes.headers.get('content-type')?.split(';')[0] || lastMediaMessage.mimeType || '';
+            const mime = rawMime.startsWith('image/') ? rawMime : (lastMediaMessage.mimeType?.startsWith('image/') ? lastMediaMessage.mimeType : 'image/jpeg');
+            console.log(`[analyze_file] Using MIME type: ${mime}`);
             imageDataUrl = `data:${mime};base64,${imgBuffer.toString('base64')}`;
         } catch (fetchErr) {
-            console.error('[AI Agent] Image fetch error:', fetchErr);
+            console.error('[analyze_file] Fetch error:', fetchErr);
             return JSON.stringify({ success: false, message: 'No se pudo descargar la imagen para analizarla.' });
         }
 
+        console.log(`[analyze_file] Calling gpt-4o vision...`);
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             temperature: 0.1,
@@ -628,6 +642,7 @@ async function handleAnalyzeFile(
         });
 
         const analysisText = response.choices[0]?.message?.content || '';
+        console.log(`[analyze_file] gpt-4o response (${response.usage?.total_tokens} tokens): ${analysisText.slice(0, 300)}`);
 
         // Track tokens for vision call (gpt-4o, higher cost)
         if (response.usage) {
