@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { ContactForm } from './contact-form';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import {
@@ -35,9 +36,65 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
     const containerRef = useRef<HTMLDivElement>(null);
     const priceRailRef = useRef<HTMLDivElement>(null);
     const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+    // ── Price rail physics drag ──────────────────────────────────────────────
     const isDragging = useRef(false);
     const dragStartX = useRef(0);
     const dragScrollLeft = useRef(0);
+    const dragVelocity = useRef(0);
+    const lastDragX = useRef(0);
+    const lastDragTime = useRef(0);
+    const momentumAnim = useRef<number | null>(null);
+
+    // ── Swipe-to-unlock language toggle ─────────────────────────────────────
+    const pathname = usePathname();
+    const router = useRouter();
+    const currentLocale = pathname.split('/')[1] || 'es';
+    const targetLocale = currentLocale === 'es' ? 'en' : 'es';
+    const [swipeX, setSwipeX] = useState(0);
+    const [isSwiping, setIsSwiping] = useState(false);
+    const [isUnlocking, setIsUnlocking] = useState(false);
+    const swipeStartClientX = useRef(0);
+    const TRACK_W = 200; // px — inner track available for thumb travel
+    const UNLOCK_THRESHOLD = 0.88;
+
+    const doUnlock = useCallback(() => {
+        if (isUnlocking) return;
+        setIsUnlocking(true);
+        setIsSwiping(false);
+        setTimeout(() => {
+            const segments = pathname.split('/');
+            segments[1] = targetLocale;
+            router.push(segments.join('/'));
+        }, 780);
+    }, [isUnlocking, pathname, targetLocale, router]);
+
+    const onSwipePointerDown = (e: React.PointerEvent) => {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        setIsSwiping(true);
+        swipeStartClientX.current = e.clientX - swipeX;
+    };
+    const onSwipePointerMove = (e: React.PointerEvent) => {
+        if (!isSwiping) return;
+        const newX = Math.max(0, Math.min(TRACK_W, e.clientX - swipeStartClientX.current));
+        setSwipeX(newX);
+        if (newX / TRACK_W >= UNLOCK_THRESHOLD) doUnlock();
+    };
+    const onSwipePointerUp = () => {
+        if (!isSwiping) return;
+        setIsSwiping(false);
+        if (swipeX / TRACK_W < UNLOCK_THRESHOLD) {
+            // Spring back
+            setSwipeX(0);
+        }
+    };
+
+    // Center price rail on mount
+    useLayoutEffect(() => {
+        const rail = priceRailRef.current;
+        if (!rail) return;
+        rail.scrollLeft = (rail.scrollWidth - rail.clientWidth) / 2;
+    }, []);
 
     const featureList = [
         d.features.omnichannel, d.features.aiAgents, d.features.chatbots,
@@ -49,23 +106,40 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
     const faqs = [d.faq.q1, d.faq.q2, d.faq.q3, d.faq.q4, d.faq.q5];
     const metrics = Object.values(d.solution.metrics) as any[];
 
-    // Price drag handlers
+    // Price drag handlers — physics momentum
     const onPriceDragStart = (e: React.MouseEvent) => {
         if (!priceRailRef.current) return;
+        if (momentumAnim.current) cancelAnimationFrame(momentumAnim.current);
         isDragging.current = true;
-        dragStartX.current = e.pageX - priceRailRef.current.offsetLeft;
+        dragStartX.current = e.pageX;
         dragScrollLeft.current = priceRailRef.current.scrollLeft;
+        lastDragX.current = e.pageX;
+        lastDragTime.current = Date.now();
+        dragVelocity.current = 0;
         priceRailRef.current.style.cursor = 'grabbing';
     };
     const onPriceDragMove = (e: React.MouseEvent) => {
         if (!isDragging.current || !priceRailRef.current) return;
         e.preventDefault();
-        const x = e.pageX - priceRailRef.current.offsetLeft;
-        priceRailRef.current.scrollLeft = dragScrollLeft.current - (x - dragStartX.current) * 1.4;
+        priceRailRef.current.scrollLeft = dragScrollLeft.current - (e.pageX - dragStartX.current);
+        const now = Date.now();
+        const dt = now - lastDragTime.current;
+        if (dt > 0) dragVelocity.current = (lastDragX.current - e.pageX) / dt * 14;
+        lastDragX.current = e.pageX;
+        lastDragTime.current = now;
     };
     const onPriceDragEnd = () => {
+        if (!isDragging.current) return;
         isDragging.current = false;
         if (priceRailRef.current) priceRailRef.current.style.cursor = 'grab';
+        let vel = dragVelocity.current;
+        const tick = () => {
+            if (!priceRailRef.current || Math.abs(vel) < 0.4) return;
+            priceRailRef.current.scrollLeft += vel;
+            vel *= 0.91;
+            momentumAnim.current = requestAnimationFrame(tick);
+        };
+        momentumAnim.current = requestAnimationFrame(tick);
     };
 
     useGSAP(() => {
@@ -79,6 +153,20 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
 
         gsap.to('.orb-a', { x: 50, y: -35, duration: 6, repeat: -1, yoyo: true, ease: 'sine.inOut' });
         gsap.to('.orb-b', { x: -40, y: 50, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2 });
+
+        // Hero title splits apart on scroll
+        gsap.to('.hero-title-wrap', {
+            letterSpacing: '0.35em',
+            opacity: 0,
+            y: -40,
+            ease: 'power2.in',
+            scrollTrigger: {
+                trigger: '.hero-title-wrap',
+                start: 'top 40%',
+                end: 'top -20%',
+                scrub: 1.2,
+            },
+        });
 
         ScrollTrigger.create({
             start: 'top -10', end: 99999,
@@ -205,6 +293,24 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                 .price-rail-scroll::-webkit-scrollbar { display:none; }
                 /* FAQ */
                 .faq-body { transition: max-height .38s cubic-bezier(.4,0,.2,1), opacity .28s ease, padding .28s ease; }
+                /* Swipe lang toggle */
+                .lang-toggle { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:9990; }
+                .lang-track { position:relative; width:280px; height:52px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:999px; backdrop-filter:blur(20px); display:flex; align-items:center; padding:4px; overflow:hidden; }
+                .lang-track-bg { position:absolute; inset:0; border-radius:999px; background:linear-gradient(90deg, transparent 0%, rgba(16,185,129,.08) 100%); opacity:0; transition: opacity .3s ease; }
+                .lang-track:hover .lang-track-bg { opacity:1; }
+                .lang-thumb { position:relative; z-index:2; width:72px; height:44px; border-radius:999px; background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4); display:flex; align-items:center; justify-content:center; gap:5px; cursor:grab; user-select:none; touch-action:none; transition: background .2s, border-color .2s, box-shadow .2s; }
+                .lang-thumb:active, .lang-thumb.dragging { cursor:grabbing; background:rgba(16,185,129,.25); box-shadow:0 0 20px rgba(16,185,129,.25); }
+                .lang-hint-left, .lang-hint-right { position:absolute; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.25); pointer-events:none; transition:opacity .2s; }
+                .lang-hint-left { left:16px; }
+                .lang-hint-right { right:16px; }
+                /* Lang ripple overlay */
+                @keyframes lang-ripple-anim {
+                    0%  { transform:scale(1);  opacity:.5; }
+                    100%{ transform:scale(55); opacity:0; }
+                }
+                .lang-ripple { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); width:60px; height:60px; border-radius:50%; background:rgba(16,185,129,.18); pointer-events:none; z-index:9991; animation: lang-ripple-anim .8s cubic-bezier(.2,0,.05,1) forwards; }
+                /* Hero letter-spacing split on scroll */
+                .hero-title-wrap { will-change:letter-spacing; }
             `}</style>
 
             {/* ══ NAVBAR ══════════════════════════════════════════════════════════ */}
@@ -239,15 +345,17 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                     <div className="hero-badge inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] backdrop-blur-sm px-4 py-2 text-xs text-white/70 font-medium mb-10 tracking-wide">
                         <Zap className="h-3 w-3 text-emerald-400" />{d.hero.badge}
                     </div>
-                    <h1 className="max-w-5xl mx-auto mb-8 leading-[1.0]" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.045em' }}>
-                        {d.hero.title.split(' ').map((word: string, i: number) => (
-                            <span key={i} className="word-clip">
-                                <span className="hero-word inline-block text-5xl sm:text-6xl lg:text-8xl font-black">
-                                    {word}{i < d.hero.title.split(' ').length - 1 ? '\u00A0' : ''}
+                    <div className="hero-title-wrap max-w-5xl mx-auto mb-8 leading-[1.0]" style={{ letterSpacing: '-0.045em' }}>
+                        <h1 style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            {d.hero.title.split(' ').map((word: string, i: number) => (
+                                <span key={i} className="word-clip">
+                                    <span className="hero-word inline-block text-5xl sm:text-6xl lg:text-8xl font-black">
+                                        {word}{i < d.hero.title.split(' ').length - 1 ? '\u00A0' : ''}
+                                    </span>
                                 </span>
-                            </span>
-                        ))}
-                    </h1>
+                            ))}
+                        </h1>
+                    </div>
                     <p className="hero-sub text-base sm:text-lg text-white/55 max-w-xl mx-auto leading-relaxed mb-10">{d.hero.description}</p>
                     <div className="hero-actions flex flex-col sm:flex-row items-center justify-center gap-3">
                         <Link href={`/${lang}/register`}>
@@ -533,7 +641,7 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                     onMouseUp={onPriceDragEnd}
                     onMouseLeave={onPriceDragEnd}
                 >
-                    <div className="flex gap-5 px-[10vw] pt-2 pb-16 min-w-max">
+                    <div className="flex gap-5 pt-2 pb-16 min-w-max" style={{ paddingLeft: 'max(10vw, calc(50vw - 420px))', paddingRight: 'max(10vw, calc(50vw - 420px))' }}>
                         {planItems.map((plan, idx) => (
                             <div key={plan.key} className="ticket-wrapper" style={{ transformOrigin: 'top center' }}>
                                 {/* Clip */}
@@ -654,16 +762,66 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
             </section>
 
             {/* ══ CONTACT ══════════════════════════════════════════════════════════ */}
-            <section id="contact" className="py-28 lg:py-36 bg-[#030603]">
-                <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16">
-                    <div className="max-w-xl mx-auto text-center mb-12">
-                        <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-4 block">Contacto</span>
-                        <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.03em' }}>{d.contact.title}</h2>
-                        <p className="text-white/50 mt-4 text-base">{d.contact.subtitle}</p>
+            <section id="contact" className="relative overflow-hidden bg-black">
+                {/* Big background text */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+                    <span className="text-[clamp(120px,20vw,280px)] font-black leading-none text-white/[.02] whitespace-nowrap"
+                        style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.06em' }}>HABLEMOS</span>
+                </div>
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(16,185,129,.06),transparent)] pointer-events-none" />
+
+                <div className="relative max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16 py-32 lg:py-44">
+                    <div className="grid lg:grid-cols-2 gap-20 items-start">
+                        {/* Left — large text */}
+                        <div>
+                            <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-6 block">Contacto</span>
+                            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-[.92] mb-8"
+                                style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.045em' }}>
+                                {d.contact.title}
+                            </h2>
+                            <p className="text-white/40 text-lg leading-relaxed max-w-sm">{d.contact.subtitle}</p>
+                            {/* Decorative line */}
+                            <div className="mt-12 flex items-center gap-4">
+                                <div className="h-px w-16 bg-emerald-500/40" />
+                                <span className="text-xs text-white/25 uppercase tracking-[.15em]">Respuesta en &lt; 24h</span>
+                            </div>
+                        </div>
+                        {/* Right — form */}
+                        <div>
+                            <ContactForm dict={d.contact.form} />
+                        </div>
                     </div>
-                    <ContactForm dict={d.contact.form} />
                 </div>
             </section>
+
+            {/* ══ SWIPE LANGUAGE TOGGLE — sticky bottom ════════════════════════════ */}
+            {isUnlocking && <div className="lang-ripple" />}
+            <div className="lang-toggle">
+                <div className="lang-track">
+                    <div className="lang-track-bg" />
+                    {/* Hints */}
+                    <span className="lang-hint-left" style={{ opacity: swipeX > 20 ? 0 : 1 }}>
+                        {currentLocale === 'es' ? '🇺🇸 EN' : '🇪🇸 ES'}
+                    </span>
+                    <span className="lang-hint-right" style={{ opacity: swipeX > 20 ? 0 : 1 }}>
+                        {currentLocale === 'es' ? 'Inglés' : 'Español'}
+                    </span>
+                    {/* Thumb */}
+                    <div
+                        className={`lang-thumb${isSwiping ? ' dragging' : ''}`}
+                        style={{ transform: `translateX(${swipeX}px)` }}
+                        onPointerDown={onSwipePointerDown}
+                        onPointerMove={onSwipePointerMove}
+                        onPointerUp={onSwipePointerUp}
+                        onPointerLeave={onSwipePointerUp}
+                    >
+                        <span className="text-lg leading-none">{currentLocale === 'es' ? '🇪🇸' : '🇺🇸'}</span>
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ color: 'rgba(16,185,129,.7)' }}>
+                            <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
 
             {/* ══ FOOTER ═══════════════════════════════════════════════════════════ */}
             <footer className="border-t border-white/[.06]">
