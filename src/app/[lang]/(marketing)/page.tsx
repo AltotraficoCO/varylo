@@ -4,7 +4,12 @@ import { LandingClient } from './landing-client';
 
 export default async function LandingPage({ params }: { params: Promise<{ lang: Locale }> }) {
     const { lang } = await params;
-    const dict = await getDictionary(lang);
+    const otherLang: Locale = lang === 'es' ? 'en' : 'es';
+
+    const [dict, otherDict] = await Promise.all([
+        getDictionary(lang),
+        getDictionary(otherLang),
+    ]);
 
     let plans: Awaited<ReturnType<typeof prisma.landingPlan.findMany>> = [];
     try {
@@ -23,6 +28,8 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
             dict={dict}
             plans={plans}
             logos={logos}
+            otherLang={otherLang}
+            otherDict={otherDict}
         />
     );
 }

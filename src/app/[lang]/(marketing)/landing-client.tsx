@@ -25,6 +25,7 @@ type Logo = { id: string; name: string; imageUrl: string };
 
 interface LandingClientProps {
     lang: string; d: any; dict: any; plans: Plan[]; logos: Logo[];
+    otherLang: string; otherDict: any;
 }
 
 const FEATURE_ICONS = [MessageSquare, Bot, Workflow, Users, BarChart3, Shield];
@@ -32,10 +33,15 @@ const PROBLEM_ICONS = [AlertTriangle, EyeOff, Moon];
 const STEP_ICONS = [Plug2, Settings2, TrendingUp];
 const BAR_WIDTHS = [2,1,3,1,2,1,1,3,2,1,2,3,1,1,2,1,3,1,2,1,1,2,3,1,2,1,1,3,2,1];
 
-export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProps) {
+export function LandingClient({ lang, d: initialD, dict: initialDict, plans, logos, otherLang, otherDict }: LandingClientProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const priceRailRef = useRef<HTMLDivElement>(null);
     const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+    // ── Active language (no reload) ─────────────────────────────────────────
+    const [displayLang, setDisplayLang] = useState(lang);
+    const d = displayLang === lang ? initialD : otherDict.landing;
+    const dict = displayLang === lang ? initialDict : otherDict;
 
     // ── Price rail physics drag ──────────────────────────────────────────────
     const isDragging = useRef(false);
@@ -48,26 +54,31 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
 
     // ── Swipe-to-unlock language toggle ─────────────────────────────────────
     const pathname = usePathname();
-    const router = useRouter();
-    const currentLocale = pathname.split('/')[1] || 'es';
-    const targetLocale = currentLocale === 'es' ? 'en' : 'es';
+    const currentLocale = displayLang;
+    const targetLocale = displayLang === lang ? otherLang : lang;
     const [swipeX, setSwipeX] = useState(0);
     const [isSwiping, setIsSwiping] = useState(false);
-    const [isUnlocking, setIsUnlocking] = useState(false);
+    // Wave phases: 'idle' | 'in' (expanding) | 'out' (contracting)
+    const [wavePhase, setWavePhase] = useState<'idle' | 'in' | 'out'>('idle');
     const swipeStartClientX = useRef(0);
-    const TRACK_W = 200; // px — inner track available for thumb travel
+    const TRACK_W = 200;
     const UNLOCK_THRESHOLD = 0.88;
 
     const doUnlock = useCallback(() => {
-        if (isUnlocking) return;
-        setIsUnlocking(true);
+        if (wavePhase !== 'idle') return;
         setIsSwiping(false);
+        setWavePhase('in');
+        // At peak of wave, switch language silently
         setTimeout(() => {
-            const segments = pathname.split('/');
-            segments[1] = targetLocale;
-            router.push(segments.join('/'));
-        }, 780);
-    }, [isUnlocking, pathname, targetLocale, router]);
+            setDisplayLang(prev => prev === lang ? otherLang : lang);
+            window.history.pushState({}, '', `/${targetLocale}${pathname.slice(lang.length + 1)}`);
+            setWavePhase('out');
+        }, 750);
+        setTimeout(() => {
+            setWavePhase('idle');
+            setSwipeX(0);
+        }, 1550);
+    }, [wavePhase, lang, otherLang, targetLocale, pathname]);
 
     const onSwipePointerDown = (e: React.PointerEvent) => {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -83,17 +94,50 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
     const onSwipePointerUp = () => {
         if (!isSwiping) return;
         setIsSwiping(false);
-        if (swipeX / TRACK_W < UNLOCK_THRESHOLD) {
-            // Spring back
-            setSwipeX(0);
-        }
+        if (swipeX / TRACK_W < UNLOCK_THRESHOLD) setSwipeX(0);
     };
 
-    // Center price rail on mount
-    useLayoutEffect(() => {
+    // Center price rail on mount — use effect after paint
+    useEffect(() => {
         const rail = priceRailRef.current;
         if (!rail) return;
-        rail.scrollLeft = (rail.scrollWidth - rail.clientWidth) / 2;
+        // Small rAF delay to ensure layout is complete
+        requestAnimationFrame(() => {
+            rail.scrollLeft = (rail.scrollWidth - rail.clientWidth) / 2;
+        });
+    }, []);
+
+    // Document-level drag listeners to avoid losing drag when cursor leaves rail
+    useEffect(() => {
+        const onMove = (e: MouseEvent) => {
+            if (!isDragging.current || !priceRailRef.current) return;
+            e.preventDefault();
+            priceRailRef.current.scrollLeft = dragScrollLeft.current - (e.pageX - dragStartX.current);
+            const now = Date.now();
+            const dt = now - lastDragTime.current;
+            if (dt > 0) dragVelocity.current = (lastDragX.current - e.pageX) / dt * 14;
+            lastDragX.current = e.pageX;
+            lastDragTime.current = now;
+        };
+        const onUp = () => {
+            if (!isDragging.current) return;
+            isDragging.current = false;
+            if (priceRailRef.current) priceRailRef.current.style.cursor = 'grab';
+            let vel = dragVelocity.current;
+            const tick = () => {
+                if (!priceRailRef.current || Math.abs(vel) < 0.4) return;
+                priceRailRef.current.scrollLeft += vel;
+                vel *= 0.91;
+                momentumAnim.current = requestAnimationFrame(tick);
+            };
+            momentumAnim.current = requestAnimationFrame(tick);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        return () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
     }, []);
 
     const featureList = [
@@ -106,7 +150,7 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
     const faqs = [d.faq.q1, d.faq.q2, d.faq.q3, d.faq.q4, d.faq.q5];
     const metrics = Object.values(d.solution.metrics) as any[];
 
-    // Price drag handlers — physics momentum
+    // Price drag — mousedown only (move/up handled by document listeners)
     const onPriceDragStart = (e: React.MouseEvent) => {
         if (!priceRailRef.current) return;
         if (momentumAnim.current) cancelAnimationFrame(momentumAnim.current);
@@ -117,29 +161,6 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
         lastDragTime.current = Date.now();
         dragVelocity.current = 0;
         priceRailRef.current.style.cursor = 'grabbing';
-    };
-    const onPriceDragMove = (e: React.MouseEvent) => {
-        if (!isDragging.current || !priceRailRef.current) return;
-        e.preventDefault();
-        priceRailRef.current.scrollLeft = dragScrollLeft.current - (e.pageX - dragStartX.current);
-        const now = Date.now();
-        const dt = now - lastDragTime.current;
-        if (dt > 0) dragVelocity.current = (lastDragX.current - e.pageX) / dt * 14;
-        lastDragX.current = e.pageX;
-        lastDragTime.current = now;
-    };
-    const onPriceDragEnd = () => {
-        if (!isDragging.current) return;
-        isDragging.current = false;
-        if (priceRailRef.current) priceRailRef.current.style.cursor = 'grab';
-        let vel = dragVelocity.current;
-        const tick = () => {
-            if (!priceRailRef.current || Math.abs(vel) < 0.4) return;
-            priceRailRef.current.scrollLeft += vel;
-            vel *= 0.91;
-            momentumAnim.current = requestAnimationFrame(tick);
-        };
-        momentumAnim.current = requestAnimationFrame(tick);
     };
 
     useGSAP(() => {
@@ -154,17 +175,16 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
         gsap.to('.orb-a', { x: 50, y: -35, duration: 6, repeat: -1, yoyo: true, ease: 'sine.inOut' });
         gsap.to('.orb-b', { x: -40, y: 50, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2 });
 
-        // Hero title splits apart on scroll
+        // Hero title explodes apart on scroll
         gsap.to('.hero-title-wrap', {
-            letterSpacing: '0.35em',
+            letterSpacing: '1.6em',
             opacity: 0,
-            y: -40,
-            ease: 'power2.in',
+            ease: 'none',
             scrollTrigger: {
                 trigger: '.hero-title-wrap',
-                start: 'top 40%',
-                end: 'top -20%',
-                scrub: 1.2,
+                start: 'top 60%',
+                end: 'top -10%',
+                scrub: 0.8,
             },
         });
 
@@ -295,22 +315,21 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                 .faq-body { transition: max-height .38s cubic-bezier(.4,0,.2,1), opacity .28s ease, padding .28s ease; }
                 /* Swipe lang toggle */
                 .lang-toggle { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:9990; }
-                .lang-track { position:relative; width:280px; height:52px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); border-radius:999px; backdrop-filter:blur(20px); display:flex; align-items:center; padding:4px; overflow:hidden; }
-                .lang-track-bg { position:absolute; inset:0; border-radius:999px; background:linear-gradient(90deg, transparent 0%, rgba(16,185,129,.08) 100%); opacity:0; transition: opacity .3s ease; }
-                .lang-track:hover .lang-track-bg { opacity:1; }
-                .lang-thumb { position:relative; z-index:2; width:72px; height:44px; border-radius:999px; background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4); display:flex; align-items:center; justify-content:center; gap:5px; cursor:grab; user-select:none; touch-action:none; transition: background .2s, border-color .2s, box-shadow .2s; }
-                .lang-thumb:active, .lang-thumb.dragging { cursor:grabbing; background:rgba(16,185,129,.25); box-shadow:0 0 20px rgba(16,185,129,.25); }
-                .lang-hint-left, .lang-hint-right { position:absolute; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.25); pointer-events:none; transition:opacity .2s; }
-                .lang-hint-left { left:16px; }
-                .lang-hint-right { right:16px; }
-                /* Lang ripple overlay */
-                @keyframes lang-ripple-anim {
-                    0%  { transform:scale(1);  opacity:.5; }
-                    100%{ transform:scale(55); opacity:0; }
-                }
-                .lang-ripple { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); width:60px; height:60px; border-radius:50%; background:rgba(16,185,129,.18); pointer-events:none; z-index:9991; animation: lang-ripple-anim .8s cubic-bezier(.2,0,.05,1) forwards; }
+                .lang-track { position:relative; width:280px; height:52px; background:rgba(10,10,10,.8); border:1px solid rgba(255,255,255,.1); border-radius:999px; backdrop-filter:blur(24px); display:flex; align-items:center; padding:4px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.04); }
+                .lang-track-fill { position:absolute; left:4px; top:4px; bottom:4px; border-radius:999px; background:linear-gradient(90deg, rgba(16,185,129,.12), rgba(16,185,129,.04)); pointer-events:none; transition:width .05s linear; }
+                .lang-thumb { position:relative; z-index:2; width:72px; height:44px; border-radius:999px; background:rgba(16,185,129,.18); border:1px solid rgba(16,185,129,.5); display:flex; align-items:center; justify-content:center; gap:5px; cursor:grab; user-select:none; touch-action:none; transition:background .15s,border-color .15s,box-shadow .15s; will-change:transform; }
+                .lang-thumb.dragging { cursor:grabbing; background:rgba(16,185,129,.3); box-shadow:0 0 28px rgba(16,185,129,.35); }
+                .lang-hint { position:absolute; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.22); pointer-events:none; }
+                .lang-hint-left { left:14px; }
+                .lang-hint-right { right:14px; }
+                /* Lang wave overlay — 2 phase */
+                .lang-wave { position:fixed; bottom:28px; left:50%; width:80px; height:80px; border-radius:50%; background:#10b981; pointer-events:none; z-index:9992; transform-origin:center center; }
+                @keyframes wave-in  { from{transform:translateX(-50%) scale(1)}  to{transform:translateX(-50%) scale(60)} }
+                @keyframes wave-out { from{transform:translateX(-50%) scale(60)} to{transform:translateX(-50%) scale(0)} }
+                .lang-wave.wave-in  { animation:wave-in  .75s cubic-bezier(.4,0,.2,1) forwards; }
+                .lang-wave.wave-out { animation:wave-out .8s  cubic-bezier(.4,0,.2,1) forwards; }
                 /* Hero letter-spacing split on scroll */
-                .hero-title-wrap { will-change:letter-spacing; }
+                .hero-title-wrap { will-change:letter-spacing; overflow:hidden; }
             `}</style>
 
             {/* ══ NAVBAR ══════════════════════════════════════════════════════════ */}
@@ -323,9 +342,8 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                         ))}
                     </div>
                     <div className="flex items-center gap-3">
-                        <LanguageSwitcher variant="dark" />
-                        <Link href={`/${lang}/login`} className="hidden sm:block text-sm text-white/50 hover:text-white transition-colors">{dict.nav.login}</Link>
-                        <Link href={`/${lang}/register`}>
+                        <Link href={`/${displayLang}/login`} className="hidden sm:block text-sm text-white/50 hover:text-white transition-colors">{dict.nav.login}</Link>
+                        <Link href={`/${displayLang}/register`}>
                             <button className="flex items-center gap-1.5 bg-white text-black text-sm font-semibold px-4 py-2 rounded-full hover:bg-white/90 transition-colors">
                                 {dict.nav.getStarted} <ArrowUpRight className="h-3.5 w-3.5" />
                             </button>
@@ -358,7 +376,7 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                     </div>
                     <p className="hero-sub text-base sm:text-lg text-white/55 max-w-xl mx-auto leading-relaxed mb-10">{d.hero.description}</p>
                     <div className="hero-actions flex flex-col sm:flex-row items-center justify-center gap-3">
-                        <Link href={`/${lang}/register`}>
+                        <Link href={`/${displayLang}/register`}>
                             <button className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-bold px-7 py-3.5 rounded-full transition-colors shadow-lg shadow-emerald-500/25">
                                 {d.hero.ctaPrimary} <ArrowRight className="h-4 w-4" />
                             </button>
@@ -391,21 +409,43 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
             <div className="border-t border-white/[.06]" />
 
             {/* ══ PROBLEMS ════════════════════════════════════════════════════════ */}
-            <section className="reveal-section py-28 lg:py-36">
-                <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16">
-                    <div className="s-heading max-w-2xl mb-16">
-                        <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-4 block">El problema</span>
-                        <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.03em' }}>{d.problems.title}</h2>
-                        <p className="text-white/50 mt-4 text-base leading-relaxed">{d.problems.subtitle}</p>
+            <section className="reveal-section py-28 lg:py-36 relative overflow-hidden">
+                {/* Ghost title background */}
+                <div className="absolute inset-0 flex items-center justify-start pointer-events-none select-none overflow-hidden">
+                    <span className="text-[clamp(80px,14vw,200px)] font-black leading-none text-white/[.025] whitespace-nowrap pl-8"
+                        style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.06em' }}>PROBLEMA</span>
+                </div>
+                <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16 relative">
+                    <div className="s-heading mb-20">
+                        <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-5 block">El problema</span>
+                        <h2 className="text-4xl sm:text-6xl font-black leading-[.9] max-w-xl" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.04em' }}>
+                            {d.problems.title}
+                        </h2>
                     </div>
-                    <div className="grid md:grid-cols-3 gap-4">
+                    {/* Numbered editorial rows */}
+                    <div>
                         {problemList.map((p: any, i: number) => { const Icon = PROBLEM_ICONS[i]; return (
-                            <div key={i} className="s-item glass-card rounded-2xl border border-white/[.07] bg-white/[.02] p-7 cursor-default">
-                                <div className="w-10 h-10 rounded-xl border border-red-500/20 bg-red-500/8 flex items-center justify-center mb-6">
-                                    <Icon size={18} className="text-red-400" />
+                            <div key={i} className="s-item group flex gap-6 lg:gap-12 items-start py-9 border-t border-white/[.05] last:border-b cursor-default
+                                hover:bg-white/[.015] transition-colors duration-300 rounded-xl px-4 -mx-4">
+                                {/* Ghost number */}
+                                <span className="text-[56px] lg:text-[72px] font-black leading-none shrink-0 w-16 lg:w-20 text-right select-none"
+                                    style={{ fontFamily: 'Outfit, sans-serif', color: 'rgba(255,255,255,.06)' }}>
+                                    {String(i + 1).padStart(2, '0')}
+                                </span>
+                                {/* Content */}
+                                <div className="flex-1 pt-2">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-7 h-7 rounded-lg border border-red-500/25 bg-red-500/10 flex items-center justify-center shrink-0">
+                                            <Icon size={14} className="text-red-400" />
+                                        </div>
+                                        <h3 className="text-lg lg:text-xl font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{p.title}</h3>
+                                    </div>
+                                    <p className="text-white/45 text-sm lg:text-base leading-relaxed max-w-2xl">{p.description}</p>
                                 </div>
-                                <h3 className="text-base font-bold mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>{p.title}</h3>
-                                <p className="text-white/50 text-sm leading-relaxed">{p.description}</p>
+                                {/* Arrow indicator */}
+                                <div className="pt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shrink-0">
+                                    <ArrowUpRight size={18} className="text-white/20" />
+                                </div>
                             </div>
                         ); })}
                     </div>
@@ -418,18 +458,28 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
             <section id="features" className="reveal-section py-28 lg:py-36">
                 <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16">
                     <div className="s-heading max-w-2xl mb-16">
-                        <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-4 block">Plataforma</span>
-                        <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.03em' }}>{d.features.title}</h2>
-                        <p className="text-white/50 mt-4 text-base leading-relaxed">{d.features.subtitle}</p>
+                        <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 mb-5 block">Plataforma</span>
+                        <h2 className="text-4xl sm:text-6xl font-black leading-[.9] max-w-xl" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.04em' }}>{d.features.title}</h2>
+                        <p className="text-white/40 mt-5 text-base leading-relaxed max-w-lg">{d.features.subtitle}</p>
                     </div>
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {featureList.map((f: any, i: number) => { const Icon = FEATURE_ICONS[i]; return (
-                            <div key={i} className="s-item feat-card glass-card rounded-2xl border border-white/[.07] bg-white/[.02] p-7 cursor-default group">
-                                <div className="w-10 h-10 rounded-xl border border-white/[.08] bg-white/[.04] flex items-center justify-center mb-6">
-                                    <Icon size={18} className="feat-icon text-white/50 transition-colors" />
+                    {/* Bento grid */}
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                        {/* Large card — spans 2 cols on lg */}
+                        {featureList.map((f: any, i: number) => { const Icon = FEATURE_ICONS[i]; const isWide = i === 0; return (
+                            <div key={i} className={`s-item feat-card group relative rounded-2xl border border-white/[.07] bg-white/[.02] p-7 cursor-default overflow-hidden transition-all duration-300 hover:border-white/[.12] hover:bg-white/[.035]
+                                ${isWide ? 'lg:col-span-2' : ''}`}>
+                                {/* Ghost icon background */}
+                                <div className="absolute -right-4 -bottom-4 opacity-[.04] pointer-events-none">
+                                    <Icon size={120} className="text-white" />
                                 </div>
-                                <h3 className="text-base font-bold mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>{f.title}</h3>
-                                <p className="text-white/50 text-sm leading-relaxed">{f.description}</p>
+                                <div className="relative">
+                                    <div className="w-10 h-10 rounded-xl border border-emerald-500/20 bg-emerald-500/10 flex items-center justify-center mb-6
+                                        group-hover:border-emerald-500/40 group-hover:bg-emerald-500/15 transition-all duration-300">
+                                        <Icon size={18} className="text-emerald-400" />
+                                    </div>
+                                    <h3 className="text-base lg:text-lg font-bold mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>{f.title}</h3>
+                                    <p className="text-white/45 text-sm leading-relaxed">{f.description}</p>
+                                </div>
                             </div>
                         ); })}
                     </div>
@@ -637,9 +687,6 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                     ref={priceRailRef}
                     className="price-rail-scroll w-full"
                     onMouseDown={onPriceDragStart}
-                    onMouseMove={onPriceDragMove}
-                    onMouseUp={onPriceDragEnd}
-                    onMouseLeave={onPriceDragEnd}
                 >
                     <div className="flex gap-5 pt-2 pb-16 min-w-max" style={{ paddingLeft: 'max(10vw, calc(50vw - 420px))', paddingRight: 'max(10vw, calc(50vw - 420px))' }}>
                         {planItems.map((plan, idx) => (
@@ -752,7 +799,7 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                         <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-[.95] mb-8"
                             style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.045em' }}>{d.cta.title}</h2>
                         <p className="text-white/50 text-lg mb-10 leading-relaxed max-w-xl">{d.cta.subtitle}</p>
-                        <Link href={`/${lang}/register`}>
+                        <Link href={`/${displayLang}/register`}>
                             <button className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-8 py-4 rounded-full text-base transition-colors shadow-xl shadow-emerald-500/20">
                                 {d.cta.button} <ArrowRight className="h-4 w-4" />
                             </button>
@@ -795,29 +842,33 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
             </section>
 
             {/* ══ SWIPE LANGUAGE TOGGLE — sticky bottom ════════════════════════════ */}
-            {isUnlocking && <div className="lang-ripple" />}
+            {wavePhase !== 'idle' && (
+                <div className={`lang-wave ${wavePhase === 'in' ? 'wave-in' : 'wave-out'}`} />
+            )}
             <div className="lang-toggle">
                 <div className="lang-track">
-                    <div className="lang-track-bg" />
-                    {/* Hints */}
-                    <span className="lang-hint-left" style={{ opacity: swipeX > 20 ? 0 : 1 }}>
-                        {currentLocale === 'es' ? '🇺🇸 EN' : '🇪🇸 ES'}
+                    {/* Progress fill behind thumb */}
+                    <div className="lang-track-fill" style={{ width: `${4 + swipeX * 0.98}px` }} />
+                    {/* Left hint */}
+                    <span className="lang-hint lang-hint-left" style={{ opacity: swipeX > 40 ? 0 : Math.max(0, 1 - swipeX / 40) }}>
+                        {currentLocale === 'es' ? '🇺🇸' : '🇪🇸'}
                     </span>
-                    <span className="lang-hint-right" style={{ opacity: swipeX > 20 ? 0 : 1 }}>
-                        {currentLocale === 'es' ? 'Inglés' : 'Español'}
+                    {/* Right hint */}
+                    <span className="lang-hint lang-hint-right" style={{ opacity: swipeX < 160 ? 0 : (swipeX - 160) / 40 }}>
+                        ✓
                     </span>
                     {/* Thumb */}
                     <div
                         className={`lang-thumb${isSwiping ? ' dragging' : ''}`}
-                        style={{ transform: `translateX(${swipeX}px)` }}
+                        style={{ transform: `translateX(${swipeX}px)`, transition: isSwiping ? 'none' : 'transform .35s cubic-bezier(.34,1.56,.64,1), background .15s, box-shadow .15s' }}
                         onPointerDown={onSwipePointerDown}
                         onPointerMove={onSwipePointerMove}
                         onPointerUp={onSwipePointerUp}
                         onPointerLeave={onSwipePointerUp}
                     >
-                        <span className="text-lg leading-none">{currentLocale === 'es' ? '🇪🇸' : '🇺🇸'}</span>
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ color: 'rgba(16,185,129,.7)' }}>
-                            <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <span className="text-lg leading-none select-none">{currentLocale === 'es' ? '🇪🇸' : '🇺🇸'}</span>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ color: 'rgba(16,185,129,.8)', flexShrink: 0 }}>
+                            <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                     </div>
                 </div>
@@ -848,7 +899,6 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                     </div>
                     <div className="border-t border-white/[.06] pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
                         <p className="text-white/25 text-xs">&copy; 2026 {dict.footer.rights}</p>
-                        <LanguageSwitcher variant="dark" />
                     </div>
                 </div>
             </footer>
