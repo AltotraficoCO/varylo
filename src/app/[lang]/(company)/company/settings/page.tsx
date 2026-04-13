@@ -12,8 +12,6 @@ import { CreditBalanceCard } from "./credit-balance-card";
 import { BillingSection } from "./billing-section";
 import { ApiKeysSection } from "./api-keys-section";
 import { IntegrationsClient } from "../integrations/integrations-client";
-import { AnthropicKeyForm } from "./anthropic-form";
-import { GeminiKeyForm } from "./gemini-form";
 import { getActiveSubscription, getPaymentSources, getBillingHistory, getAvailablePlans } from "./billing-actions";
 import { getWompiConfig } from "@/lib/wompi-config";
 import { Role } from '@prisma/client';
@@ -239,6 +237,14 @@ export default async function SettingsPage(props: {
                                 hasApiKey: hasOpenAIKey,
                                 updatedAt: openaiKeyUpdatedAt,
                             }}
+                            anthropic={{
+                                hasApiKey: hasAnthropicKey,
+                                updatedAt: anthropicKeyUpdatedAt,
+                            }}
+                            gemini={{
+                                hasApiKey: hasGeminiKey,
+                                updatedAt: geminiKeyUpdatedAt,
+                            }}
                             googleCalendar={{
                                 isConnected: hasGoogleCalendar,
                                 email: googleCalendarEmail,
@@ -257,22 +263,12 @@ export default async function SettingsPage(props: {
                     )}
 
                     {activeTab === 'ai' && (
-                        <div className="space-y-6">
-                            <CreditBalanceCard
-                                balance={creditBalance}
-                                hasOwnKey={hasOpenAIKey}
-                                companyId={companyId}
-                                companyEmail={userEmail}
-                            />
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="text-base font-semibold">API Keys de proveedores IA</h3>
-                                    <p className="text-sm text-muted-foreground mt-0.5">Conecta tus propias keys para usar modelos de múltiples proveedores en tus agentes.</p>
-                                </div>
-                                <AnthropicKeyForm hasApiKey={hasAnthropicKey} updatedAt={anthropicKeyUpdatedAt} />
-                                <GeminiKeyForm hasApiKey={hasGeminiKey} updatedAt={geminiKeyUpdatedAt} />
-                            </div>
-                        </div>
+                        <CreditBalanceCard
+                            balance={creditBalance}
+                            hasOwnKey={hasOpenAIKey}
+                            companyId={companyId}
+                            companyEmail={userEmail}
+                        />
                     )}
 
                     {activeTab === 'billing' && (

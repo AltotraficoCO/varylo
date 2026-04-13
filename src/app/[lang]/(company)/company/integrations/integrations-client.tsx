@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 import { OpenAIKeyForm } from '../settings/openai-form';
+import { AnthropicKeyForm } from '../settings/anthropic-form';
+import { GeminiKeyForm } from '../settings/gemini-form';
 import { GoogleCalendarForm } from '../settings/google-calendar-form';
 import { EcommerceForm } from '../settings/ecommerce-form';
 import { disconnectEcommerceById, createWebhookIntegration, deleteWebhookIntegration, testWebhookIntegration } from './actions';
@@ -42,6 +44,14 @@ type IntegrationsClientProps = {
         hasApiKey: boolean;
         updatedAt: string | null;
     };
+    anthropic: {
+        hasApiKey: boolean;
+        updatedAt: string | null;
+    };
+    gemini: {
+        hasApiKey: boolean;
+        updatedAt: string | null;
+    };
     googleCalendar: {
         isConnected: boolean;
         email: string | null;
@@ -51,7 +61,7 @@ type IntegrationsClientProps = {
     n8nIntegrations: N8nIntegration[];
 };
 
-export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8nIntegrations }: IntegrationsClientProps) {
+export function IntegrationsClient({ openai, anthropic, gemini, googleCalendar, ecommerceStores, n8nIntegrations }: IntegrationsClientProps) {
     const [activeView, setActiveView] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const router = useRouter();
@@ -166,6 +176,28 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
                     <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
                 </Button>
                 <OpenAIKeyForm hasApiKey={openai.hasApiKey} updatedAt={openai.updatedAt} />
+            </div>
+        );
+    }
+
+    if (activeView === 'anthropic') {
+        return (
+            <div className="space-y-4">
+                <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
+                    <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
+                </Button>
+                <AnthropicKeyForm hasApiKey={anthropic.hasApiKey} updatedAt={anthropic.updatedAt} />
+            </div>
+        );
+    }
+
+    if (activeView === 'gemini') {
+        return (
+            <div className="space-y-4">
+                <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
+                    <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
+                </Button>
+                <GeminiKeyForm hasApiKey={gemini.hasApiKey} updatedAt={gemini.updatedAt} />
             </div>
         );
     }
@@ -369,6 +401,60 @@ export function IntegrationsClient({ openai, googleCalendar, ecommerceStores, n8
                     <Button variant="outline" size="sm" onClick={() => setActiveView('openai')} className="shrink-0">
                         <Settings2 className="h-3.5 w-3.5 mr-1.5" />
                         {openai.hasApiKey ? 'Gestionar' : 'Conectar'}
+                    </Button>
+                </div>
+
+                {/* Anthropic Claude */}
+                <div className="flex items-center gap-4 px-5 py-4">
+                    <div className="h-11 w-11 rounded-lg bg-[#FFF8F0] flex items-center justify-center shrink-0 overflow-hidden">
+                        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="#D97757">
+                            <path d="M17.304 3.541 12.836 16H10.16l4.469-12.459h2.675ZM13.421 16 8.953 3.541H6.277L10.745 16h2.676Z"/>
+                        </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[15px] font-medium text-[#09090B]">Anthropic Claude</span>
+                            {anthropic.hasApiKey && (
+                                <Badge variant="default" className="text-[11px] px-2 py-0">Conectado</Badge>
+                            )}
+                        </div>
+                        <p className="text-[13px] text-[#71717A] mt-0.5">
+                            Conecta tu API Key para usar modelos Claude en tus agentes IA.
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setActiveView('anthropic')} className="shrink-0">
+                        <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                        {anthropic.hasApiKey ? 'Gestionar' : 'Conectar'}
+                    </Button>
+                </div>
+
+                {/* Google Gemini */}
+                <div className="flex items-center gap-4 px-5 py-4">
+                    <div className="h-11 w-11 rounded-lg bg-[#F0F8FF] flex items-center justify-center shrink-0 overflow-hidden">
+                        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none">
+                            <path d="M12 24A14.304 14.304 0 0 0 0 12 14.304 14.304 0 0 0 12 0a14.304 14.304 0 0 0 12 12 14.304 14.304 0 0 0-12 12z" fill="url(#geminiGrad)"/>
+                            <defs>
+                                <linearGradient id="geminiGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                    <stop stopColor="#4285F4"/>
+                                    <stop offset="1" stopColor="#0F9D58"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[15px] font-medium text-[#09090B]">Google Gemini</span>
+                            {gemini.hasApiKey && (
+                                <Badge variant="default" className="text-[11px] px-2 py-0">Conectado</Badge>
+                            )}
+                        </div>
+                        <p className="text-[13px] text-[#71717A] mt-0.5">
+                            Conecta tu API Key de Google AI Studio para usar modelos Gemini.
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setActiveView('gemini')} className="shrink-0">
+                        <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                        {gemini.hasApiKey ? 'Gestionar' : 'Conectar'}
                     </Button>
                 </div>
 

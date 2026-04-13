@@ -16,6 +16,10 @@ export default async function IntegrationsPage() {
             select: {
                 openaiApiKey: true,
                 openaiApiKeyUpdatedAt: true,
+                anthropicApiKey: true,
+                anthropicApiKeyUpdatedAt: true,
+                geminiApiKey: true,
+                geminiApiKeyUpdatedAt: true,
                 googleCalendarRefreshToken: true,
                 googleCalendarEmail: true,
                 googleCalendarConnectedAt: true,
@@ -33,6 +37,14 @@ export default async function IntegrationsPage() {
             openai={{
                 hasApiKey: !!company?.openaiApiKey,
                 updatedAt: company?.openaiApiKeyUpdatedAt?.toISOString() || null,
+            }}
+            anthropic={{
+                hasApiKey: !!company?.anthropicApiKey,
+                updatedAt: company?.anthropicApiKeyUpdatedAt?.toISOString() || null,
+            }}
+            gemini={{
+                hasApiKey: !!company?.geminiApiKey,
+                updatedAt: company?.geminiApiKeyUpdatedAt?.toISOString() || null,
             }}
             googleCalendar={{
                 isConnected: !!company?.googleCalendarRefreshToken,
