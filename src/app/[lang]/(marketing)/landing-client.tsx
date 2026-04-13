@@ -166,25 +166,25 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
 
     useGSAP(() => {
         // ── HERO ──────────────────────────────────────────────────────────────
-        gsap.timeline({ delay: 0.1 })
-            .from('.hero-badge', { y: -20, opacity: 0, duration: 0.6, ease: 'power3.out' })
-            .from('.hero-word', { yPercent: 110, opacity: 0, duration: 1, ease: 'power4.out', stagger: 0.045 }, '-=0.2')
-            .from('.hero-sub', { y: 24, opacity: 0, duration: 0.7, ease: 'power3.out' }, '-=0.5')
-            .from('.hero-actions', { y: 24, opacity: 0, duration: 0.7, ease: 'power3.out' }, '-=0.5')
-            .from('.hero-proof', { opacity: 0, duration: 0.6, ease: 'power2.out' }, '-=0.3');
+        gsap.timeline({ delay: 0.05 })
+            .fromTo('.hero-eyebrow', { y: -16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out', clearProps: 'all' })
+            .fromTo('.hero-line-1', { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.85, ease: 'power4.out', clearProps: 'all' }, '-=0.1')
+            .fromTo('.hero-line-2', { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.85, ease: 'power4.out', clearProps: 'all' }, '-=0.65')
+            .fromTo('.hero-line-3', { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.85, ease: 'power4.out', clearProps: 'all' }, '-=0.65')
+            .fromTo('.hero-sub',    { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out', clearProps: 'all' }, '-=0.4')
+            .fromTo('.hero-actions',{ y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out', clearProps: 'all' }, '-=0.45')
+            .fromTo('.hero-visual', { x: 50, opacity: 0 }, { x: 0, opacity: 1, duration: 1, ease: 'power3.out', clearProps: 'all' }, '-=0.9')
+            .fromTo('.hero-proof',  { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power2.out', clearProps: 'all' }, '-=0.3');
 
-        gsap.to('.orb-a', { x: 50, y: -35, duration: 6, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-        gsap.to('.orb-b', { x: -40, y: 50, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2 });
-
-        // Hero title explodes apart — only when scrolling off screen
+        // Hero type lines diverge on scroll — only when near top of viewport
         gsap.to('.hero-title-wrap', {
-            letterSpacing: '1.2em',
             opacity: 0,
+            y: -60,
             ease: 'none',
             scrollTrigger: {
                 trigger: '.hero-title-wrap',
-                start: 'top 8%',    // only starts when title is almost at navbar
-                end: 'top -50%',    // finishes when fully off screen
+                start: 'top 5%',
+                end: 'top -60%',
                 scrub: 1,
             },
         });
@@ -295,6 +295,13 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                 .glass-card { transition: border-color .25s ease, background .25s ease; }
                 .glass-card:hover { border-color: rgba(255,255,255,.14) !important; background: rgba(255,255,255,.035) !important; }
                 .feat-card:hover .feat-icon { color: #10b981; }
+                /* Hero channel convergence */
+                .ch-card { transition: transform .4s cubic-bezier(.34,1.56,.64,1), border-color .3s; }
+                .ch-card:hover { transform: translateX(-6px) !important; }
+                @keyframes dot-travel { 0%{left:0;opacity:0} 15%{opacity:1} 85%{opacity:1} 100%{left:calc(100% - 6px);opacity:0} }
+                .dot-travel { position:absolute; top:50%; transform:translateY(-50%); width:6px; height:6px; border-radius:50%; animation:dot-travel 2.2s ease-in-out infinite; }
+                @keyframes hero-line-in { from{opacity:0;transform:translateY(60px)} to{opacity:1;transform:translateY(0)} }
+                .hero-line { animation: hero-line-in .9s cubic-bezier(.22,1,.36,1) both; }
                 /* How it works */
                 .how-track { display:flex; height:100%; will-change:transform; }
                 .how-panel { flex:0 0 100vw; width:100vw; display:flex; align-items:center; justify-content:center; }
@@ -361,56 +368,141 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
             </nav>
 
             {/* ══ HERO ════════════════════════════════════════════════════════════ */}
-            <section className="relative min-h-screen flex flex-col overflow-hidden">
-                <div className="orb-a absolute top-0 right-[5%] w-[650px] h-[650px] rounded-full bg-emerald-500/10 blur-[160px] pointer-events-none -translate-y-1/4" />
-                <div className="orb-b absolute bottom-0 left-[-5%] w-[500px] h-[500px] rounded-full bg-emerald-700/8 blur-[130px] pointer-events-none translate-y-1/4" />
-                <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)', backgroundSize: '80px 80px' }} />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,transparent_40%,black_100%)] pointer-events-none" />
-                <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black to-transparent pointer-events-none" />
-                <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center pt-28 pb-8">
-                    <div className="hero-badge inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] backdrop-blur-sm px-4 py-2 text-xs text-white/70 font-medium mb-10 tracking-wide">
-                        <Zap className="h-3 w-3 text-emerald-400" />{d.hero.badge}
-                    </div>
-                    <div className="hero-title-wrap max-w-5xl mx-auto mb-8 leading-[1.0]" style={{ letterSpacing: '-0.045em' }}>
-                        <h1 style={{ fontFamily: 'Outfit, sans-serif' }}>
-                            {d.hero.title.split(' ').map((word: string, i: number) => (
-                                <span key={i} className="word-clip">
-                                    <span className="hero-word inline-block text-5xl sm:text-6xl lg:text-8xl font-black">
-                                        {word}{i < d.hero.title.split(' ').length - 1 ? '\u00A0' : ''}
-                                    </span>
-                                </span>
-                            ))}
-                        </h1>
-                    </div>
-                    <p className="hero-sub text-base sm:text-lg text-white/55 max-w-xl mx-auto leading-relaxed mb-10">{d.hero.description}</p>
-                    <div className="hero-actions flex flex-col sm:flex-row items-center justify-center gap-3">
-                        <Link href={`/${displayLang}/register`}>
-                            <button className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-bold px-7 py-3.5 rounded-full transition-colors shadow-lg shadow-emerald-500/25">
-                                {d.hero.ctaPrimary} <ArrowRight className="h-4 w-4" />
-                            </button>
-                        </Link>
-                        <Link href="#features">
-                            <button className="flex items-center gap-2 text-sm font-medium text-white/60 hover:text-white border border-white/10 hover:border-white/25 px-7 py-3.5 rounded-full transition-all">
-                                {d.hero.ctaSecondary}
-                            </button>
-                        </Link>
-                    </div>
-                </div>
-                <div className="hero-proof relative z-10 pb-14 px-6 flex flex-col items-center gap-5">
-                    <p className="text-[11px] uppercase tracking-[.2em] text-white/25 font-medium">{d.hero.socialProof}</p>
-                    {logos.length > 0 ? (
-                        <div className="flex items-center gap-8 flex-wrap justify-center">
-                            {logos.map((l) => <img key={l.id} src={l.imageUrl} alt={l.name} className="h-7 max-w-[110px] object-contain grayscale opacity-30 hover:opacity-60 hover:grayscale-0 transition-all duration-300" />)}
+            <section className="relative min-h-screen flex flex-col bg-black overflow-hidden">
+                {/* Subtle noise texture only */}
+                <div className="absolute inset-0 pointer-events-none opacity-[.018]"
+                    style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundSize: '200px 200px' }} />
+
+                {/* ── Main grid ─────────────────────────────────────────────────── */}
+                <div className="flex-1 max-w-[1280px] mx-auto w-full px-6 md:px-10 lg:px-16 pt-28 pb-10 flex flex-col justify-center">
+                    <div className="grid lg:grid-cols-[1fr_420px] gap-12 xl:gap-20 items-center">
+
+                        {/* Left — editorial type stack ────────────────────────── */}
+                        <div>
+                            {/* Eyebrow: channels + label */}
+                            <div className="hero-eyebrow flex items-center gap-3 mb-10">
+                                <div className="flex items-center gap-1">
+                                    {[['#25D366','💬'],['#E1306C','📸'],['#0084FF','🌐']].map(([c, emoji], i) => (
+                                        <span key={i} className="w-7 h-7 rounded-lg flex items-center justify-center text-[13px] border"
+                                            style={{ background: `${c}18`, borderColor: `${c}35` }}>{emoji}</span>
+                                    ))}
+                                </div>
+                                <span className="text-[11px] font-semibold uppercase tracking-[.18em] text-white/35">{d.hero.badge}</span>
+                            </div>
+
+                            {/* Display type — 3 lines, different treatments */}
+                            <div className="hero-title-wrap overflow-hidden" style={{ letterSpacing: '-.045em' }}>
+                                {/* Line 1: ghost / outline feel */}
+                                <div className="hero-line-1 overflow-hidden">
+                                    <h1 className="font-black uppercase leading-[.88]"
+                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(3.5rem,8vw,7.5rem)', color: 'rgba(255,255,255,.14)', WebkitTextStroke: '1px rgba(255,255,255,.18)' }}>
+                                        {displayLang === 'es' ? 'UNIFICA' : 'CONNECT'}
+                                    </h1>
+                                </div>
+                                {/* Line 2: solid white, largest */}
+                                <div className="hero-line-2 overflow-hidden -mt-2">
+                                    <h1 className="text-white font-black uppercase leading-[.88]"
+                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(5rem,12vw,11.5rem)' }}>
+                                        {displayLang === 'es' ? 'TODOS' : 'ALL YOUR'}
+                                    </h1>
+                                </div>
+                                {/* Line 3: emerald, same scale */}
+                                <div className="hero-line-3 overflow-hidden -mt-2">
+                                    <h1 className="font-black uppercase leading-[.88]"
+                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(5rem,12vw,11.5rem)', color: '#10b981' }}>
+                                        {displayLang === 'es' ? 'CANALES' : 'CHANNELS'}
+                                    </h1>
+                                </div>
+                            </div>
+
+                            {/* Sub + CTA */}
+                            <div className="mt-10 flex flex-col sm:flex-row sm:items-end gap-8">
+                                <div className="max-w-sm">
+                                    <p className="hero-sub text-white/50 text-base leading-relaxed mb-7">{d.hero.description}</p>
+                                    <div className="hero-actions flex items-center gap-3 flex-wrap">
+                                        <Link href={`/${displayLang}/register`}>
+                                            <button className="group flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-black px-6 py-3 rounded-xl transition-all hover:scale-[1.03] shadow-lg shadow-emerald-500/20">
+                                                {d.hero.ctaPrimary}
+                                                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                                            </button>
+                                        </Link>
+                                        <Link href="#features">
+                                            <button className="text-sm text-white/40 hover:text-white transition-colors underline underline-offset-4 decoration-white/15 hover:decoration-white/40">
+                                                {d.hero.ctaSecondary}
+                                            </button>
+                                        </Link>
+                                    </div>
+                                </div>
+                                {/* Vertical stat */}
+                                <div className="hidden sm:flex flex-col items-start gap-1 pb-1 border-l border-white/[.07] pl-8 ml-2">
+                                    <span className="text-3xl font-black text-white" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.04em' }}>1,200+</span>
+                                    <span className="text-[11px] text-white/35 uppercase tracking-widest leading-tight">{d.hero.socialProof}</span>
+                                </div>
+                            </div>
                         </div>
-                    ) : (
-                        <div className="overflow-hidden w-full max-w-2xl">
-                            <div className="mq-left gap-0">
-                                {['NovaTech','RapidGo','GlowUp','DataFlow','Nexus','Orbix','NovaTech','RapidGo','GlowUp','DataFlow','Nexus','Orbix'].map((n,i) => (
-                                    <span key={i} className="text-sm font-bold text-white/20 tracking-tight mx-8 shrink-0" style={{ fontFamily: 'Outfit, sans-serif' }}>{n}</span>
+
+                        {/* Right — channel convergence visual ─────────────────── */}
+                        <div className="hero-visual hidden lg:flex flex-col gap-4 relative select-none">
+                            {/* Source channel cards */}
+                            {[
+                                { label: 'WhatsApp', color: '#25D366', bg: '#25D36612', msg: '¿Cuál es el horario?', time: '10:41' },
+                                { label: 'Instagram', color: '#E1306C', bg: '#E1306C12', msg: 'Vi tu producto 👀', time: '10:39' },
+                                { label: 'WebChat',   color: '#0084FF', bg: '#0084FF12', msg: 'Quiero una cotización', time: '10:37' },
+                            ].map((ch, i) => (
+                                <div key={ch.label} className="ch-card flex items-center gap-3 rounded-2xl border px-4 py-3"
+                                    style={{ background: ch.bg, borderColor: `${ch.color}25` }}>
+                                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base"
+                                        style={{ background: `${ch.color}22`, border: `1px solid ${ch.color}35` }}>
+                                        {i === 0 ? '💬' : i === 1 ? '📸' : '🌐'}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] font-bold text-white/50 uppercase tracking-wider mb-0.5">{ch.label}</p>
+                                        <p className="text-sm text-white/80 truncate">{ch.msg}</p>
+                                    </div>
+                                    <span className="text-[10px] text-white/25 shrink-0">{ch.time}</span>
+                                    {/* Animated connecting line */}
+                                    <div className="relative w-12 h-px ml-1 shrink-0" style={{ background: `linear-gradient(to right, ${ch.color}30, ${ch.color}70)` }}>
+                                        <div className="dot-travel rounded-full" style={{ background: ch.color, animationDelay: `${i * 0.7}s` }} />
+                                    </div>
+                                </div>
+                            ))}
+                            {/* Unified inbox card */}
+                            <div className="mt-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/[.06] p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Inbox Unificado</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span className="text-[10px] text-emerald-400/70">En vivo</span>
+                                    </div>
+                                </div>
+                                {/* Mini conversation list */}
+                                {['Carla M.','Santiago R.','Valentina P.'].map((name, i) => (
+                                    <div key={name} className={`flex items-center gap-2 py-1.5 ${i < 2 ? 'border-b border-white/[.05]' : ''}`}>
+                                        <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-bold text-white/50 shrink-0">
+                                            {name[0]}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-white/65 font-medium truncate">{name}</p>
+                                        </div>
+                                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${i === 0 ? 'bg-emerald-400' : 'bg-white/20'}`} />
+                                    </div>
                                 ))}
                             </div>
                         </div>
-                    )}
+                    </div>
+                </div>
+
+                {/* Bottom: proof bar */}
+                <div className="hero-proof border-t border-white/[.05] py-5">
+                    <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16 flex items-center gap-8 flex-wrap">
+                        <p className="text-[10px] uppercase tracking-[.2em] text-white/20 font-medium shrink-0">{d.hero.socialProof}</p>
+                        {logos.length > 0
+                            ? logos.map((l) => <img key={l.id} src={l.imageUrl} alt={l.name} className="h-6 max-w-[90px] object-contain grayscale opacity-25 hover:opacity-50 transition-opacity" />)
+                            : ['NovaTech','RapidGo','GlowUp','DataFlow','Nexus','Orbix'].map((n) => (
+                                <span key={n} className="text-xs font-bold text-white/15 tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>{n}</span>
+                            ))
+                        }
+                    </div>
                 </div>
             </section>
 
