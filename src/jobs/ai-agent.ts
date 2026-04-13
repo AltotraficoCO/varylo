@@ -70,17 +70,17 @@ const FILE_ANALYSIS_TOOLS: ChatCompletionTool[] = [
         type: 'function',
         function: {
             name: 'analyze_file',
-            description: 'Analiza el contenido de una imagen enviada por el cliente usando visión por computadora (OCR). Extrae texto, datos clave o describe el contenido visual. Úsala cuando necesites leer el contenido de una imagen, factura, cédula, formulario, recibo, foto de producto, o cualquier documento visual.',
+            description: 'Lee y transcribe el contenido de una imagen enviada por el cliente usando visión por computadora (OCR). Úsala para leer documentos, facturas, formularios, fotos de productos u otras imágenes con texto.',
             parameters: {
                 type: 'object',
                 properties: {
                     field_name: {
                         type: 'string',
-                        description: 'Nombre del campo donde guardar el resultado del análisis en snake_case. Ej: datos_cedula, texto_factura, contenido_formulario, descripcion_foto',
+                        description: 'Nombre del campo donde guardar el resultado en snake_case. Ej: datos_documento, texto_factura, contenido_formulario, descripcion_foto',
                     },
                     instruction: {
                         type: 'string',
-                        description: 'Instrucción específica de qué extraer o analizar. Ej: "Extrae el número de cédula y nombre completo", "Lee el monto total y número de factura", "Describe qué aparece en la imagen"',
+                        description: 'Instrucción de qué transcribir. Usa siempre lenguaje de transcripción. Ej: "Transcribe todo el texto visible campo por campo", "Lee y transcribe todos los valores de la factura", "Describe el contenido visible en la imagen"',
                     },
                 },
                 required: ['field_name', 'instruction'],
@@ -853,7 +853,7 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
             prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
         }
         prompt += '\n\nTambién tienes la herramienta save_document para guardar archivos adjuntos que envíe el cliente (hojas de vida, documentos, fotos, etc.). Cuando el cliente envíe un archivo, usa save_document con un nombre descriptivo.';
-        prompt += '\n\nTienes la herramienta analyze_file para leer el contenido de imágenes usando visión por computadora (OCR). Cuando el cliente envíe una imagen de una cédula, factura, recibo, formulario, foto de producto u otro documento visual, usa analyze_file con una instrucción específica de qué extraer. IMPORTANTE: cuando analyze_file devuelva success:true, comparte los datos extraídos TEXTUALMENTE con el usuario, sin parafrasear ni resumir. Si el resultado indica que no se pudo leer la imagen, pide al usuario una foto más nítida. Para archivos PDF u otros documentos no visuales, usa save_document en su lugar.';
+        prompt += '\n\nTienes la herramienta analyze_file para leer y transcribir el contenido de imágenes (OCR). Cuando el cliente envíe una imagen, usa analyze_file con una instrucción de TRANSCRIPCIÓN (no de "extracción"). Ejemplos de instrucciones correctas: "Transcribe todo el texto visible campo por campo", "Lee y transcribe todos los datos del documento". IMPORTANTE: cuando analyze_file devuelva success:true, comparte los datos transcritos TEXTUALMENTE con el usuario, sin parafrasear ni resumir. Si la herramienta falla, pide al usuario una foto más nítida. Para archivos PDF u otros documentos no visuales, usa save_document en su lugar.';
 
         if (opts.webhookEnabled) {
             prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. IMPORTANTE: Debes llamar send_to_webhook SIEMPRE al concluir la recopilación de datos del cliente. Cuando hayas terminado de capturar toda la información necesaria (datos personales, documentos, etc.), usa send_to_webhook para enviar todo. No olvides confirmar al cliente que sus datos fueron enviados exitosamente.';

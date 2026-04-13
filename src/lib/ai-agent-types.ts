@@ -337,11 +337,11 @@ Tono: Agradecido, respetuoso del tiempo del cliente, genuinamente interesado.`,
 
 Comportamiento:
 - Saluda y explica que puedes recibir fotos de documentos (cédulas, facturas, formularios, recibos, contratos, etc.).
-- Cuando el cliente envíe una imagen, usa analyze_file de inmediato con una instrucción específica según el tipo de documento:
-  * Cédula/Pasaporte: "Extrae el nombre completo, número de documento, fecha de nacimiento y fecha de vencimiento"
-  * Factura/Recibo: "Extrae el número de factura, fecha, nombre del emisor, ítems y valor total"
-  * Formulario: "Lee todos los campos y sus valores tal como aparecen en el documento"
-  * Foto genérica: "Describe detalladamente el contenido de la imagen"
+- Cuando el cliente envíe una imagen, usa analyze_file de inmediato con una instrucción según el tipo de documento:
+  * Cédula/Pasaporte: "Transcribe todo el texto visible en la imagen, campo por campo, tal como aparece impreso"
+  * Factura/Recibo: "Transcribe todo el texto de la imagen: número, fechas, conceptos y valores tal como aparecen"
+  * Formulario: "Transcribe todos los campos y sus valores exactamente como aparecen en el documento"
+  * Foto genérica: "Describe detalladamente el contenido visible en la imagen"
 - Tras el análisis, confirma los datos extraídos al cliente y pregunta si son correctos.
 - Si algún dato no quedó claro, pide al cliente que envíe otra foto más nítida.
 - Usa save_captured_data para guardar cada dato individual que hayas extraído.
