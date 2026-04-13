@@ -592,7 +592,12 @@ async function handleAnalyzeFile(
         // can access it regardless of Supabase bucket visibility settings.
         let imageDataUrl: string;
         try {
-            const imgRes = await fetch(lastMediaMessage.mediaUrl);
+            // Add Supabase auth header for Supabase Storage URLs (bucket may not be public)
+            const fetchHeaders: Record<string, string> = {};
+            if (lastMediaMessage.mediaUrl.includes('supabase') && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+                fetchHeaders['Authorization'] = `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
+            }
+            const imgRes = await fetch(lastMediaMessage.mediaUrl, { headers: fetchHeaders });
             if (!imgRes.ok) {
                 console.error(`[AI Agent] Image download failed: HTTP ${imgRes.status} - ${lastMediaMessage.mediaUrl}`);
                 return JSON.stringify({
