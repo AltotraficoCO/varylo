@@ -1,6 +1,6 @@
 export const AI_AGENT_TYPES = [
     'CRM_SALES', 'SALES', 'RECRUITER', 'CUSTOMER_SERVICE', 'APPOINTMENT', 'ECOMMERCE',
-    'LEAD_CAPTURE', 'RECEPTIONIST', 'TECH_SUPPORT', 'ONBOARDING', 'SURVEY', 'CUSTOM',
+    'LEAD_CAPTURE', 'RECEPTIONIST', 'TECH_SUPPORT', 'ONBOARDING', 'SURVEY', 'DOCUMENT_PROCESSOR', 'CUSTOM',
 ] as const;
 export type AiAgentType = (typeof AI_AGENT_TYPES)[number];
 
@@ -229,7 +229,8 @@ Comportamiento:
 - Saluda al candidato y pregunta a qué cargo está aplicando.
 - Recopila datos esenciales: nombre completo, email, teléfono, ciudad.
 - Pregunta por su experiencia laboral relevante y expectativa salarial.
-- Solicita que envíe su hoja de vida (CV) como documento adjunto.
+- Solicita que envíe su hoja de vida (CV) como documento adjunto y guárdala con save_document.
+- Si el candidato envía una foto de su cédula u otro documento de identidad, usa analyze_file para extraer el nombre completo y número de documento.
 - Si hay disponibilidad de agenda, ofrece agendar una entrevista.
 - Confirma toda la información recopilada antes de finalizar.
 - Si el candidato tiene preguntas sobre la empresa o el proceso, responde con la información de contexto disponible.
@@ -317,6 +318,36 @@ Comportamiento:
 - Recopila: nombre, puntuación general, áreas de mejora, comentarios.
 
 Tono: Agradecido, respetuoso del tiempo del cliente, genuinamente interesado.`,
+        suggestedCapabilities: {
+            dataCaptureEnabled: true,
+            calendarEnabled: false,
+            ecommerceEnabled: false,
+            crmEnabled: false,
+            webhookEnabled: true,
+        },
+    },
+    DOCUMENT_PROCESSOR: {
+        label: 'Procesador de Documentos',
+        description: 'Recibe imágenes y documentos, extrae datos automáticamente con OCR y los envía al sistema.',
+        icon: '🔍',
+        color: '#0EA5E9',
+        bgColor: '#F0F9FF',
+        category: 'Productividad',
+        defaultPrompt: `Eres un agente especializado en recibir y procesar documentos e imágenes enviadas por los clientes. Tu objetivo es extraer automáticamente la información relevante de cada documento usando visión por computadora.
+
+Comportamiento:
+- Saluda y explica que puedes recibir fotos de documentos (cédulas, facturas, formularios, recibos, contratos, etc.).
+- Cuando el cliente envíe una imagen, usa analyze_file de inmediato con una instrucción específica según el tipo de documento:
+  * Cédula/Pasaporte: "Extrae el nombre completo, número de documento, fecha de nacimiento y fecha de vencimiento"
+  * Factura/Recibo: "Extrae el número de factura, fecha, nombre del emisor, ítems y valor total"
+  * Formulario: "Lee todos los campos y sus valores tal como aparecen en el documento"
+  * Foto genérica: "Describe detalladamente el contenido de la imagen"
+- Tras el análisis, confirma los datos extraídos al cliente y pregunta si son correctos.
+- Si algún dato no quedó claro, pide al cliente que envíe otra foto más nítida.
+- Usa save_captured_data para guardar cada dato individual que hayas extraído.
+- Cuando termines de procesar todos los documentos, usa send_to_webhook si está configurado.
+
+Tono: Eficiente, preciso y claro. Informa siempre qué datos lograste extraer.`,
         suggestedCapabilities: {
             dataCaptureEnabled: true,
             calendarEnabled: false,
