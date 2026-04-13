@@ -621,8 +621,12 @@ async function handleAnalyzeFile(
                     if (signRes.ok) {
                         const { signedURL } = await signRes.json() as { signedURL?: string };
                         if (signedURL) {
-                            accessUrl = `${SUPABASE_URL}${signedURL}`;
-                            console.log(`[analyze_file] Using signed URL`);
+                            // Supabase may return /object/sign/... (missing /storage/v1 prefix)
+                            const normalizedPath = signedURL.startsWith('/storage/v1')
+                                ? signedURL
+                                : `/storage/v1${signedURL}`;
+                            accessUrl = `${SUPABASE_URL}${normalizedPath}`;
+                            console.log(`[analyze_file] Using signed URL: ${accessUrl.split('?')[0]}`);
                         }
                     } else {
                         const errBody = await signRes.text().catch(() => '');
