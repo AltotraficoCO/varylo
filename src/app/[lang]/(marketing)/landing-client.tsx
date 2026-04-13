@@ -111,11 +111,33 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
             });
         }
 
-        // ─── PRICING ─────────────────────────────────────────────────────────
-        gsap.from('.price-card', {
-            y: 60, opacity: 0, scale: 0.96, duration: 0.8, ease: 'power3.out', stagger: 0.14,
-            scrollTrigger: { trigger: '.price-grid', start: 'top 80%', once: true },
-        });
+        // ─── PRICING TICKETS ─────────────────────────────────────────────────
+        const ticketEls = gsap.utils.toArray<HTMLElement>('.ticket-wrapper');
+        if (ticketEls.length > 0) {
+            // Set alternating initial rotations
+            ticketEls.forEach((el, i) => {
+                gsap.set(el, { rotation: i % 2 === 0 ? -5 : 5, transformOrigin: 'top center' });
+            });
+            // Drop in from above like being hung on a rail
+            gsap.from(ticketEls, {
+                y: -160, opacity: 0, duration: 1.5, ease: 'power4.out', stagger: 0.13,
+                scrollTrigger: { trigger: '.price-section', start: 'top 75%', once: true },
+            });
+            // Continuous tilt as section scrolls through viewport
+            ticketEls.forEach((el, i) => {
+                gsap.to(el, {
+                    rotation: i % 2 === 0 ? 5 : -5,
+                    ease: 'none',
+                    transformOrigin: 'top center',
+                    scrollTrigger: {
+                        trigger: '.price-section',
+                        start: 'top bottom',
+                        end: 'bottom top',
+                        scrub: 2.5,
+                    },
+                });
+            });
+        }
 
         // ─── FAQ ─────────────────────────────────────────────────────────────
         gsap.from('.faq-row', {
@@ -167,8 +189,11 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                 /* FAQ */
                 .faq-body { transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease, padding 0.28s ease; }
                 /* Price card hover */
-                .price-card { transition: transform 0.3s ease; }
-                .price-card:hover { transform: translateY(-5px); }
+                /* Tickets */
+                .ticket-wrapper { cursor: default; }
+                .ticket-wrapper:hover { filter: drop-shadow(0 24px 48px rgba(16,185,129,0.12)); }
+                .ticket-clip { position: relative; z-index: 20; }
+                .ticket-body { overflow: hidden; }
             `}</style>
 
             {/* ═══════════ NAVBAR ═══════════════════════════════════════════════ */}
@@ -344,7 +369,7 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
             <div className="border-t border-white/[0.06]" />
 
             {/* ═══════════ HOW IT WORKS — PINNED ═══════════════════════════════ */}
-            <section className="how-section h-screen relative overflow-hidden bg-black">
+            <section className="how-section h-screen relative bg-black">
                 {/* Top progress bar */}
                 <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/[0.06] z-20">
                     <div className="how-bar h-full bg-emerald-500 w-0" style={{ transition: 'none' }} />
@@ -363,8 +388,9 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                     </div>
                 </div>
 
-                {/* Horizontal track */}
-                <div className="how-track absolute inset-0">
+                {/* Horizontal track — overflow-hidden HERE (not on section) so pin spacer works */}
+                <div className="absolute inset-0 overflow-hidden">
+                <div className="how-track h-full">
                     {steps.map((step: any, i: number) => (
                         <div key={i} className="how-panel px-6">
                             <div className="max-w-2xl mx-auto text-center">
@@ -383,6 +409,7 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                         </div>
                     ))}
                 </div>
+                </div>{/* /overflow-hidden wrapper */}
 
                 {/* Bottom hint */}
                 <div className="absolute bottom-8 left-0 right-0 text-center z-20 pointer-events-none">
@@ -425,64 +452,94 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
 
             <div className="border-t border-white/[0.06]" />
 
-            {/* ═══════════ PRICING ══════════════════════════════════════════════ */}
-            <section id="pricing" className="py-28 lg:py-36">
+            {/* ═══════════ PRICING — TICKETS ════════════════════════════════ */}
+            <section id="pricing" className="price-section py-28 lg:py-36 overflow-hidden">
                 <div className="container mx-auto px-6 md:px-10 lg:px-16">
-                    <div className="max-w-xl mb-16">
+                    <div className="max-w-xl mb-20">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-4 block">Precios</span>
                         <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.pricing.title}</h2>
                         <p className="text-white/50 mt-4 text-base">{d.pricing.subtitle}</p>
                     </div>
-                    <div className={`price-grid grid gap-4 max-w-5xl ${plans.length === 1 ? 'md:grid-cols-1 max-w-md' : plans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3'}`}>
-                        {(plans.length > 0 ? plans.map((plan) => ({
-                            key: plan.id,
-                            title: plan.name,
-                            price: `$${plan.price}`,
-                            desc: plan.description,
-                            features: plan.features,
-                            featured: plan.isFeatured,
-                            href: plan.ctaLink || `/${lang}/register?plan=${plan.slug}`,
-                            cta: plan.ctaText,
-                        })) : [
-                            { key: 'starter', title: d.pricing.starter.title, price: '$29', desc: d.pricing.starter.description, features: d.pricing.starter.features, featured: false, href: `/${lang}/register?plan=STARTER`, cta: d.pricing.cta },
-                            { key: 'pro', title: d.pricing.pro.title, price: '$79', desc: d.pricing.pro.description, features: d.pricing.pro.features, featured: true, href: `/${lang}/register?plan=PRO`, cta: d.pricing.cta },
-                            { key: 'scale', title: d.pricing.scale.title, price: '$199', desc: d.pricing.scale.description, features: d.pricing.scale.features, featured: false, href: '#contact', cta: d.pricing.ctaCustom },
-                        ]).map((plan) => (
-                            <div key={plan.key} className={`price-card rounded-2xl p-7 relative ${plan.featured
-                                ? 'border border-emerald-500/40 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(16,185,129,0.06),transparent)] shadow-[0_0_60px_rgba(16,185,129,0.07)]'
-                                : 'border border-white/[0.07] bg-white/[0.02]'}`}>
-                                {plan.featured && (
-                                    <div className="absolute -top-[1px] left-1/2 -translate-x-1/2">
-                                        <span className="inline-block bg-emerald-500 text-black text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-b-lg">Popular</span>
+
+                    {/* Rail + tickets */}
+                    <div className="relative max-w-5xl mx-auto">
+                        {/* Rail bar — clips hang from here */}
+                        <div className="hidden md:block absolute left-0 right-0 top-[15px] h-[7px] bg-[#111] border border-white/[0.08] rounded-full z-10 shadow-[0_2px_12px_rgba(0,0,0,0.8)]" />
+
+                        <div className="price-grid flex flex-col md:flex-row gap-6 md:gap-5 items-start justify-center">
+                            {(plans.length > 0 ? plans.map((plan) => ({
+                                key: plan.id,
+                                title: plan.name,
+                                price: `$${plan.price}`,
+                                desc: plan.description,
+                                features: plan.features,
+                                featured: plan.isFeatured,
+                                href: plan.ctaLink || `/${lang}/register?plan=${plan.slug}`,
+                                cta: plan.ctaText,
+                            })) : [
+                                { key: 'starter', title: d.pricing.starter.title, price: '$29', desc: d.pricing.starter.description, features: d.pricing.starter.features, featured: false, href: `/${lang}/register?plan=STARTER`, cta: d.pricing.cta },
+                                { key: 'pro', title: d.pricing.pro.title, price: '$79', desc: d.pricing.pro.description, features: d.pricing.pro.features, featured: true, href: `/${lang}/register?plan=PRO`, cta: d.pricing.cta },
+                                { key: 'scale', title: d.pricing.scale.title, price: '$199', desc: d.pricing.scale.description, features: d.pricing.scale.features, featured: false, href: '#contact', cta: d.pricing.ctaCustom },
+                            ]).map((plan, idx) => (
+                                <div key={plan.key} className="ticket-wrapper w-full md:flex-1" style={{ transformOrigin: 'top center' }}>
+
+                                    {/* Clip — sits on the rail */}
+                                    <div className="ticket-clip mx-auto w-9 h-9 bg-[#111] border border-white/[0.1] rounded-b-xl flex items-center justify-center shadow-md">
+                                        <div className="w-3 h-3 rounded-full border-[1.5px] border-white/25 bg-transparent" />
                                     </div>
-                                )}
-                                <h3 className="text-base font-bold text-white mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>{plan.title}</h3>
-                                <div className="flex items-baseline gap-1 mt-4 mb-2">
-                                    <span className={`text-5xl font-black ${plan.featured ? 'text-emerald-400' : 'text-white'}`}
-                                        style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.04em' }}>{plan.price}</span>
-                                    <span className="text-white/30 text-sm">/mes</span>
+
+                                    {/* Ticket body */}
+                                    <div className={`ticket-body rounded-b-2xl border border-t-0 ${plan.featured ? 'border-emerald-500/30' : 'border-white/[0.08]'}`}>
+
+                                        {/* ── TOP: plan name + price ────── */}
+                                        <div className={`px-6 pt-8 pb-7 ${plan.featured ? 'bg-emerald-500' : 'bg-[#111]'}`}>
+                                            <p className={`text-[10px] font-semibold uppercase tracking-[0.25em] mb-4 ${plan.featured ? 'text-black/50' : 'text-white/30'}`}>
+                                                Plan
+                                            </p>
+                                            <h3 className={`font-black uppercase leading-none mb-6 ${plan.featured ? 'text-black' : 'text-white'}`}
+                                                style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em', fontSize: 'clamp(2.5rem, 5vw, 4rem)' }}>
+                                                {plan.title}
+                                            </h3>
+                                            <div className={`flex items-baseline gap-1.5 ${plan.featured ? 'text-black' : 'text-white'}`}>
+                                                <span className="font-black" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.04em', fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
+                                                    {plan.price}
+                                                </span>
+                                                <span className={`text-sm ${plan.featured ? 'text-black/45' : 'text-white/35'}`}>/mes</span>
+                                            </div>
+                                        </div>
+
+                                        {/* ── PERFORATED TEAR LINE ─────── */}
+                                        <div className={`border-t-2 border-dashed ${plan.featured ? 'border-black/[0.12]' : 'border-white/[0.06]'}`} />
+
+                                        {/* ── BOTTOM: features + CTA ───── */}
+                                        <div className={`px-6 pt-6 pb-8 ${plan.featured ? 'bg-[#059669]' : 'bg-[#0a0a0a]'}`}>
+                                            <p className={`text-xs leading-relaxed mb-5 ${plan.featured ? 'text-black/60' : 'text-white/40'}`}>
+                                                {plan.desc}
+                                            </p>
+                                            <ul className="space-y-2.5 mb-7">
+                                                {plan.features.map((f: string, fi: number) => (
+                                                    <li key={fi} className={`flex items-start gap-2.5 text-sm ${plan.featured ? 'text-black/80' : 'text-white/55'}`}>
+                                                        <Check className={`h-4 w-4 mt-0.5 shrink-0 ${plan.featured ? 'text-black/50' : 'text-emerald-500'}`} />
+                                                        {f}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            <Link href={plan.href} className="block">
+                                                {plan.featured ? (
+                                                    <button className="w-full py-3 rounded-xl bg-black text-white font-bold text-sm hover:bg-black/80 transition-colors duration-200">
+                                                        {plan.cta}
+                                                    </button>
+                                                ) : (
+                                                    <button className="w-full py-3 rounded-xl border border-white/10 hover:border-white/25 text-white/65 hover:text-white font-medium text-sm transition-all duration-200">
+                                                        {plan.cta}
+                                                    </button>
+                                                )}
+                                            </Link>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-white/45 text-sm mb-7">{plan.desc}</p>
-                                <Link href={plan.href} className="block mb-7">
-                                    {plan.featured ? (
-                                        <button className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm transition-colors duration-200 shadow-lg shadow-emerald-500/20">
-                                            {plan.cta}
-                                        </button>
-                                    ) : (
-                                        <button className="w-full py-3 rounded-xl border border-white/10 hover:border-white/25 text-white/70 hover:text-white font-medium text-sm transition-all duration-200">
-                                            {plan.cta}
-                                        </button>
-                                    )}
-                                </Link>
-                                <ul className="space-y-2.5">
-                                    {plan.features.map((f: string, fi: number) => (
-                                        <li key={fi} className="flex items-start gap-2.5 text-sm text-white/60">
-                                            <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />{f}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
             </section>
