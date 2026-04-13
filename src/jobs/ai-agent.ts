@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
-import { getOpenAI } from '@/lib/openai';
-import { callAIProvider, detectProvider } from '@/lib/ai-provider';
+import { getOpenAIForCompany } from '@/lib/openai';
+import { callAIProvider, detectProvider, getAnthropicForCompany, getGeminiKeyForCompany } from '@/lib/ai-provider';
 import type { NormalizedMessage, NormalizedTool, NormalizedToolCall } from '@/lib/ai-provider';
 import { sendChannelMessage, sendWhatsAppTypingIndicator } from '@/lib/channel-sender';
 import { checkCreditBalance, deductCredits, logUsageOnly } from '@/lib/credits';
@@ -571,7 +571,6 @@ async function handleAnalyzeFile(
     conversationMessages: MediaMessage[],
     usesOwnKey: boolean,
 ): Promise<string> {
-    const openai = getOpenAI();
     console.log(`[analyze_file] called | field="${args.field_name}" | instruction="${args.instruction}"`);
     try {
         const lastMediaMessage = [...conversationMessages]
@@ -650,29 +649,13 @@ async function handleAnalyzeFile(
             }
         } catch { /* non-critical */ }
 
-        console.log(`[analyze_file] Calling gpt-4o vision...`);
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            temperature: 0.1,
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are a professional OCR (Optical Character Recognition) service. Your only job is to accurately read and transcribe all visible text from images, exactly as it appears. Reproduce every character you see without interpreting, summarizing, or omitting anything. Do not add commentary.',
-                },
-                {
-                    role: 'user',
-                    content: [
-                        { type: 'text', text: args.instruction },
-                        { type: 'image_url', image_url: { url: accessUrl, detail: 'high' } },
-                    ],
-                },
-            ],
-        });
+        // ── Vision provider routing ──────────────────────────────────
+        // Priority: 1) Gemini (company key or global)
+        //           2) Claude vision (company Anthropic key)
+        //           3) gpt-4o (company OpenAI key only — not global)
+        let analysisText = '';
+        let visionModel = '';
 
-        let analysisText = response.choices[0]?.message?.content || '';
-        console.log(`[analyze_file] gpt-4o response (${response.usage?.total_tokens} tokens): ${analysisText.slice(0, 500)}`);
-
-        // Detect OpenAI content-policy refusal and fall back to Gemini
         const isRefusal = (t: string) => {
             const lower = t.toLowerCase().trim();
             return lower.startsWith("lo siento") || lower.startsWith("i'm sorry") ||
@@ -681,11 +664,12 @@ async function handleAnalyzeFile(
                 (lower.length < 80 && (lower.includes("sorry") || lower.includes("lo siento")));
         };
 
-        if (isRefusal(analysisText)) {
-            console.log('[analyze_file] gpt-4o refused — trying Gemini fallback');
-            const geminiKey = process.env.GEMINI_API_KEY;
-            if (geminiKey && imageBuffer) {
+        // ── 1. Gemini vision ─────────────────────────────────────────
+        if (!analysisText.trim() && imageBuffer) {
+            const { key: geminiKey } = await getGeminiKeyForCompany(companyId);
+            if (geminiKey) {
                 try {
+                    console.log('[analyze_file] Calling Gemini 2.0 Flash vision...');
                     const geminiRes = await fetch(
                         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
                         {
@@ -707,9 +691,7 @@ async function handleAnalyzeFile(
                         const geminiData = await geminiRes.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
                         const geminiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
                         console.log(`[analyze_file] Gemini response: ${geminiText.slice(0, 500)}`);
-                        if (geminiText.trim()) {
-                            analysisText = geminiText;
-                        }
+                        if (geminiText.trim()) { analysisText = geminiText; visionModel = 'gemini-2.0-flash'; }
                     } else {
                         const errBody = await geminiRes.text().catch(() => '');
                         console.error(`[analyze_file] Gemini error: ${errBody.slice(0, 200)}`);
@@ -717,37 +699,90 @@ async function handleAnalyzeFile(
                 } catch (geminiErr) {
                     console.error('[analyze_file] Gemini call failed:', geminiErr);
                 }
-            } else if (!geminiKey) {
-                console.warn('[analyze_file] No GEMINI_API_KEY configured — cannot process this image type');
-                return JSON.stringify({
-                    success: false,
-                    message: 'Este tipo de imagen (documento de identidad) no puede ser procesado. Para habilitarlo, configura GEMINI_API_KEY en las variables de entorno.',
-                });
             }
         }
 
-        // Track tokens for vision call (gpt-4o, higher cost)
-        if (response.usage) {
-            if (usesOwnKey) {
-                await logUsageOnly({
-                    companyId,
-                    conversationId,
-                    model: 'gpt-4o',
-                    promptTokens: response.usage.prompt_tokens,
-                    completionTokens: response.usage.completion_tokens,
-                    totalTokens: response.usage.total_tokens,
-                });
-            } else {
-                await deductCredits({
-                    companyId,
-                    conversationId,
-                    model: 'gpt-4o',
-                    promptTokens: response.usage.prompt_tokens,
-                    completionTokens: response.usage.completion_tokens,
-                    totalTokens: response.usage.total_tokens,
-                });
+        // ── 2. Claude vision (company Anthropic key) ─────────────────
+        if (!analysisText.trim() && imageBuffer) {
+            const { client: anthropicClient, usesOwnKey: usesAnthropicKey } = await getAnthropicForCompany(companyId);
+            if (usesAnthropicKey) {
+                try {
+                    console.log('[analyze_file] Calling Claude vision...');
+                    const claudeRes = await anthropicClient.messages.create({
+                        model: 'claude-haiku-4-5-20251001',
+                        max_tokens: 2048,
+                        system: 'You are a professional OCR service. Accurately read and transcribe all visible text from images exactly as it appears. Reproduce every character without interpreting, summarizing, or omitting anything.',
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'text', text: args.instruction },
+                                {
+                                    type: 'image',
+                                    source: { type: 'base64', media_type: imageMime as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: imageBuffer.toString('base64') },
+                                },
+                            ],
+                        }],
+                    });
+                    const claudeText = claudeRes.content.filter(b => b.type === 'text').map(b => (b as { text: string }).text).join('');
+                    console.log(`[analyze_file] Claude vision response: ${claudeText.slice(0, 500)}`);
+                    if (claudeText.trim() && !isRefusal(claudeText)) {
+                        analysisText = claudeText;
+                        visionModel = 'claude-haiku-4-5-20251001';
+                    }
+                } catch (claudeErr) {
+                    console.error('[analyze_file] Claude vision failed:', claudeErr instanceof Error ? claudeErr.message : claudeErr);
+                }
             }
         }
+
+        // ── 3. gpt-4o vision (company OpenAI key only) ───────────────
+        if (!analysisText.trim()) {
+            const { client: openaiClient, usesOwnKey: usesOpenAIKey } = await getOpenAIForCompany(companyId);
+            if (usesOpenAIKey) {
+                try {
+                    console.log('[analyze_file] Calling gpt-4o vision...');
+                    const response = await openaiClient.chat.completions.create({
+                        model: 'gpt-4o',
+                        temperature: 0.1,
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'You are a professional OCR service. Accurately read and transcribe all visible text from images exactly as it appears. Reproduce every character without interpreting, summarizing, or omitting anything.',
+                            },
+                            {
+                                role: 'user',
+                                content: [
+                                    { type: 'text', text: args.instruction },
+                                    { type: 'image_url', image_url: { url: accessUrl, detail: 'high' } },
+                                ],
+                            },
+                        ],
+                    });
+                    const text = response.choices[0]?.message?.content || '';
+                    console.log(`[analyze_file] gpt-4o response (${response.usage?.total_tokens} tokens): ${text.slice(0, 500)}`);
+                    if (text.trim() && !isRefusal(text)) {
+                        analysisText = text;
+                        visionModel = 'gpt-4o';
+                        if (response.usage) {
+                            const fn = usesOwnKey ? logUsageOnly : deductCredits;
+                            await fn({ companyId, conversationId, model: 'gpt-4o', promptTokens: response.usage.prompt_tokens, completionTokens: response.usage.completion_tokens, totalTokens: response.usage.total_tokens });
+                        }
+                    }
+                } catch (openaiErr) {
+                    console.error('[analyze_file] gpt-4o vision failed:', openaiErr instanceof Error ? openaiErr.message : openaiErr);
+                }
+            }
+        }
+
+        if (!analysisText.trim()) {
+            console.error('[analyze_file] All vision providers failed or no key configured');
+            return JSON.stringify({
+                success: false,
+                message: 'No se pudo analizar la imagen. Configura una API Key de Gemini, Claude u OpenAI en Integraciones.',
+            });
+        }
+
+        console.log(`[analyze_file] Vision completed via ${visionModel}`);
 
         // Save analysis result as captured data
         const existing = await prisma.capturedData.findFirst({
