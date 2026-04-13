@@ -9,7 +9,8 @@ import { mapFieldToContact, validateCapturedValue, inferValidationType } from '@
 // CRM removed
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
-import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
+import type { ChatCompletionMessageParam, ChatCompletionTool, ChatCompletionContentPart } from 'openai/resources/chat/completions';
+import type OpenAI from 'openai';
 
 interface AiAgentResult {
     handled: boolean;
@@ -59,6 +60,30 @@ const DOCUMENT_CAPTURE_TOOLS: ChatCompletionTool[] = [
                     },
                 },
                 required: ['field_name'],
+            },
+        },
+    },
+];
+
+const FILE_ANALYSIS_TOOLS: ChatCompletionTool[] = [
+    {
+        type: 'function',
+        function: {
+            name: 'analyze_file',
+            description: 'Analiza el contenido de una imagen enviada por el cliente usando visión por computadora (OCR). Extrae texto, datos clave o describe el contenido visual. Úsala cuando necesites leer el contenido de una imagen, factura, cédula, formulario, recibo, foto de producto, o cualquier documento visual.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    field_name: {
+                        type: 'string',
+                        description: 'Nombre del campo donde guardar el resultado del análisis en snake_case. Ej: datos_cedula, texto_factura, contenido_formulario, descripcion_foto',
+                    },
+                    instruction: {
+                        type: 'string',
+                        description: 'Instrucción específica de qué extraer o analizar. Ej: "Extrae el número de cédula y nombre completo", "Lee el monto total y número de factura", "Describe qué aparece en la imagen"',
+                    },
+                },
+                required: ['field_name', 'instruction'],
             },
         },
     },
@@ -224,16 +249,29 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         ];
 
         for (const msg of conversation.messages) {
-            messages.push({
-                role: msg.direction === 'INBOUND' ? 'user' : 'assistant',
-                content: msg.content,
-            });
+            const role = msg.direction === 'INBOUND' ? 'user' : 'assistant';
+
+            // Pass images as multimodal content so the agent can see them
+            if (msg.direction === 'INBOUND' && msg.mediaUrl && msg.mediaType === 'image') {
+                const parts: ChatCompletionContentPart[] = [];
+                if (msg.content?.trim()) {
+                    parts.push({ type: 'text', text: msg.content });
+                }
+                parts.push({
+                    type: 'image_url',
+                    image_url: { url: msg.mediaUrl, detail: 'auto' },
+                });
+                messages.push({ role: 'user', content: parts });
+            } else {
+                messages.push({ role, content: msg.content || '' });
+            }
         }
 
         // Build tools array (conditional based on agent config)
         const tools: ChatCompletionTool[] = [
             ...(aiAgent.dataCaptureEnabled ? DATA_CAPTURE_TOOLS : []),
             ...(aiAgent.dataCaptureEnabled ? DOCUMENT_CAPTURE_TOOLS : []),
+            ...(aiAgent.dataCaptureEnabled ? FILE_ANALYSIS_TOOLS : []),
             ...(webhookConfig?.url ? WEBHOOK_TOOLS : []),
             ...(calendarEnabled ? CALENDAR_TOOLS : []),
             ...(ecommerceEnabled ? ECOMMERCE_TOOLS : []),
@@ -290,6 +328,18 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                                 conversation.id,
                                 conversation.contactId,
                                 conversation.messages,
+                            );
+                            break;
+
+                        case 'analyze_file':
+                            result = await handleAnalyzeFile(
+                                args,
+                                conversation.companyId,
+                                conversation.id,
+                                conversation.contactId,
+                                conversation.messages,
+                                openai,
+                                usesOwnKey,
                             );
                             break;
 
@@ -476,7 +526,7 @@ async function handleSaveDocument(
     companyId: string,
     conversationId: string,
     contactId: string | null,
-    conversationMessages: { direction: string; mediaUrl: string | null; mediaType: string | null; mimeType: string | null; fileName: string | null }[],
+    conversationMessages: MediaMessage[],
 ): Promise<string> {
     try {
         // Find the last inbound message with media
@@ -515,6 +565,102 @@ async function handleSaveDocument(
         });
     } catch (err) {
         return JSON.stringify({ success: false, message: 'Error al guardar el documento.' });
+    }
+}
+
+type MediaMessage = { direction: string; mediaUrl: string | null; mediaType: string | null; mimeType: string | null; fileName: string | null };
+
+async function handleAnalyzeFile(
+    args: { field_name: string; instruction: string },
+    companyId: string,
+    conversationId: string,
+    contactId: string | null,
+    conversationMessages: MediaMessage[],
+    openai: OpenAI,
+    usesOwnKey: boolean,
+): Promise<string> {
+    try {
+        const lastMediaMessage = [...conversationMessages]
+            .reverse()
+            .find(m => m.direction === 'INBOUND' && m.mediaUrl && m.mediaType === 'image');
+
+        if (!lastMediaMessage?.mediaUrl) {
+            return JSON.stringify({
+                success: false,
+                message: 'No se encontró ninguna imagen en los mensajes recientes. Solo puedo analizar imágenes (JPG, PNG, etc.). Para archivos PDF u otros documentos, usa save_document.',
+            });
+        }
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            temperature: 0.1,
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: args.instruction },
+                        { type: 'image_url', image_url: { url: lastMediaMessage.mediaUrl, detail: 'high' } },
+                    ],
+                },
+            ],
+        });
+
+        const analysisText = response.choices[0]?.message?.content || '';
+
+        // Track tokens for vision call (gpt-4o, higher cost)
+        if (response.usage) {
+            if (usesOwnKey) {
+                await logUsageOnly({
+                    companyId,
+                    conversationId,
+                    model: 'gpt-4o',
+                    promptTokens: response.usage.prompt_tokens,
+                    completionTokens: response.usage.completion_tokens,
+                    totalTokens: response.usage.total_tokens,
+                });
+            } else {
+                await deductCredits({
+                    companyId,
+                    conversationId,
+                    model: 'gpt-4o',
+                    promptTokens: response.usage.prompt_tokens,
+                    completionTokens: response.usage.completion_tokens,
+                    totalTokens: response.usage.total_tokens,
+                });
+            }
+        }
+
+        // Save analysis result as captured data
+        const existing = await prisma.capturedData.findFirst({
+            where: { conversationId, fieldName: args.field_name },
+            select: { id: true },
+        });
+        if (existing) {
+            await prisma.capturedData.update({
+                where: { id: existing.id },
+                data: { fieldValue: analysisText },
+            });
+        } else {
+            await prisma.capturedData.create({
+                data: {
+                    companyId,
+                    conversationId,
+                    contactId,
+                    fieldName: args.field_name,
+                    fieldValue: analysisText,
+                    source: 'ai_agent',
+                },
+            });
+        }
+
+        return JSON.stringify({
+            success: true,
+            analysis: analysisText,
+            message: `Análisis completado y guardado en "${args.field_name}".`,
+        });
+    } catch (err) {
+        console.error('[AI Agent] Error analyzing file:', err);
+        return JSON.stringify({ success: false, message: 'Error al analizar la imagen.' });
     }
 }
 
@@ -649,6 +795,7 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
             prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
         }
         prompt += '\n\nTambién tienes la herramienta save_document para guardar archivos adjuntos que envíe el cliente (hojas de vida, documentos, fotos, etc.). Cuando el cliente envíe un archivo, usa save_document con un nombre descriptivo.';
+        prompt += '\n\nTienes la herramienta analyze_file para leer el contenido de imágenes usando visión por computadora (OCR). Cuando el cliente envíe una imagen de una cédula, factura, recibo, formulario, foto de producto u otro documento visual, usa analyze_file con una instrucción específica de qué extraer. El resultado queda guardado automáticamente. Para archivos PDF u otros documentos no visuales, usa save_document en su lugar.';
 
         if (opts.webhookEnabled) {
             prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. IMPORTANTE: Debes llamar send_to_webhook SIEMPRE al concluir la recopilación de datos del cliente. Cuando hayas terminado de capturar toda la información necesaria (datos personales, documentos, etc.), usa send_to_webhook para enviar todo. No olvides confirmar al cliente que sus datos fueron enviados exitosamente.';
