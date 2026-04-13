@@ -176,16 +176,16 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
         gsap.to('.orb-a', { x: 50, y: -35, duration: 6, repeat: -1, yoyo: true, ease: 'sine.inOut' });
         gsap.to('.orb-b', { x: -40, y: 50, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2 });
 
-        // Hero title explodes apart on scroll
+        // Hero title explodes apart — only when scrolling off screen
         gsap.to('.hero-title-wrap', {
-            letterSpacing: '1.6em',
+            letterSpacing: '1.2em',
             opacity: 0,
             ease: 'none',
             scrollTrigger: {
                 trigger: '.hero-title-wrap',
-                start: 'top 60%',
-                end: 'top -10%',
-                scrub: 0.8,
+                start: 'top 8%',    // only starts when title is almost at navbar
+                end: 'top -50%',    // finishes when fully off screen
+                scrub: 1,
             },
         });
 
@@ -198,15 +198,15 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
         gsap.utils.toArray<HTMLElement>('.reveal-section').forEach((section) => {
             const heading = section.querySelector('.s-heading');
             const items = section.querySelectorAll('.s-item');
-            const tl = gsap.timeline({ scrollTrigger: { trigger: section, start: 'top 78%', once: true } });
-            if (heading) tl.from(heading, { y: 40, opacity: 0, duration: 0.8, ease: 'power3.out' });
-            if (items.length) tl.from(items, { y: 50, opacity: 0, duration: 0.75, ease: 'power3.out', stagger: 0.1 }, '-=0.4');
+            const tl = gsap.timeline({ scrollTrigger: { trigger: section, start: 'top 82%', once: true } });
+            if (heading) tl.fromTo(heading, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'power3.out', clearProps: 'all' });
+            if (items.length) tl.fromTo(items, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: 'power3.out', stagger: 0.08, clearProps: 'all' }, '-=0.4');
         });
 
-        gsap.from('.metric-num', {
-            scale: 0.7, opacity: 0, duration: 0.8, ease: 'back.out(1.4)', stagger: 0.12,
-            scrollTrigger: { trigger: '.metrics-section', start: 'top 80%', once: true },
-        });
+        gsap.fromTo('.metric-num',
+            { x: -30, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.7, ease: 'power3.out', stagger: 0.1, clearProps: 'all',
+              scrollTrigger: { trigger: '.metrics-section', start: 'top 80%', once: true } });
 
         // ── HOW IT WORKS — CSS sticky (no GSAP pin, no spacer bugs) ──────────
         const howPanels = gsap.utils.toArray<HTMLElement>('.how-panel');
@@ -230,10 +230,10 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
         }
 
         // ── TESTIMONIALS (marquee, no GSAP needed) ────────────────────────────
-        gsap.from('.test-heading', {
-            y: 40, opacity: 0, duration: 0.8, ease: 'power3.out',
-            scrollTrigger: { trigger: '.test-section', start: 'top 80%', once: true },
-        });
+        gsap.fromTo('.test-heading',
+            { y: 40, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.8, ease: 'power3.out', clearProps: 'all',
+              scrollTrigger: { trigger: '.test-section', start: 'top 80%', once: true } });
 
         // ── PRICING TICKETS ───────────────────────────────────────────────────
         const ticketEls = gsap.utils.toArray<HTMLElement>('.ticket-wrapper');
@@ -252,14 +252,14 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
         }
 
         // ── FAQ / CTA ─────────────────────────────────────────────────────────
-        gsap.from('.faq-row', {
-            y: 20, opacity: 0, duration: 0.5, ease: 'power2.out', stagger: 0.07,
-            scrollTrigger: { trigger: '.faq-list', start: 'top 82%', once: true },
-        });
-        gsap.from('.cta-text', {
-            y: 60, opacity: 0, duration: 1, ease: 'power3.out',
-            scrollTrigger: { trigger: '.cta-section', start: 'top 75%', once: true },
-        });
+        gsap.fromTo('.faq-row',
+            { y: 24, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.55, ease: 'power2.out', stagger: 0.06, clearProps: 'all',
+              scrollTrigger: { trigger: '.faq-list', start: 'top 85%', once: true } });
+        gsap.fromTo('.cta-text',
+            { y: 60, opacity: 0 },
+            { y: 0, opacity: 1, duration: 1, ease: 'power3.out', clearProps: 'all',
+              scrollTrigger: { trigger: '.cta-section', start: 'top 75%', once: true } });
 
         ScrollTrigger.refresh();
     }, { scope: containerRef });
@@ -420,8 +420,8 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
             <section className="reveal-section py-28 lg:py-36 relative overflow-hidden">
                 {/* Ghost title background */}
                 <div className="absolute inset-0 flex items-center justify-start pointer-events-none select-none overflow-hidden">
-                    <span className="text-[clamp(80px,14vw,200px)] font-black leading-none text-white/[.025] whitespace-nowrap pl-8"
-                        style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.06em' }}>PROBLEMA</span>
+                    <span className="text-[clamp(80px,14vw,200px)] font-black leading-none whitespace-nowrap pl-8"
+                        style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-.06em', color: 'rgba(255,255,255,.07)' }}>PROBLEMA</span>
                 </div>
                 <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16 relative">
                     <div className="s-heading mb-20">
@@ -473,7 +473,7 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                     {/* Feature grid — 3×2, no orphans */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {featureList.map((f: any, i: number) => { const Icon = FEATURE_ICONS[i]; return (
-                            <div key={i} className="s-item feat-card group relative rounded-2xl border border-white/[.07] bg-white/[.025] cursor-default overflow-hidden transition-all duration-300 hover:border-white/[.13] hover:bg-white/[.04]">
+                            <div key={i} className="s-item feat-card group relative rounded-2xl border border-white/[.09] bg-white/[.04] cursor-default overflow-hidden transition-all duration-300 hover:border-white/[.16] hover:bg-white/[.07]">
                                 {/* Ghost icon */}
                                 <div className="absolute -right-3 -bottom-3 opacity-[.04] pointer-events-none select-none">
                                     <Icon size={110} className="text-white" />
@@ -489,7 +489,7 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                                     </div>
                                     {/* Text */}
                                     <h3 className="text-base lg:text-[17px] font-bold mb-2.5 leading-snug" style={{ fontFamily: 'Outfit, sans-serif' }}>{f.title}</h3>
-                                    <p className="text-white/42 text-sm leading-relaxed flex-1">{f.description}</p>
+                                    <p className="text-white/60 text-sm leading-relaxed flex-1">{f.description}</p>
                                     {/* Bottom accent line */}
                                     <div className="mt-5 h-px bg-gradient-to-r from-emerald-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 </div>
@@ -558,8 +558,8 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                         <div className="how-bar h-full bg-emerald-500 w-0" style={{ transition: 'none' }} />
                     </div>
 
-                    {/* Section header — pt-16 clears the fixed navbar */}
-                    <div className="absolute top-0 left-0 right-0 pt-16 pb-4 z-20 border-b border-white/[.06] pointer-events-none">
+                    {/* Section header — pt-[68px] clears the fixed navbar (64px) + gap */}
+                    <div className="absolute top-0 left-0 right-0 pt-[68px] pb-4 z-20 border-b border-white/[.06] pointer-events-none">
                         <div className="max-w-[1280px] mx-auto px-6 md:px-10 lg:px-16 flex items-end justify-between">
                             <div>
                                 <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-emerald-500 block mb-1">Proceso</span>
