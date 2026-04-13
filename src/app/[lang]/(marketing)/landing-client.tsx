@@ -10,8 +10,8 @@ import { ContactForm } from './contact-form';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import {
     Check, MessageSquare, Bot, Workflow, Users, BarChart3,
-    Sparkles, ArrowRight, Star, Zap, AlertTriangle, EyeOff,
-    Moon, Shield, ChevronDown, ChevronRight,
+    ArrowRight, Star, Zap, AlertTriangle, EyeOff, Moon, Shield,
+    ChevronDown, ArrowUpRight,
 } from 'lucide-react';
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
@@ -49,272 +49,244 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
     const metrics = Object.values(d.solution.metrics) as any[];
 
     useGSAP(() => {
-        // ─── HERO ──────────────────────────────────────────────────────────────
-        const heroTl = gsap.timeline({ delay: 0.1 });
+        // ─── HERO ────────────────────────────────────────────────────────────
+        const heroTl = gsap.timeline({ delay: 0.15 });
         heroTl
-            .from('.hero-badge', {
-                y: -30, opacity: 0, duration: 0.7, ease: 'power3.out',
-            })
-            .from('.hero-line', {
-                yPercent: 120, opacity: 0, duration: 0.9, ease: 'power4.out',
-                stagger: 0.12,
-            }, '-=0.3')
-            .from('.hero-sub', {
-                y: 30, opacity: 0, duration: 0.7, ease: 'power3.out',
-            }, '-=0.4')
-            .from('.hero-cta-wrap', {
-                y: 30, opacity: 0, duration: 0.7, ease: 'power3.out',
-            }, '-=0.5')
-            .from('.hero-logos-wrap', {
-                y: 20, opacity: 0, duration: 0.6, ease: 'power2.out',
-            }, '-=0.4');
+            .from('.hero-badge', { y: -20, opacity: 0, duration: 0.6, ease: 'power3.out' })
+            .from('.hero-word', {
+                yPercent: 110, opacity: 0, duration: 1, ease: 'power4.out', stagger: 0.045,
+            }, '-=0.2')
+            .from('.hero-sub', { y: 24, opacity: 0, duration: 0.7, ease: 'power3.out' }, '-=0.5')
+            .from('.hero-actions', { y: 24, opacity: 0, duration: 0.7, ease: 'power3.out' }, '-=0.5')
+            .from('.hero-proof', { opacity: 0, duration: 0.6, ease: 'power2.out' }, '-=0.3');
 
-        // Floating orbs
-        gsap.to('.orb-1', { x: 40, y: -30, duration: 5, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-        gsap.to('.orb-2', { x: -30, y: 40, duration: 6, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 1.5 });
-        gsap.to('.orb-3', { x: 20, y: 20, duration: 4, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 0.8 });
-
-        // Navbar style on scroll
+        // Navbar on scroll
         ScrollTrigger.create({
-            start: 'top -60',
+            start: 'top -10',
             end: 99999,
             toggleClass: { targets: '.main-nav', className: 'nav-solid' },
         });
 
-        // ─── PROBLEMS ──────────────────────────────────────────────────────────
-        gsap.from('.prob-card', {
-            y: 60, opacity: 0, duration: 0.8, ease: 'power3.out', stagger: 0.15,
-            scrollTrigger: { trigger: '.prob-grid', start: 'top 80%', once: true },
+        // Orb float
+        gsap.to('.orb-a', { x: 50, y: -35, duration: 6, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+        gsap.to('.orb-b', { x: -40, y: 50, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2 });
+
+        // ─── GENERIC STAGGER REVEALS ─────────────────────────────────────────
+        gsap.utils.toArray<HTMLElement>('.reveal-section').forEach((section) => {
+            const heading = section.querySelector('.s-heading');
+            const items = section.querySelectorAll('.s-item');
+            const tl = gsap.timeline({
+                scrollTrigger: { trigger: section, start: 'top 78%', once: true },
+            });
+            if (heading) tl.from(heading, { y: 40, opacity: 0, duration: 0.8, ease: 'power3.out' });
+            if (items.length) tl.from(items, { y: 50, opacity: 0, duration: 0.75, ease: 'power3.out', stagger: 0.1 }, '-=0.4');
         });
 
-        // ─── FEATURES ──────────────────────────────────────────────────────────
-        gsap.from('.feat-card', {
-            y: 70, opacity: 0, duration: 0.8, ease: 'power3.out', stagger: 0.1,
-            scrollTrigger: { trigger: '.feat-grid', start: 'top 75%', once: true },
+        // ─── METRICS ─────────────────────────────────────────────────────────
+        gsap.from('.metric-num', {
+            scale: 0.7, opacity: 0, duration: 0.8, ease: 'back.out(1.4)', stagger: 0.12,
+            scrollTrigger: { trigger: '.metrics-section', start: 'top 80%', once: true },
         });
 
-        // ─── METRICS ───────────────────────────────────────────────────────────
-        gsap.from('.metric-item', {
-            scale: 0.8, opacity: 0, duration: 0.7, ease: 'back.out(1.5)', stagger: 0.12,
-            scrollTrigger: { trigger: '.metrics-row', start: 'top 80%', once: true },
-        });
-
-        // ─── HOW IT WORKS – PINNED STORYTELLING ───────────────────────────────
-        // Each step fades in/out as user scrolls through the pinned section
-        const howSteps = gsap.utils.toArray<HTMLElement>('.how-step-panel');
-        const howProgress = document.querySelector('.how-progress-track') as HTMLElement;
-        const howCounter = document.querySelector('.how-counter-num') as HTMLElement;
-
-        if (howSteps.length > 0) {
-            const howTl = gsap.timeline();
-
-            // Step 1 → Step 2
-            howTl
-                .to('.how-step-panel:nth-child(1)', {
-                    opacity: 0, y: -60, duration: 1,
-                })
-                .from('.how-step-panel:nth-child(2)', {
-                    opacity: 0, y: 60, duration: 1,
-                }, '<0.1')
-            // Step 2 → Step 3
-                .to('.how-step-panel:nth-child(2)', {
-                    opacity: 0, y: -60, duration: 1,
-                })
-                .from('.how-step-panel:nth-child(3)', {
-                    opacity: 0, y: 60, duration: 1,
-                }, '<0.1');
+        // ─── HOW IT WORKS — PINNED STORYTELLING ──────────────────────────────
+        const howPanels = gsap.utils.toArray<HTMLElement>('.how-panel');
+        if (howPanels.length > 0) {
+            const tl = gsap.timeline();
+            tl
+                .to('.how-panel:nth-child(1)', { opacity: 0, y: -70, duration: 1 })
+                .from('.how-panel:nth-child(2)', { opacity: 0, y: 70, duration: 1 }, '<0.05')
+                .to('.how-panel:nth-child(2)', { opacity: 0, y: -70, duration: 1 })
+                .from('.how-panel:nth-child(3)', { opacity: 0, y: 70, duration: 1 }, '<0.05');
 
             ScrollTrigger.create({
                 trigger: '.how-section',
                 start: 'top top',
-                end: '+=250%',
+                end: '+=260%',
                 pin: true,
-                scrub: 0.8,
+                scrub: 0.9,
                 anticipatePin: 1,
-                animation: howTl,
-                onUpdate: (self) => {
-                    const step = Math.min(3, Math.floor(self.progress * 3) + 1);
-                    if (howCounter) howCounter.textContent = String(step);
-                    if (howProgress) {
-                        gsap.to(howProgress, {
-                            width: `${Math.round(self.progress * 100)}%`,
-                            duration: 0.1,
-                            ease: 'none',
-                        });
-                    }
+                animation: tl,
+                onUpdate(self) {
+                    const num = document.querySelector('.how-step-num');
+                    const bar = document.querySelector('.how-bar') as HTMLElement;
+                    if (num) num.textContent = String(Math.min(3, Math.floor(self.progress * 3) + 1));
+                    if (bar) bar.style.width = `${Math.round(self.progress * 100)}%`;
                 },
             });
         }
 
-        // ─── TESTIMONIALS ──────────────────────────────────────────────────────
-        gsap.from('.test-card', {
-            y: 60, opacity: 0, duration: 0.8, ease: 'power3.out', stagger: 0.15,
-            scrollTrigger: { trigger: '.test-grid', start: 'top 80%', once: true },
-        });
-
-        // ─── PRICING ───────────────────────────────────────────────────────────
+        // ─── PRICING ─────────────────────────────────────────────────────────
         gsap.from('.price-card', {
-            y: 60, opacity: 0, scale: 0.95, duration: 0.8, ease: 'power3.out', stagger: 0.15,
+            y: 60, opacity: 0, scale: 0.96, duration: 0.8, ease: 'power3.out', stagger: 0.14,
             scrollTrigger: { trigger: '.price-grid', start: 'top 80%', once: true },
         });
 
-        // ─── FAQ ───────────────────────────────────────────────────────────────
-        gsap.from('.faq-item', {
-            y: 30, opacity: 0, duration: 0.6, ease: 'power3.out', stagger: 0.08,
-            scrollTrigger: { trigger: '.faq-list', start: 'top 80%', once: true },
+        // ─── FAQ ─────────────────────────────────────────────────────────────
+        gsap.from('.faq-row', {
+            y: 20, opacity: 0, duration: 0.5, ease: 'power2.out', stagger: 0.07,
+            scrollTrigger: { trigger: '.faq-list', start: 'top 82%', once: true },
         });
 
-        // ─── SECTION HEADINGS ──────────────────────────────────────────────────
-        gsap.utils.toArray('.section-title').forEach((el: any) => {
-            gsap.from(el, {
-                y: 40, opacity: 0, duration: 0.8, ease: 'power3.out',
-                scrollTrigger: { trigger: el, start: 'top 85%', once: true },
-            });
-        });
-
-        // ─── CTA ───────────────────────────────────────────────────────────────
-        gsap.from('.cta-inner', {
+        // ─── CTA ─────────────────────────────────────────────────────────────
+        gsap.from('.cta-text', {
             y: 60, opacity: 0, duration: 1, ease: 'power3.out',
             scrollTrigger: { trigger: '.cta-section', start: 'top 75%', once: true },
-        });
-
-        // ─── CONTACT ───────────────────────────────────────────────────────────
-        gsap.from('.contact-inner', {
-            y: 40, opacity: 0, duration: 0.8, ease: 'power3.out',
-            scrollTrigger: { trigger: '.contact-section', start: 'top 80%', once: true },
         });
 
         ScrollTrigger.refresh();
     }, { scope: containerRef });
 
     return (
-        <div ref={containerRef} className="flex flex-col bg-[#0A0F0D] text-white overflow-x-hidden" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <div ref={containerRef} className="flex flex-col bg-black text-white" style={{ fontFamily: 'Inter, sans-serif' }}>
             {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet" />
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet" />
 
             <style>{`
-                .main-nav { transition: background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease; }
-                .nav-solid { background: rgba(10,15,13,0.92) !important; backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.06); }
-                .hero-clip { overflow: hidden; }
-                .marquee-track { display: flex; animation: marquee 24s linear infinite; width: max-content; }
-                @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-                .feat-card:hover { border-color: rgba(16,185,129,0.35) !important; transform: translateY(-4px); transition: transform 0.3s ease, border-color 0.3s ease; }
-                .prob-card:hover { border-color: rgba(239,68,68,0.35) !important; }
-                .test-card:hover { border-color: rgba(16,185,129,0.3) !important; }
-                .faq-answer { transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease; }
-                .price-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
-                .price-card:hover { transform: translateY(-6px); }
-                .how-step-panel { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-                .how-step-panel:not(:first-child) { opacity: 0; }
+                /* Noise grain overlay */
+                body::after {
+                    content: '';
+                    position: fixed;
+                    inset: 0;
+                    pointer-events: none;
+                    z-index: 9998;
+                    opacity: 0.022;
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+                    background-size: 200px 200px;
+                }
+                /* Nav */
+                .main-nav { transition: background 0.35s ease, border-color 0.35s ease, backdrop-filter 0.35s ease; }
+                .nav-solid { background: rgba(0,0,0,0.82) !important; backdrop-filter: blur(24px) !important; border-bottom-color: rgba(255,255,255,0.07) !important; }
+                /* Word clip */
+                .word-clip { overflow: hidden; display: inline-block; }
+                /* Card hover */
+                .glass-card { transition: border-color 0.25s ease, background 0.25s ease; }
+                .glass-card:hover { border-color: rgba(255,255,255,0.14) !important; background: rgba(255,255,255,0.035) !important; }
+                .feat-card:hover .feat-icon { color: #10b981; transition: color 0.2s ease; }
+                /* Marquee */
+                .marquee-inner { display: flex; animation: ticker 22s linear infinite; width: max-content; }
+                @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+                /* How it works */
+                .how-panel { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+                .how-panel:not(:first-child) { opacity: 0; }
+                /* FAQ */
+                .faq-body { transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease, padding 0.28s ease; }
+                /* Price card hover */
+                .price-card { transition: transform 0.3s ease; }
+                .price-card:hover { transform: translateY(-5px); }
             `}</style>
 
-            {/* ═══ NAVBAR ═══════════════════════════════════════════════════════ */}
-            <nav className="main-nav fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-4">
-                <span className="text-2xl font-black tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>Varylo</span>
-                <div className="hidden md:flex items-center gap-8">
-                    <Link href="#features" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">{dict.nav.features}</Link>
-                    <Link href="#pricing" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">{dict.nav.pricing}</Link>
-                    <Link href="#faq" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">{dict.nav.faq}</Link>
-                    <Link href="#contact" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">{dict.nav.contact}</Link>
+            {/* ═══════════ NAVBAR ═══════════════════════════════════════════════ */}
+            <nav className="main-nav fixed top-0 left-0 right-0 z-50 border-b border-transparent flex items-center justify-between px-6 md:px-10 lg:px-16 py-4">
+                <span className="text-xl font-black tracking-tight select-none" style={{ fontFamily: 'Outfit, sans-serif' }}>Varylo</span>
+                <div className="hidden md:flex items-center gap-7">
+                    {[['#features', dict.nav.features], ['#pricing', dict.nav.pricing], ['#faq', dict.nav.faq], ['#contact', dict.nav.contact]].map(([href, label]) => (
+                        <Link key={href} href={href} className="text-sm text-white/50 hover:text-white transition-colors duration-200">{label}</Link>
+                    ))}
                 </div>
                 <div className="flex items-center gap-3">
                     <LanguageSwitcher variant="dark" />
-                    <Link href={`/${lang}/login`} className="text-sm font-medium text-slate-400 hover:text-white transition-colors hidden sm:block">
+                    <Link href={`/${lang}/login`} className="hidden sm:block text-sm text-white/50 hover:text-white transition-colors duration-200">
                         {dict.nav.login}
                     </Link>
                     <Link href={`/${lang}/register`}>
-                        <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg px-5 py-2.5 text-sm font-semibold">
-                            {dict.nav.getStarted}
-                        </Button>
+                        <button className="flex items-center gap-1.5 bg-white text-black text-sm font-semibold px-4 py-2 rounded-full hover:bg-white/90 transition-colors duration-200">
+                            {dict.nav.getStarted} <ArrowUpRight className="h-3.5 w-3.5" />
+                        </button>
                     </Link>
                 </div>
             </nav>
 
-            {/* ═══ HERO ═════════════════════════════════════════════════════════ */}
-            <section className="relative min-h-screen flex flex-col overflow-hidden pt-20">
-                {/* Background orbs */}
-                <div className="orb-1 absolute top-[8%] right-[12%] w-[520px] h-[520px] rounded-full bg-emerald-500/15 blur-[140px] pointer-events-none" />
-                <div className="orb-2 absolute bottom-[20%] left-[5%] w-[400px] h-[400px] rounded-full bg-emerald-700/12 blur-[120px] pointer-events-none" />
-                <div className="orb-3 absolute top-[40%] left-[40%] w-[300px] h-[300px] rounded-full bg-teal-500/8 blur-[100px] pointer-events-none" />
+            {/* ═══════════ HERO ═════════════════════════════════════════════════ */}
+            <section className="relative min-h-screen flex flex-col overflow-hidden">
+                {/* Ambient orbs */}
+                <div className="orb-a absolute top-0 right-[5%] w-[650px] h-[650px] rounded-full bg-emerald-500/10 blur-[160px] pointer-events-none -translate-y-1/4" />
+                <div className="orb-b absolute bottom-0 left-[-5%] w-[500px] h-[500px] rounded-full bg-emerald-700/8 blur-[130px] pointer-events-none translate-y-1/4" />
 
-                {/* Dot grid */}
+                {/* Subtle grid */}
                 <div className="absolute inset-0 pointer-events-none"
-                    style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+                    style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
+                {/* Fade edges */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,transparent_40%,black_100%)] pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black to-transparent pointer-events-none" />
 
-                {/* Hero content */}
-                <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center max-w-5xl mx-auto py-16">
-                    <div className="hero-badge inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/8 px-4 py-2 text-sm text-emerald-400 font-medium mb-10 backdrop-blur-sm">
-                        <Zap className="h-3.5 w-3.5" />
+                {/* Content */}
+                <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center pt-28 pb-8">
+                    <div className="hero-badge inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] backdrop-blur-sm px-4 py-2 text-xs text-white/70 font-medium mb-10 tracking-wide">
+                        <Zap className="h-3 w-3 text-emerald-400" />
                         {d.hero.badge}
                     </div>
-                    <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-8" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.04em' }}>
-                        {d.hero.title.split(' ').reduce((acc: string[][], word: string, i: number) => {
-                            const lineSize = 3;
-                            const lineIndex = Math.floor(i / lineSize);
-                            if (!acc[lineIndex]) acc[lineIndex] = [];
-                            acc[lineIndex].push(word);
-                            return acc;
-                        }, []).map((lineWords: string[], i: number) => (
-                            <span key={i} className="hero-clip block">
-                                <span className="hero-line inline-block">{lineWords.join(' ')}</span>
+
+                    <h1 className="max-w-5xl mx-auto mb-8 leading-[1.0]" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.045em' }}>
+                        {d.hero.title.split(' ').map((word: string, i: number) => (
+                            <span key={i} className="word-clip">
+                                <span className="hero-word inline-block text-5xl sm:text-6xl lg:text-8xl font-black">
+                                    {word}{i < d.hero.title.split(' ').length - 1 ? '\u00A0' : ''}
+                                </span>
                             </span>
                         ))}
                     </h1>
-                    <p className="hero-sub text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed mb-12">
+
+                    <p className="hero-sub text-base sm:text-lg text-white/55 max-w-xl mx-auto leading-relaxed mb-10">
                         {d.hero.description}
                     </p>
-                    <div className="hero-cta-wrap flex flex-col sm:flex-row justify-center gap-4">
+
+                    <div className="hero-actions flex flex-col sm:flex-row items-center justify-center gap-3">
                         <Link href={`/${lang}/register`}>
-                            <Button size="lg" className="h-14 px-8 text-base bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl w-full sm:w-auto gap-2 font-semibold shadow-lg shadow-emerald-500/20">
-                                {d.hero.ctaPrimary}
-                                <ArrowRight className="h-4 w-4" />
-                            </Button>
+                            <button className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-bold px-7 py-3.5 rounded-full transition-colors duration-200 shadow-lg shadow-emerald-500/25">
+                                {d.hero.ctaPrimary} <ArrowRight className="h-4 w-4" />
+                            </button>
                         </Link>
                         <Link href="#features">
-                            <Button size="lg" variant="outline" className="h-14 px-8 text-base border-white/10 text-white/80 hover:bg-white/5 hover:border-white/20 rounded-xl w-full sm:w-auto font-semibold backdrop-blur-sm">
+                            <button className="flex items-center gap-2 text-sm font-medium text-white/60 hover:text-white border border-white/10 hover:border-white/25 px-7 py-3.5 rounded-full transition-all duration-200">
                                 {d.hero.ctaSecondary}
-                            </Button>
+                            </button>
                         </Link>
                     </div>
                 </div>
 
-                {/* Trust logos */}
-                <div className="hero-logos-wrap relative z-10 flex flex-col items-center gap-5 pb-16 px-4">
-                    <p className="text-xs text-zinc-600 uppercase tracking-[0.15em] font-medium">{d.hero.socialProof}</p>
+                {/* Social proof */}
+                <div className="hero-proof relative z-10 pb-14 px-6 flex flex-col items-center gap-5">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-white/25 font-medium">{d.hero.socialProof}</p>
                     {logos.length > 0 ? (
                         <div className="flex items-center gap-8 flex-wrap justify-center">
-                            {logos.map((logo) => (
-                                <img key={logo.id} src={logo.imageUrl} alt={logo.name}
-                                    className="h-8 max-w-[120px] object-contain grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-300" />
+                            {logos.map((l) => (
+                                <img key={l.id} src={l.imageUrl} alt={l.name}
+                                    className="h-7 max-w-[110px] object-contain grayscale opacity-30 hover:opacity-60 hover:grayscale-0 transition-all duration-300" />
                             ))}
                         </div>
                     ) : (
-                        <div className="flex items-center gap-10 text-zinc-700">
-                            {['NovaTech', 'RapidGo', 'GlowUp', 'DataFlow', 'Nexus'].map((n) => (
-                                <span key={n} className="text-base font-bold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>{n}</span>
-                            ))}
+                        <div className="overflow-hidden relative w-full max-w-2xl">
+                            <div className="marquee-inner gap-16">
+                                {['NovaTech', 'RapidGo', 'GlowUp', 'DataFlow', 'Nexus', 'Orbix', 'NovaTech', 'RapidGo', 'GlowUp', 'DataFlow', 'Nexus', 'Orbix'].map((n, i) => (
+                                    <span key={i} className="text-sm font-bold text-white/20 tracking-tight mx-8 shrink-0" style={{ fontFamily: 'Outfit, sans-serif' }}>{n}</span>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
             </section>
 
-            {/* ═══ PROBLEMS ════════════════════════════════════════════════════ */}
-            <section className="py-24 bg-[#0D1410]">
-                <div className="container mx-auto px-4">
-                    <div className="section-title text-center mb-16">
-                        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.problems.title}</h2>
-                        <p className="text-slate-400 mt-4 text-lg max-w-2xl mx-auto">{d.problems.subtitle}</p>
+            {/* ═══════════ DIVIDER ══════════════════════════════════════════════ */}
+            <div className="border-t border-white/[0.06]" />
+
+            {/* ═══════════ PROBLEMS ═════════════════════════════════════════════ */}
+            <section className="reveal-section py-28 lg:py-36">
+                <div className="container mx-auto px-6 md:px-10 lg:px-16">
+                    <div className="s-heading max-w-2xl mb-16">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-4 block">El problema</span>
+                        <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.problems.title}</h2>
+                        <p className="text-white/50 mt-4 text-base leading-relaxed">{d.problems.subtitle}</p>
                     </div>
-                    <div className="prob-grid grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                    <div className="grid md:grid-cols-3 gap-4">
                         {problemList.map((p: any, i: number) => {
                             const Icon = PROBLEM_ICONS[i];
                             return (
-                                <div key={i} className="prob-card rounded-2xl border border-slate-800/80 bg-[#0A0F0D] p-8 transition-all duration-300 cursor-default">
-                                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/15 flex items-center justify-center mb-6">
-                                        <Icon className="h-5 w-5 text-red-400" />
+                                <div key={i} className="s-item glass-card rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7 cursor-default">
+                                    <div className="w-10 h-10 rounded-xl border border-red-500/20 bg-red-500/8 flex items-center justify-center mb-6">
+                                        <Icon className="h-4.5 w-4.5 text-red-400" size={18} />
                                     </div>
-                                    <h3 className="text-lg font-extrabold mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>{p.title}</h3>
-                                    <p className="text-slate-400 text-sm leading-relaxed">{p.description}</p>
+                                    <h3 className="text-base font-bold mb-3 text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>{p.title}</h3>
+                                    <p className="text-white/50 text-sm leading-relaxed">{p.description}</p>
                                 </div>
                             );
                         })}
@@ -322,27 +294,26 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                 </div>
             </section>
 
-            {/* ═══ FEATURES ═══════════════════════════════════════════════════ */}
-            <section id="features" className="py-24 bg-[#0A0F0D]">
-                <div className="container mx-auto px-4">
-                    <div className="section-title text-center mb-16">
-                        <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/8 border border-emerald-500/20 px-4 py-1.5 text-xs text-emerald-400 font-semibold tracking-widest uppercase mb-6">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            FEATURES
-                        </div>
-                        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.features.title}</h2>
-                        <p className="text-slate-400 mt-4 text-lg max-w-2xl mx-auto">{d.features.subtitle}</p>
+            <div className="border-t border-white/[0.06]" />
+
+            {/* ═══════════ FEATURES ═════════════════════════════════════════════ */}
+            <section id="features" className="reveal-section py-28 lg:py-36">
+                <div className="container mx-auto px-6 md:px-10 lg:px-16">
+                    <div className="s-heading max-w-2xl mb-16">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-4 block">Plataforma</span>
+                        <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.features.title}</h2>
+                        <p className="text-white/50 mt-4 text-base leading-relaxed">{d.features.subtitle}</p>
                     </div>
-                    <div className="feat-grid grid md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {featureList.map((f: any, i: number) => {
                             const Icon = FEATURE_ICONS[i];
                             return (
-                                <div key={i} className="feat-card rounded-2xl border border-slate-800/80 bg-[#0D1410] p-8 cursor-default">
-                                    <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center mb-6">
-                                        <Icon className="h-5 w-5 text-emerald-400" />
+                                <div key={i} className="s-item feat-card glass-card rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7 cursor-default group">
+                                    <div className="w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.04] flex items-center justify-center mb-6">
+                                        <Icon className="feat-icon h-4.5 w-4.5 text-white/50 transition-colors" size={18} />
                                     </div>
-                                    <h3 className="text-[21px] font-bold mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>{f.title}</h3>
-                                    <p className="text-slate-400 text-[15px] leading-relaxed">{f.description}</p>
+                                    <h3 className="text-base font-bold mb-3 text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>{f.title}</h3>
+                                    <p className="text-white/50 text-sm leading-relaxed">{f.description}</p>
                                 </div>
                             );
                         })}
@@ -350,113 +321,104 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                 </div>
             </section>
 
-            {/* ═══ METRICS ════════════════════════════════════════════════════ */}
-            <section className="py-24 bg-emerald-600 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-20"
-                    style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-                <div className="absolute top-0 left-1/3 w-96 h-96 rounded-full bg-emerald-400/20 blur-[100px] pointer-events-none" />
-                <div className="container mx-auto px-4 relative">
-                    <div className="section-title text-center mb-16">
-                        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.solution.title}</h2>
-                        <p className="text-emerald-100/80 mt-4 text-lg max-w-2xl mx-auto">{d.solution.subtitle}</p>
+            <div className="border-t border-white/[0.06]" />
+
+            {/* ═══════════ METRICS ══════════════════════════════════════════════ */}
+            <section className="metrics-section py-28 lg:py-36 relative overflow-hidden bg-[#050e08]">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_50%_50%,rgba(16,185,129,0.08),transparent)] pointer-events-none" />
+                <div className="container mx-auto px-6 md:px-10 lg:px-16 relative">
+                    <div className="text-center mb-16">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-4 block">Resultados</span>
+                        <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.solution.title}</h2>
+                        <p className="text-white/50 mt-4 text-base">{d.solution.subtitle}</p>
                     </div>
-                    <div className="metrics-row flex flex-wrap justify-center gap-2 max-w-5xl mx-auto">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]">
                         {metrics.map((m: any, i: number) => (
-                            <div key={i} className="metric-item flex items-center gap-6">
-                                <div className="text-center px-8 py-4">
-                                    <div className="text-5xl sm:text-7xl font-black text-white" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.04em' }}>
-                                        {m.value}
-                                    </div>
-                                    <p className="text-emerald-100/80 mt-2 text-sm font-medium">{m.label}</p>
+                            <div key={i} className="metric-num bg-[#050e08] px-8 py-10 text-center">
+                                <div className="text-4xl sm:text-6xl font-black text-white mb-2" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.04em' }}>
+                                    {m.value}
                                 </div>
-                                {i < metrics.length - 1 && (
-                                    <div className="hidden md:block w-px h-20 bg-white/15" />
-                                )}
+                                <p className="text-white/45 text-xs uppercase tracking-wider font-medium">{m.label}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* ═══ HOW IT WORKS – PINNED SCROLL STORY ═════════════════════════ */}
-            <section id="how" className="how-section h-screen bg-[#0A0F0D] relative overflow-hidden">
-                {/* Dot grid */}
-                <div className="absolute inset-0 pointer-events-none"
-                    style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+            <div className="border-t border-white/[0.06]" />
 
-                {/* Progress bar */}
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-slate-800 z-20">
-                    <div className="how-progress-track h-full bg-emerald-500 w-0 transition-none" />
+            {/* ═══════════ HOW IT WORKS — PINNED ═══════════════════════════════ */}
+            <section className="how-section h-screen relative overflow-hidden bg-black">
+                {/* Top progress bar */}
+                <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/[0.06] z-20">
+                    <div className="how-bar h-full bg-emerald-500 w-0" style={{ transition: 'none' }} />
                 </div>
 
-                {/* Header */}
-                <div className="absolute top-16 left-0 right-0 z-20 text-center pointer-events-none px-4">
-                    <span className="inline-block text-xs font-bold uppercase tracking-widest text-emerald-500 mb-3">HOW IT WORKS</span>
-                    <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.how.title}</h2>
-                </div>
-
-                {/* Step counter */}
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
-                    <span className="text-slate-600 text-sm font-mono">
-                        <span className="how-counter-num text-emerald-400 font-bold">1</span>
-                        <span> / 3</span>
-                    </span>
-                    <div className="flex gap-2">
-                        {[0, 1, 2].map((i) => (
-                            <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === 0 ? 'bg-emerald-500' : 'bg-slate-700'}`} />
-                        ))}
+                {/* Header fixed top */}
+                <div className="absolute top-0 left-0 right-0 pt-8 pb-6 z-20 border-b border-white/[0.06] px-6 md:px-10 lg:px-16 flex items-center justify-between pointer-events-none">
+                    <div>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500 block mb-1">Proceso</span>
+                        <h2 className="text-xl sm:text-2xl font-extrabold" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.02em' }}>{d.how.title}</h2>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className="text-3xl font-black text-white how-step-num" style={{ fontFamily: 'Outfit, sans-serif' }}>1</span>
+                        <span className="text-white/25 text-lg font-light">/</span>
+                        <span className="text-white/25 text-lg">3</span>
                     </div>
                 </div>
 
-                {/* Steps stacked */}
+                {/* Stacked panels */}
                 <div className="relative h-full">
                     {steps.map((step: any, i: number) => (
-                        <div key={i} className="how-step-panel px-4">
+                        <div key={i} className="how-panel px-6">
                             <div className="max-w-2xl mx-auto text-center">
-                                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-emerald-600 text-3xl font-black text-white mb-8 shadow-2xl shadow-emerald-600/30" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                                    {i + 1}
+                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-sm text-2xl font-black text-emerald-400 mb-8"
+                                    style={{ fontFamily: 'Outfit, sans-serif' }}>
+                                    {String(i + 1).padStart(2, '0')}
                                 </div>
-                                <h3 className="text-2xl sm:text-3xl font-extrabold mb-6 leading-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                                <h3 className="text-2xl sm:text-4xl font-extrabold mb-6 text-white leading-tight"
+                                    style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>
                                     {step.title}
                                 </h3>
-                                <p className="text-slate-400 text-lg leading-relaxed max-w-lg mx-auto">
+                                <p className="text-white/50 text-base sm:text-lg leading-relaxed max-w-md mx-auto">
                                     {step.description}
                                 </p>
-                                {i < steps.length - 1 && (
-                                    <div className="mt-12 flex items-center justify-center gap-2 text-emerald-500/60 text-sm">
-                                        <span>Scroll para continuar</span>
-                                        <ChevronRight className="h-4 w-4" />
-                                    </div>
-                                )}
                             </div>
                         </div>
                     ))}
                 </div>
+
+                {/* Bottom hint */}
+                <div className="absolute bottom-8 left-0 right-0 text-center z-20 pointer-events-none">
+                    <span className="text-[11px] uppercase tracking-[0.2em] text-white/20">Scroll para continuar</span>
+                </div>
             </section>
 
-            {/* ═══ TESTIMONIALS ═══════════════════════════════════════════════ */}
-            <section className="py-24 bg-[#0D1410]">
-                <div className="container mx-auto px-4">
-                    <div className="section-title text-center mb-16">
-                        <span className="inline-block text-xs font-bold uppercase tracking-widest text-emerald-500 mb-4">TESTIMONIALS</span>
-                        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.testimonials.title}</h2>
+            <div className="border-t border-white/[0.06]" />
+
+            {/* ═══════════ TESTIMONIALS ═════════════════════════════════════════ */}
+            <section className="reveal-section py-28 lg:py-36">
+                <div className="container mx-auto px-6 md:px-10 lg:px-16">
+                    <div className="s-heading max-w-xl mb-16">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-4 block">Testimonios</span>
+                        <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.testimonials.title}</h2>
                     </div>
-                    <div className="test-grid grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                    <div className="grid md:grid-cols-3 gap-4">
                         {testimonials.map((t: any, i: number) => (
-                            <div key={i} className="test-card rounded-2xl border border-slate-800/80 bg-[#0A0F0D] p-8 transition-all duration-300 cursor-default">
-                                <div className="flex gap-1 mb-6">
+                            <div key={i} className="s-item glass-card rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7 cursor-default">
+                                <div className="flex gap-0.5 mb-5">
                                     {[...Array(5)].map((_, j) => (
-                                        <Star key={j} className="h-4 w-4 fill-emerald-500 text-emerald-500" />
+                                        <Star key={j} className="h-3.5 w-3.5 fill-emerald-400 text-emerald-400" />
                                     ))}
                                 </div>
-                                <p className="text-white/85 text-sm leading-relaxed mb-8">&ldquo;{t.text}&rdquo;</p>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                <p className="text-white/75 text-sm leading-relaxed mb-7">&ldquo;{t.text}&rdquo;</p>
+                                <div className="flex items-center gap-3 pt-5 border-t border-white/[0.06]">
+                                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/25 flex items-center justify-center text-emerald-400 font-bold text-xs shrink-0">
                                         {t.author.split(' ').map((n: string) => n[0]).join('')}
                                     </div>
                                     <div>
-                                        <p className="font-semibold text-sm">{t.author}</p>
-                                        <p className="text-slate-500 text-xs">{t.role}</p>
+                                        <p className="font-semibold text-sm text-white">{t.author}</p>
+                                        <p className="text-white/35 text-xs">{t.role}</p>
                                     </div>
                                 </div>
                             </div>
@@ -465,178 +427,157 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                 </div>
             </section>
 
-            {/* ═══ PRICING ════════════════════════════════════════════════════ */}
-            <section id="pricing" className="py-24 bg-[#0A0F0D]">
-                <div className="container mx-auto px-4">
-                    <div className="section-title text-center mb-16">
-                        <span className="inline-block text-xs font-bold uppercase tracking-widest text-emerald-500 mb-4">PRICING</span>
-                        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.pricing.title}</h2>
-                        <p className="text-slate-400 mt-4 text-lg">{d.pricing.subtitle}</p>
+            <div className="border-t border-white/[0.06]" />
+
+            {/* ═══════════ PRICING ══════════════════════════════════════════════ */}
+            <section id="pricing" className="py-28 lg:py-36">
+                <div className="container mx-auto px-6 md:px-10 lg:px-16">
+                    <div className="max-w-xl mb-16">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-4 block">Precios</span>
+                        <h2 className="text-3xl sm:text-5xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.pricing.title}</h2>
+                        <p className="text-white/50 mt-4 text-base">{d.pricing.subtitle}</p>
                     </div>
-                    <div className={`price-grid grid gap-6 max-w-5xl mx-auto items-start justify-center ${plans.length === 1 ? 'md:grid-cols-1 max-w-md' : plans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3'}`}>
-                        {plans.length > 0 ? plans.map((plan) => {
-                            const isFeatured = plan.isFeatured;
-                            const href = plan.ctaLink || `/${lang}/register?plan=${plan.slug}`;
-                            return (
-                                <div key={plan.id} className={`price-card rounded-2xl p-8 ${isFeatured
-                                    ? 'border-2 border-emerald-500 bg-[#0D1410] relative shadow-2xl shadow-emerald-500/10'
-                                    : 'border border-slate-800/80 bg-[#0D1410]'}`}>
-                                    {isFeatured && (
-                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/30">Popular</div>
+                    <div className={`price-grid grid gap-4 max-w-5xl ${plans.length === 1 ? 'md:grid-cols-1 max-w-md' : plans.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3'}`}>
+                        {(plans.length > 0 ? plans.map((plan) => ({
+                            key: plan.id,
+                            title: plan.name,
+                            price: `$${plan.price}`,
+                            desc: plan.description,
+                            features: plan.features,
+                            featured: plan.isFeatured,
+                            href: plan.ctaLink || `/${lang}/register?plan=${plan.slug}`,
+                            cta: plan.ctaText,
+                        })) : [
+                            { key: 'starter', title: d.pricing.starter.title, price: '$29', desc: d.pricing.starter.description, features: d.pricing.starter.features, featured: false, href: `/${lang}/register?plan=STARTER`, cta: d.pricing.cta },
+                            { key: 'pro', title: d.pricing.pro.title, price: '$79', desc: d.pricing.pro.description, features: d.pricing.pro.features, featured: true, href: `/${lang}/register?plan=PRO`, cta: d.pricing.cta },
+                            { key: 'scale', title: d.pricing.scale.title, price: '$199', desc: d.pricing.scale.description, features: d.pricing.scale.features, featured: false, href: '#contact', cta: d.pricing.ctaCustom },
+                        ]).map((plan) => (
+                            <div key={plan.key} className={`price-card rounded-2xl p-7 relative ${plan.featured
+                                ? 'border border-emerald-500/40 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(16,185,129,0.06),transparent)] shadow-[0_0_60px_rgba(16,185,129,0.07)]'
+                                : 'border border-white/[0.07] bg-white/[0.02]'}`}>
+                                {plan.featured && (
+                                    <div className="absolute -top-[1px] left-1/2 -translate-x-1/2">
+                                        <span className="inline-block bg-emerald-500 text-black text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-b-lg">Popular</span>
+                                    </div>
+                                )}
+                                <h3 className="text-base font-bold text-white mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>{plan.title}</h3>
+                                <div className="flex items-baseline gap-1 mt-4 mb-2">
+                                    <span className={`text-5xl font-black ${plan.featured ? 'text-emerald-400' : 'text-white'}`}
+                                        style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.04em' }}>{plan.price}</span>
+                                    <span className="text-white/30 text-sm">/mes</span>
+                                </div>
+                                <p className="text-white/45 text-sm mb-7">{plan.desc}</p>
+                                <Link href={plan.href} className="block mb-7">
+                                    {plan.featured ? (
+                                        <button className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm transition-colors duration-200 shadow-lg shadow-emerald-500/20">
+                                            {plan.cta}
+                                        </button>
+                                    ) : (
+                                        <button className="w-full py-3 rounded-xl border border-white/10 hover:border-white/25 text-white/70 hover:text-white font-medium text-sm transition-all duration-200">
+                                            {plan.cta}
+                                        </button>
                                     )}
-                                    <h3 className="text-lg font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{plan.name}</h3>
-                                    <div className="flex items-baseline gap-1 mt-4 mb-2">
-                                        <span className={`text-5xl font-black ${isFeatured ? 'text-emerald-400' : 'text-white'}`} style={{ fontFamily: 'Outfit, sans-serif' }}>${plan.price}</span>
-                                        <span className="text-slate-500">/mes</span>
-                                    </div>
-                                    <p className="text-slate-400 text-sm mb-8">{plan.description}</p>
-                                    <Link href={href} className="block">
-                                        {isFeatured ? (
-                                            <Button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold shadow-lg shadow-emerald-500/20">{plan.ctaText}</Button>
-                                        ) : (
-                                            <Button variant="outline" className="w-full border-slate-700 text-white hover:bg-slate-800 rounded-lg font-medium">{plan.ctaText}</Button>
-                                        )}
-                                    </Link>
-                                    <ul className="space-y-3 mt-8">
-                                        {plan.features.map((f: string, fi: number) => (
-                                            <li key={fi} className="flex items-start gap-2.5 text-sm text-slate-300">
-                                                <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />{f}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            );
-                        }) : (
-                            <>
-                                {[
-                                    { title: d.pricing.starter.title, price: '$29', desc: d.pricing.starter.description, features: d.pricing.starter.features, featured: false, href: `/${lang}/register?plan=STARTER`, cta: d.pricing.cta },
-                                    { title: d.pricing.pro.title, price: '$79', desc: d.pricing.pro.description, features: d.pricing.pro.features, featured: true, href: `/${lang}/register?plan=PRO`, cta: d.pricing.cta },
-                                    { title: d.pricing.scale.title, price: '$199', desc: d.pricing.scale.description, features: d.pricing.scale.features, featured: false, href: '#contact', cta: d.pricing.ctaCustom },
-                                ].map((plan, i) => (
-                                    <div key={i} className={`price-card rounded-2xl p-8 ${plan.featured
-                                        ? 'border-2 border-emerald-500 bg-[#0D1410] relative shadow-2xl shadow-emerald-500/10'
-                                        : 'border border-slate-800/80 bg-[#0D1410]'}`}>
-                                        {plan.featured && (
-                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/30">Popular</div>
-                                        )}
-                                        <h3 className="text-lg font-bold" style={{ fontFamily: 'Outfit, sans-serif' }}>{plan.title}</h3>
-                                        <div className="flex items-baseline gap-1 mt-4 mb-2">
-                                            <span className={`text-5xl font-black ${plan.featured ? 'text-emerald-400' : 'text-white'}`} style={{ fontFamily: 'Outfit, sans-serif' }}>{plan.price}</span>
-                                            <span className="text-slate-500">/mes</span>
-                                        </div>
-                                        <p className="text-slate-400 text-sm mb-8">{plan.desc}</p>
-                                        <Link href={plan.href} className="block">
-                                            {plan.featured ? (
-                                                <Button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold shadow-lg shadow-emerald-500/20">{plan.cta}</Button>
-                                            ) : (
-                                                <Button variant="outline" className="w-full border-slate-700 text-white hover:bg-slate-800 rounded-lg font-medium">{plan.cta}</Button>
-                                            )}
-                                        </Link>
-                                        <ul className="space-y-3 mt-8">
-                                            {plan.features.map((f: string, fi: number) => (
-                                                <li key={fi} className="flex items-start gap-2.5 text-sm text-slate-300">
-                                                    <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />{f}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                ))}
-                            </>
-                        )}
-                    </div>
-                </div>
-            </section>
-
-            {/* ═══ FAQ ════════════════════════════════════════════════════════ */}
-            <section id="faq" className="py-24 bg-[#0D1410]">
-                <div className="container mx-auto px-4 max-w-3xl">
-                    <div className="section-title text-center mb-16">
-                        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.faq.title}</h2>
-                    </div>
-                    <div className="faq-list space-y-3">
-                        {faqs.map((q: any, i: number) => (
-                            <div key={i} className="faq-item border border-slate-800/80 rounded-xl bg-[#0A0F0D] overflow-hidden">
-                                <button
-                                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                                    className="w-full flex items-center justify-between p-6 text-left hover:bg-white/[0.02] transition-colors"
-                                >
-                                    <span className="font-semibold text-sm pr-4" style={{ fontFamily: 'Outfit, sans-serif' }}>{q.question}</span>
-                                    <ChevronDown className={`h-4 w-4 text-slate-500 shrink-0 transition-transform duration-300 ${openFaq === i ? 'rotate-180' : ''}`} />
-                                </button>
-                                <div className={`faq-answer overflow-hidden ${openFaq === i ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    <p className="text-slate-400 text-sm leading-relaxed px-6 pb-6">{q.answer}</p>
-                                </div>
+                                </Link>
+                                <ul className="space-y-2.5">
+                                    {plan.features.map((f: string, fi: number) => (
+                                        <li key={fi} className="flex items-start gap-2.5 text-sm text-white/60">
+                                            <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />{f}
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* ═══ CTA ════════════════════════════════════════════════════════ */}
-            <section className="cta-section py-28 bg-emerald-600 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-25"
-                    style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full bg-emerald-400/25 blur-[120px] pointer-events-none" />
-                <div className="container mx-auto px-4 relative">
-                    <div className="cta-inner max-w-3xl mx-auto text-center">
-                        <h2 className="text-4xl sm:text-6xl font-black tracking-tight mb-6 text-white leading-[0.95]"
-                            style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.04em' }}>
+            <div className="border-t border-white/[0.06]" />
+
+            {/* ═══════════ FAQ ══════════════════════════════════════════════════ */}
+            <section id="faq" className="py-28 lg:py-36">
+                <div className="container mx-auto px-6 md:px-10 lg:px-16">
+                    <div className="grid lg:grid-cols-[1fr_1.4fr] gap-16 max-w-6xl">
+                        <div>
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-4 block">FAQ</span>
+                            <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight sticky top-24" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.faq.title}</h2>
+                        </div>
+                        <div className="faq-list">
+                            {[d.faq.q1, d.faq.q2, d.faq.q3, d.faq.q4, d.faq.q5].map((q: any, i: number) => (
+                                <div key={i} className="faq-row border-b border-white/[0.07]">
+                                    <button onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                                        className="w-full flex items-center justify-between py-5 text-left group">
+                                        <span className="text-sm font-semibold text-white/85 group-hover:text-white pr-6 transition-colors" style={{ fontFamily: 'Outfit, sans-serif' }}>{q.question}</span>
+                                        <ChevronDown className={`h-4 w-4 text-white/30 shrink-0 transition-transform duration-300 ${openFaq === i ? 'rotate-180 text-emerald-400' : ''}`} />
+                                    </button>
+                                    <div className={`faq-body overflow-hidden ${openFaq === i ? 'max-h-72 opacity-100 pb-5' : 'max-h-0 opacity-0 pb-0'}`}>
+                                        <p className="text-white/50 text-sm leading-relaxed">{q.answer}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div className="border-t border-white/[0.06]" />
+
+            {/* ═══════════ CTA ══════════════════════════════════════════════════ */}
+            <section className="cta-section py-28 lg:py-40 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_100%,rgba(16,185,129,0.09),transparent)] pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-white/[0.06]" />
+                <div className="container mx-auto px-6 md:px-10 lg:px-16 relative">
+                    <div className="cta-text max-w-3xl">
+                        <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-[0.95] mb-8"
+                            style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.045em' }}>
                             {d.cta.title}
                         </h2>
-                        <p className="text-emerald-100/80 text-lg mb-10 leading-relaxed">{d.cta.subtitle}</p>
+                        <p className="text-white/50 text-lg mb-10 leading-relaxed max-w-xl">{d.cta.subtitle}</p>
                         <Link href={`/${lang}/register`}>
-                            <Button size="lg" className="h-14 px-10 text-base bg-white text-emerald-700 hover:bg-gray-50 shadow-2xl gap-2 font-semibold rounded-xl">
-                                {d.cta.button}
-                                <ArrowRight className="h-4 w-4" />
-                            </Button>
+                            <button className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-8 py-4 rounded-full text-base transition-colors duration-200 shadow-xl shadow-emerald-500/20">
+                                {d.cta.button} <ArrowRight className="h-4 w-4" />
+                            </button>
                         </Link>
                     </div>
                 </div>
             </section>
 
-            {/* ═══ CONTACT ════════════════════════════════════════════════════ */}
-            <section id="contact" className="contact-section py-24 bg-[#0A0F0D]">
-                <div className="container mx-auto px-4">
-                    <div className="contact-inner">
-                        <div className="text-center mb-16">
-                            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.contact.title}</h2>
-                            <p className="text-slate-400 mt-4 text-lg">{d.contact.subtitle}</p>
-                        </div>
-                        <ContactForm dict={d.contact.form} />
+            {/* ═══════════ CONTACT ══════════════════════════════════════════════ */}
+            <section id="contact" className="py-28 lg:py-36 bg-[#030603]">
+                <div className="container mx-auto px-6 md:px-10 lg:px-16">
+                    <div className="max-w-xl mx-auto text-center mb-12">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-4 block">Contacto</span>
+                        <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>{d.contact.title}</h2>
+                        <p className="text-white/50 mt-4 text-base">{d.contact.subtitle}</p>
                     </div>
+                    <ContactForm dict={d.contact.form} />
                 </div>
             </section>
 
-            {/* ═══ FOOTER ═════════════════════════════════════════════════════ */}
-            <footer className="border-t border-slate-800/60 bg-[#0A0F0D]">
-                <div className="container mx-auto px-4 py-12">
+            {/* ═══════════ FOOTER ═══════════════════════════════════════════════ */}
+            <footer className="border-t border-white/[0.06]">
+                <div className="container mx-auto px-6 md:px-10 lg:px-16 py-12">
                     <div className="flex flex-col md:flex-row justify-between gap-12 mb-12">
                         <div className="max-w-xs">
-                            <span className="text-2xl font-black tracking-tight block mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>Varylo</span>
-                            <p className="text-slate-500 text-sm leading-relaxed">{dict.footer.description}</p>
+                            <span className="text-xl font-black tracking-tight block mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>Varylo</span>
+                            <p className="text-white/35 text-sm leading-relaxed">{dict.footer.description}</p>
                         </div>
-                        <div className="flex gap-16">
-                            <div className="flex flex-col gap-3">
-                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">{dict.footer.product}</span>
-                                <Link href="#features" className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.features}</Link>
-                                <Link href="#pricing" className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.pricing}</Link>
-                                <Link href="#faq" className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.faq}</Link>
-                            </div>
-                            <div className="flex flex-col gap-3">
-                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">{dict.footer.company}</span>
-                                <Link href="#contact" className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.contact}</Link>
-                                <Link href={`/${lang}/terms`} className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.terms}</Link>
-                                <Link href={`/${lang}/privacy`} className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.privacy}</Link>
-                            </div>
-                            <div className="flex flex-col gap-3">
-                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">{dict.footer.account}</span>
-                                <Link href={`/${lang}/login`} className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.login}</Link>
-                                <Link href={`/${lang}/register`} className="text-sm text-slate-400 hover:text-white transition-colors">{dict.footer.createAccount}</Link>
-                            </div>
+                        <div className="flex gap-12 sm:gap-16">
+                            {[
+                                { label: dict.footer.product, links: [['#features', dict.footer.features], ['#pricing', dict.footer.pricing], ['#faq', dict.footer.faq]] },
+                                { label: dict.footer.company, links: [['#contact', dict.footer.contact], [`/${lang}/terms`, dict.footer.terms], [`/${lang}/privacy`, dict.footer.privacy]] },
+                                { label: dict.footer.account, links: [[`/${lang}/login`, dict.footer.login], [`/${lang}/register`, dict.footer.createAccount]] },
+                            ].map(({ label, links }) => (
+                                <div key={label} className="flex flex-col gap-3">
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/25 mb-1">{label}</span>
+                                    {links.map(([href, text]) => (
+                                        <Link key={href} href={href} className="text-sm text-white/40 hover:text-white transition-colors duration-200">{text}</Link>
+                                    ))}
+                                </div>
+                            ))}
                         </div>
                     </div>
-                    <div className="border-t border-slate-800/60 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <p className="text-slate-500 text-xs">&copy; 2026 {dict.footer.rights}</p>
+                    <div className="border-t border-white/[0.06] pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <p className="text-white/25 text-xs">&copy; 2026 {dict.footer.rights}</p>
                         <LanguageSwitcher variant="dark" />
                     </div>
                 </div>
