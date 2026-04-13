@@ -638,6 +638,22 @@ async function handleAnalyzeFile(
             }
         }
 
+        // Also download image bytes now — needed for Gemini fallback
+        let imageBuffer: Buffer | null = null;
+        let imageMime = lastMediaMessage.mimeType || 'image/jpeg';
+        try {
+            const dlHeaders: Record<string, string> = {};
+            if (lastMediaMessage.mediaUrl.includes('supabase') && SUPABASE_KEY) {
+                dlHeaders['Authorization'] = `Bearer ${SUPABASE_KEY}`;
+            }
+            const dlRes = await fetch(lastMediaMessage.mediaUrl, { headers: dlHeaders });
+            if (dlRes.ok) {
+                imageBuffer = Buffer.from(await dlRes.arrayBuffer());
+                const ct = dlRes.headers.get('content-type')?.split(';')[0];
+                if (ct?.startsWith('image/')) imageMime = ct;
+            }
+        } catch { /* non-critical */ }
+
         console.log(`[analyze_file] Calling gpt-4o vision...`);
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
@@ -657,8 +673,62 @@ async function handleAnalyzeFile(
             ],
         });
 
-        const analysisText = response.choices[0]?.message?.content || '';
+        let analysisText = response.choices[0]?.message?.content || '';
         console.log(`[analyze_file] gpt-4o response (${response.usage?.total_tokens} tokens): ${analysisText.slice(0, 500)}`);
+
+        // Detect OpenAI content-policy refusal and fall back to Gemini
+        const isRefusal = (t: string) => {
+            const lower = t.toLowerCase().trim();
+            return lower.startsWith("lo siento") || lower.startsWith("i'm sorry") ||
+                lower.startsWith("i am sorry") || lower.includes("can't assist") ||
+                lower.includes("cannot assist") || lower.includes("no puedo ayudar") ||
+                (lower.length < 80 && (lower.includes("sorry") || lower.includes("lo siento")));
+        };
+
+        if (isRefusal(analysisText)) {
+            console.log('[analyze_file] gpt-4o refused — trying Gemini fallback');
+            const geminiKey = process.env.GEMINI_API_KEY;
+            if (geminiKey && imageBuffer) {
+                try {
+                    const geminiRes = await fetch(
+                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{
+                                    parts: [
+                                        { text: args.instruction },
+                                        { inline_data: { mime_type: imageMime, data: imageBuffer.toString('base64') } },
+                                    ],
+                                }],
+                                generationConfig: { temperature: 0.1 },
+                            }),
+                        },
+                    );
+                    console.log(`[analyze_file] Gemini status: ${geminiRes.status}`);
+                    if (geminiRes.ok) {
+                        const geminiData = await geminiRes.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+                        const geminiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                        console.log(`[analyze_file] Gemini response: ${geminiText.slice(0, 500)}`);
+                        if (geminiText.trim()) {
+                            analysisText = geminiText;
+                        }
+                    } else {
+                        const errBody = await geminiRes.text().catch(() => '');
+                        console.error(`[analyze_file] Gemini error: ${errBody.slice(0, 200)}`);
+                    }
+                } catch (geminiErr) {
+                    console.error('[analyze_file] Gemini call failed:', geminiErr);
+                }
+            } else if (!geminiKey) {
+                console.warn('[analyze_file] No GEMINI_API_KEY configured — cannot process this image type');
+                return JSON.stringify({
+                    success: false,
+                    message: 'Este tipo de imagen (documento de identidad) no puede ser procesado. Para habilitarlo, configura GEMINI_API_KEY en las variables de entorno.',
+                });
+            }
+        }
 
         // Track tokens for vision call (gpt-4o, higher cost)
         if (response.usage) {
