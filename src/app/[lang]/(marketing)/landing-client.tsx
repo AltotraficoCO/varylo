@@ -88,29 +88,25 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
             scrollTrigger: { trigger: '.metrics-section', start: 'top 80%', once: true },
         });
 
-        // ─── HOW IT WORKS — PINNED STORYTELLING ──────────────────────────────
+        // ─── HOW IT WORKS — HORIZONTAL SLIDE ────────────────────────────────
         const howPanels = gsap.utils.toArray<HTMLElement>('.how-panel');
         if (howPanels.length > 0) {
-            const tl = gsap.timeline();
-            tl
-                .to('.how-panel:nth-child(1)', { opacity: 0, y: -70, duration: 1 })
-                .from('.how-panel:nth-child(2)', { opacity: 0, y: 70, duration: 1 }, '<0.05')
-                .to('.how-panel:nth-child(2)', { opacity: 0, y: -70, duration: 1 })
-                .from('.how-panel:nth-child(3)', { opacity: 0, y: 70, duration: 1 }, '<0.05');
-
-            ScrollTrigger.create({
-                trigger: '.how-section',
-                start: 'top top',
-                end: '+=260%',
-                pin: true,
-                scrub: 0.9,
-                anticipatePin: 1,
-                animation: tl,
-                onUpdate(self) {
-                    const num = document.querySelector('.how-step-num');
-                    const bar = document.querySelector('.how-bar') as HTMLElement;
-                    if (num) num.textContent = String(Math.min(3, Math.floor(self.progress * 3) + 1));
-                    if (bar) bar.style.width = `${Math.round(self.progress * 100)}%`;
+            gsap.to('.how-track', {
+                x: () => -(howPanels.length - 1) * window.innerWidth,
+                ease: 'none',
+                scrollTrigger: {
+                    trigger: '.how-section',
+                    start: 'top top',
+                    end: () => `+=${(howPanels.length - 1) * window.innerWidth}`,
+                    pin: true,
+                    scrub: 1,
+                    anticipatePin: 1,
+                    onUpdate(self) {
+                        const num = document.querySelector('.how-step-num');
+                        const bar = document.querySelector('.how-bar') as HTMLElement;
+                        if (num) num.textContent = String(Math.min(3, Math.floor(self.progress * 3) + 1));
+                        if (bar) bar.style.width = `${Math.round(self.progress * 100)}%`;
+                    },
                 },
             });
         }
@@ -166,8 +162,8 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                 .marquee-inner { display: flex; animation: ticker 22s linear infinite; width: max-content; }
                 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
                 /* How it works */
-                .how-panel { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-                .how-panel:not(:first-child) { opacity: 0; }
+                .how-track { display: flex; will-change: transform; height: 100%; }
+                .how-panel { flex: 0 0 100vw; width: 100vw; display: flex; align-items: center; justify-content: center; }
                 /* FAQ */
                 .faq-body { transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease, padding 0.28s ease; }
                 /* Price card hover */
@@ -367,8 +363,8 @@ export function LandingClient({ lang, d, dict, plans, logos }: LandingClientProp
                     </div>
                 </div>
 
-                {/* Stacked panels */}
-                <div className="relative h-full">
+                {/* Horizontal track */}
+                <div className="how-track absolute inset-0">
                     {steps.map((step: any, i: number) => (
                         <div key={i} className="how-panel px-6">
                             <div className="max-w-2xl mx-auto text-center">
