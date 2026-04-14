@@ -201,6 +201,8 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
 
         // Parse webhook config
         const webhookConfig = aiAgent.webhookConfigJson as WebhookConfig | null;
+        console.log(`[AI Agent] webhookConfigJson raw:`, JSON.stringify(aiAgent.webhookConfigJson));
+        console.log(`[AI Agent] webhookConfig url:`, webhookConfig?.url || 'NONE');
 
         // Detect provider from model and run independent checks in parallel
         const provider = detectProvider(aiAgent.model);
@@ -267,6 +269,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             ...(calendarEnabled ? (CALENDAR_TOOLS as LegacyFunctionTool[]).map(legacyToNormalizedTool) : []),
             ...(ecommerceEnabled ? (ECOMMERCE_TOOLS as LegacyFunctionTool[]).map(legacyToNormalizedTool) : []),
         ];
+        console.log(`[AI Agent] Tools loaded: ${tools.map(t => t.name).join(', ')}`);
 
         // Function calling loop
         let totalPromptTokens = 0;
@@ -303,6 +306,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
                 for (const toolCall of completion.toolCalls) {
                     const args = toolCall.arguments as Record<string, string>;
                     let result: string;
+                    console.log(`[AI Agent] Tool called: ${toolCall.name}`, JSON.stringify(args).slice(0, 200));
 
                     switch (toolCall.name) {
                         case 'save_captured_data':
