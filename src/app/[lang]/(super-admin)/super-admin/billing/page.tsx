@@ -12,11 +12,9 @@ export default async function BillingPage({ params }: { params: Promise<{ lang: 
 
     return (
         <div className="space-y-6">
-            <div>
-                <h2 className="text-2xl font-bold tracking-tight">{t.title}</h2>
-                <p className="text-muted-foreground">
-                    {t.subtitle}
-                </p>
+            <div className="flex flex-col gap-1">
+                <h1 className="text-[28px] font-bold text-foreground">{t.title}</h1>
+                <p className="text-sm text-muted-foreground">{t.subtitle}</p>
             </div>
 
             <Tabs defaultValue="plans" className="space-y-6">
