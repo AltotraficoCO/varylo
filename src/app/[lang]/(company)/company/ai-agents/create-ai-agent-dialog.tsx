@@ -115,7 +115,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                             </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">
-                            {AGENT_TYPE_CONFIGS[agentType].description}
+                            {(AGENT_TYPE_CONFIGS[agentType] || AGENT_TYPE_CONFIGS.CUSTOM).description}
                         </p>
                     </div>
 

@@ -54,7 +54,9 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
     const [state, action, isPending] = useActionState(updateAiAgent, undefined);
     const [open, setOpen] = useState(false);
     const [selectedChannels, setSelectedChannels] = useState<string[]>(agent.channelIds);
-    const [agentType, setAgentType] = useState<AiAgentType>((agent.agentType as AiAgentType) || 'CUSTOM');
+    const [agentType, setAgentType] = useState<AiAgentType>(
+        (AI_AGENT_TYPES as readonly string[]).includes(agent.agentType) ? (agent.agentType as AiAgentType) : 'CUSTOM'
+    );
     const [calendarEnabled, setCalendarEnabled] = useState(agent.calendarEnabled);
     const [ecommerceEnabled, setEcommerceEnabled] = useState(agent.ecommerceEnabled);
     const [dataCaptureEnabled, setDataCaptureEnabled] = useState(agent.dataCaptureEnabled);
@@ -128,7 +130,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                             </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">
-                            {AGENT_TYPE_CONFIGS[agentType].description}
+                            {(AGENT_TYPE_CONFIGS[agentType] || AGENT_TYPE_CONFIGS.CUSTOM).description}
                         </p>
                     </div>
 
