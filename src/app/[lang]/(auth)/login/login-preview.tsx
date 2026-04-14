@@ -16,9 +16,9 @@ const FLOW: Record<string, Step> = {
         ],
     },
     plans: {
-        text: 'Tenemos 3 planes: Starter, Pro y Scale. El más popular es Pro, con agentes ilimitados, chatbot y IA generativa. ¿Te cuento más?',
+        text: 'Varylo tiene un plan todo incluido: agentes ilimitados, chatbot con IA, WhatsApp + Instagram + Web Chat y reportes avanzados. ¿Te cuento más?',
         opts: [
-            { label: 'Sí, cuéntame del plan Pro',       next: 'pro'    },
+            { label: 'Sí, ¿qué incluye exactamente?',   next: 'pro'    },
             { label: '¿Hay período de prueba gratis?',  next: 'trial'  },
         ],
     },
@@ -37,20 +37,20 @@ const FLOW: Record<string, Step> = {
         ],
     },
     pro: {
-        text: 'El plan Pro incluye agentes ilimitados, IA generativa, WhatsApp + Instagram + Web Chat, reportes avanzados y soporte prioritario 24/7.',
+        text: 'Incluye agentes ilimitados, chatbot drag & drop, agente IA generativa, WhatsApp + Instagram + Web Chat, reportes avanzados y soporte prioritario 24/7.',
         opts: [
             { label: '¿Cuánto cuesta?',                 next: 'pricing' },
             { label: '¡Quiero empezar ahora!',          next: 'cta'     },
         ],
     },
     pricing: {
-        text: 'El plan Pro está a $149/mes. Con nuestra prueba de 14 días gratis puedes ver todo el valor antes de decidir. Sin tarjeta de crédito. 🎉',
+        text: 'Tenemos un plan mensual con precio accesible. Con la prueba gratuita de 14 días puedes ver todo el valor antes de decidir. Sin tarjeta de crédito. 🎉',
         opts: [
             { label: '¡Perfecto, quiero probarlo!',     next: 'cta' },
         ],
     },
     trial: {
-        text: '¡Claro! 14 días gratis en el plan Pro. Sin tarjeta de crédito, sin compromisos. Cancelas cuando quieras.',
+        text: '¡Claro! 14 días gratis para que explores todo. Sin tarjeta de crédito, sin compromisos. Cancelas cuando quieras.',
         opts: [
             { label: '¡Genial, quiero empezar!',        next: 'cta' },
         ],
@@ -86,7 +86,7 @@ const BotIcon = ({ size = 11 }: { size?: number }) => (
 export function LoginPreview() {
     const [msgs, setMsgs]     = useState<Msg[]>([]);
     const [opts, setOpts]     = useState<Opt[]>([]);
-    const [typing, setTyping] = useState(false);
+    const [typing, setTyping] = useState(true);   // show dots immediately on mount
     const uid    = useRef(0);
     const endRef = useRef<HTMLDivElement>(null);
 
@@ -121,7 +121,9 @@ export function LoginPreview() {
     }
 
     useEffect(() => {
-        const t = setTimeout(() => runStep('start'), 900);
+        // typing=true is set as default so dots are visible immediately;
+        // runStep will overwrite it after the delay
+        const t = setTimeout(() => runStep('start'), 300);
         return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -167,6 +169,20 @@ export function LoginPreview() {
                         <span className="text-[11px] text-emerald-500/60 font-medium">en línea</span>
                     </div>
                 </div>
+
+                {/* Intro chips — always visible, give context before first message */}
+                {msgs.length === 0 && (
+                    <div className="mb-5 flex flex-wrap gap-2">
+                        {['Planes y precios', 'Chatbot IA', 'WhatsApp', 'Instagram'].map((tag) => (
+                            <span
+                                key={tag}
+                                className="text-[11px] px-2.5 py-1 rounded-full border border-white/[0.08] text-white/25"
+                            >
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
 
                 {/* ── Messages ── */}
                 <div className="flex-1 overflow-y-auto chat-scroll space-y-3 min-h-0">
