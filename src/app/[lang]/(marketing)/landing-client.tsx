@@ -52,21 +52,15 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
     const lastDragTime = useRef(0);
     const momentumAnim = useRef<number | null>(null);
 
-    // ── Swipe-to-unlock language toggle ─────────────────────────────────────
+    // ── Click-to-switch language toggle ─────────────────────────────────────
     const pathname = usePathname();
     const currentLocale = displayLang;
     const targetLocale = displayLang === lang ? otherLang : lang;
-    const [swipeX, setSwipeX] = useState(0);
-    const [isSwiping, setIsSwiping] = useState(false);
     // Wave phases: 'idle' | 'in' (expanding) | 'out' (contracting)
     const [wavePhase, setWavePhase] = useState<'idle' | 'in' | 'out'>('idle');
-    const swipeStartClientX = useRef(0);
-    const TRACK_W = 200;
-    const UNLOCK_THRESHOLD = 0.88;
 
     const doUnlock = useCallback(() => {
         if (wavePhase !== 'idle') return;
-        setIsSwiping(false);
         setWavePhase('in');
         // At peak of wave, switch language silently
         setTimeout(() => {
@@ -76,26 +70,8 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
         }, 750);
         setTimeout(() => {
             setWavePhase('idle');
-            setSwipeX(0);
         }, 1550);
     }, [wavePhase, lang, otherLang, targetLocale, pathname]);
-
-    const onSwipePointerDown = (e: React.PointerEvent) => {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        setIsSwiping(true);
-        swipeStartClientX.current = e.clientX - swipeX;
-    };
-    const onSwipePointerMove = (e: React.PointerEvent) => {
-        if (!isSwiping) return;
-        const newX = Math.max(0, Math.min(TRACK_W, e.clientX - swipeStartClientX.current));
-        setSwipeX(newX);
-        if (newX / TRACK_W >= UNLOCK_THRESHOLD) doUnlock();
-    };
-    const onSwipePointerUp = () => {
-        if (!isSwiping) return;
-        setIsSwiping(false);
-        if (swipeX / TRACK_W < UNLOCK_THRESHOLD) setSwipeX(0);
-    };
 
     // Center price rail on mount — use effect after paint
     useEffect(() => {
@@ -322,19 +298,13 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                 .price-rail-scroll.is-dragging { cursor:grabbing; user-select:none; }
                 /* FAQ */
                 .faq-body { transition: max-height .38s cubic-bezier(.4,0,.2,1), opacity .28s ease, padding .28s ease; }
-                /* Swipe lang toggle */
-                .lang-toggle { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:9990; }
-                .lang-track { position:relative; width:280px; height:52px; background:rgba(10,10,10,.8); border:1px solid rgba(255,255,255,.1); border-radius:999px; backdrop-filter:blur(24px); display:flex; align-items:center; padding:4px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.04); }
-                .lang-track-fill { position:absolute; left:4px; top:4px; bottom:4px; border-radius:999px; background:linear-gradient(90deg, rgba(16,185,129,.12), rgba(16,185,129,.04)); pointer-events:none; transition:width .05s linear; }
-                .lang-thumb { position:relative; z-index:2; width:72px; height:44px; border-radius:999px; background:rgba(16,185,129,.18); border:1px solid rgba(16,185,129,.5); display:flex; align-items:center; justify-content:center; gap:5px; cursor:grab; user-select:none; touch-action:none; transition:background .15s,border-color .15s,box-shadow .15s; will-change:transform; }
-                .lang-thumb.dragging { cursor:grabbing; background:rgba(16,185,129,.3); box-shadow:0 0 28px rgba(16,185,129,.35); }
-                .lang-hint { position:absolute; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.22); pointer-events:none; }
-                .lang-hint-left { left:14px; }
-                .lang-hint-right { right:14px; }
-                /* Lang wave overlay — 2 phase */
-                .lang-wave { position:fixed; bottom:28px; left:50%; width:80px; height:80px; border-radius:50%; background:#10b981; pointer-events:none; z-index:9992; transform-origin:center center; }
-                @keyframes wave-in  { from{transform:translateX(-50%) scale(1)}  to{transform:translateX(-50%) scale(60)} }
-                @keyframes wave-out { from{transform:translateX(-50%) scale(60)} to{transform:translateX(-50%) scale(0)} }
+                /* Lang circle toggle — bottom left */
+                .lang-btn { position:fixed; bottom:28px; left:28px; z-index:9990; width:44px; height:44px; border-radius:50%; background:rgba(10,10,10,.8); border:1px solid rgba(255,255,255,.12); backdrop-filter:blur(24px); display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 20px rgba(0,0,0,.5); transition:background .18s,border-color .18s,box-shadow .18s; user-select:none; }
+                .lang-btn:hover { background:rgba(16,185,129,.18); border-color:rgba(16,185,129,.5); box-shadow:0 0 22px rgba(16,185,129,.28); }
+                /* Lang wave overlay — originates from bottom-left button center (50px, 50px from corner) */
+                .lang-wave { position:fixed; bottom:6px; left:6px; width:80px; height:80px; border-radius:50%; background:#10b981; pointer-events:none; z-index:9992; transform-origin:center center; }
+                @keyframes wave-in  { from{transform:scale(1)}  to{transform:scale(65)} }
+                @keyframes wave-out { from{transform:scale(65)} to{transform:scale(0)} }
                 .lang-wave.wave-in  { animation:wave-in  .75s cubic-bezier(.4,0,.2,1) forwards; }
                 .lang-wave.wave-out { animation:wave-out .8s  cubic-bezier(.4,0,.2,1) forwards; }
                 /* Varylo logo in wave */
@@ -1023,34 +993,13 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                     </div>
                 </>
             )}
-            <div className="lang-toggle">
-                <div className="lang-track">
-                    {/* Progress fill behind thumb */}
-                    <div className="lang-track-fill" style={{ width: `${4 + swipeX * 0.98}px` }} />
-                    {/* Left hint */}
-                    <span className="lang-hint lang-hint-left" style={{ opacity: swipeX > 40 ? 0 : Math.max(0, 1 - swipeX / 40) }}>
-                        {currentLocale === 'es' ? '🇺🇸' : '🇪🇸'}
-                    </span>
-                    {/* Right hint */}
-                    <span className="lang-hint lang-hint-right" style={{ opacity: swipeX < 160 ? 0 : (swipeX - 160) / 40 }}>
-                        ✓
-                    </span>
-                    {/* Thumb */}
-                    <div
-                        className={`lang-thumb${isSwiping ? ' dragging' : ''}`}
-                        style={{ transform: `translateX(${swipeX}px)`, transition: isSwiping ? 'none' : 'transform .35s cubic-bezier(.34,1.56,.64,1), background .15s, box-shadow .15s' }}
-                        onPointerDown={onSwipePointerDown}
-                        onPointerMove={onSwipePointerMove}
-                        onPointerUp={onSwipePointerUp}
-                        onPointerLeave={onSwipePointerUp}
-                    >
-                        <span className="text-lg leading-none select-none">{currentLocale === 'es' ? '🇪🇸' : '🇺🇸'}</span>
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ color: 'rgba(16,185,129,.8)', flexShrink: 0 }}>
-                            <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                    </div>
-                </div>
-            </div>
+            <button
+                className="lang-btn"
+                onClick={doUnlock}
+                aria-label={`Cambiar a ${targetLocale === 'en' ? 'inglés' : 'español'}`}
+            >
+                <span className="text-xl leading-none">{currentLocale === 'es' ? '🇪🇸' : '🇺🇸'}</span>
+            </button>
 
             {/* ══ FOOTER ═══════════════════════════════════════════════════════════ */}
             <footer className="border-t border-white/[.06]">
