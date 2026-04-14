@@ -33,9 +33,62 @@ export default async function LoginPage({ params }: { params: Promise<{ lang: Lo
                     </span>
                 </Link>
 
-                {/* Chat simulation — takes all middle space */}
-                <div className="relative z-10 flex-1 flex flex-col py-8 min-h-0">
-                    <LoginPreview />
+                {/* Middle content */}
+                <div className="relative z-10 flex-1 flex flex-col py-8 gap-5 min-h-0">
+
+                    {/* Headline */}
+                    <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[.18em] text-white/25 mb-2"
+                            style={{ fontFamily: 'Inter, sans-serif' }}>
+                            Plataforma omnicanal
+                        </p>
+                        <h2 className="text-[22px] font-black text-white/85 leading-snug"
+                            style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            Automatiza tu atención al cliente con IA
+                        </h2>
+                    </div>
+
+                    {/* Channel badges */}
+                    <div className="flex gap-2 flex-wrap">
+                        {[
+                            { label: 'WhatsApp',  color: '#25D366', bg: '#25D36618' },
+                            { label: 'Instagram', color: '#E1306C', bg: '#E1306C18' },
+                            { label: 'Web Chat',  color: '#3B82F6', bg: '#3B82F618' },
+                        ].map(ch => (
+                            <span
+                                key={ch.label}
+                                className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                                style={{ color: ch.color, background: ch.bg }}
+                            >
+                                {ch.label}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Chat widget */}
+                    <div className="flex-1 min-h-0 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 overflow-hidden">
+                        <LoginPreview />
+                    </div>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/[0.06]">
+                        {[
+                            { value: '1.2K', label: 'Conversaciones' },
+                            { value: '8',   label: 'Agentes activos' },
+                            { value: '98%', label: 'Satisfacción'    },
+                        ].map((s) => (
+                            <div key={s.label} className="text-center">
+                                <p className="text-[18px] font-bold text-white/70"
+                                    style={{ fontFamily: 'Outfit, sans-serif' }}>
+                                    {s.value}
+                                </p>
+                                <p className="text-[11px] text-white/25 mt-0.5"
+                                    style={{ fontFamily: 'Inter, sans-serif' }}>
+                                    {s.label}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Footer */}

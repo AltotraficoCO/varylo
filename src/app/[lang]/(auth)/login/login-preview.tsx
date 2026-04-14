@@ -170,20 +170,6 @@ export function LoginPreview() {
                     </div>
                 </div>
 
-                {/* Intro chips — always visible, give context before first message */}
-                {msgs.length === 0 && (
-                    <div className="mb-5 flex flex-wrap gap-2">
-                        {['Planes y precios', 'Chatbot IA', 'WhatsApp', 'Instagram'].map((tag) => (
-                            <span
-                                key={tag}
-                                className="text-[11px] px-2.5 py-1 rounded-full border border-white/[0.08] text-white/25"
-                            >
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
-                )}
-
                 {/* ── Messages ── */}
                 <div className="flex-1 overflow-y-auto chat-scroll space-y-3 min-h-0">
                     {msgs.map((m) => (
