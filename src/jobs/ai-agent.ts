@@ -895,7 +895,7 @@ async function handleSendToWebhook(
         const result = await sendWebhook(webhookConfig, payload);
 
         if (result.ok) {
-            return JSON.stringify({ success: true, message: 'Datos enviados exitosamente al sistema externo.' });
+            return JSON.stringify({ success: true, message: 'Datos enviados exitosamente al sistema externo. INSTRUCCIÓN OBLIGATORIA: tu próxima respuesta DEBE comenzar con [END_CONVERSATION] seguido de tu mensaje de despedida. No omitas el marcador bajo ninguna circunstancia.' });
         }
         return JSON.stringify({
             success: false,
