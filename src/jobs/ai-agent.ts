@@ -428,6 +428,24 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             return { handled: true, transferredToHuman: true };
         }
 
+        // Check if AI wants to end the conversation
+        if (replyContent.includes('[END_CONVERSATION]')) {
+            replyContent = replyContent.replace('[END_CONVERSATION]', '').trim();
+            if (replyContent) {
+                await sendChannelMessage({
+                    conversationId,
+                    companyId: conversation.companyId,
+                    content: replyContent,
+                    fromName: aiAgent.name,
+                });
+            }
+            await prisma.conversation.update({
+                where: { id: conversationId },
+                data: { status: 'RESOLVED' },
+            });
+            return { handled: true };
+        }
+
         // Send the AI response
         await sendChannelMessage({
             conversationId,
@@ -966,6 +984,7 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
     }
 
     prompt += '\n\nSi el usuario insiste en hablar con un humano o si no puedes resolver su consulta, responde con [TRANSFER_TO_HUMAN] al inicio de tu mensaje seguido de un mensaje de despedida amable.';
+    prompt += '\n\nCuando la conversación haya concluido (el cliente se despide, confirma que todo está resuelto, o no hay nada más por hacer), responde con [END_CONVERSATION] al inicio de tu mensaje seguido del mensaje de cierre. Esto marcará la conversación como resuelta automáticamente.';
     return prompt;
 }
 
