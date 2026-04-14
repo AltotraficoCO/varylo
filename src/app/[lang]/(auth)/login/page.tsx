@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import LoginForm from './login-form';
 import { getDictionary, Locale } from '@/lib/dictionary';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { LoginPreview } from './login-preview';
+import { LoginLangToggle } from './login-lang-toggle';
 
 export default async function LoginPage({ params }: { params: Promise<{ lang: Locale }> }) {
     const { lang } = await params;
@@ -91,18 +91,17 @@ export default async function LoginPage({ params }: { params: Promise<{ lang: Lo
                     </div>
                 </div>
 
-                {/* Footer */}
-                <p className="relative z-10 shrink-0 text-[11px] text-white/15" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    © {new Date().getFullYear()} Varylo
-                </p>
+                {/* Footer + lang toggle */}
+                <div className="relative z-10 shrink-0 flex items-center justify-between">
+                    <p className="text-[11px] text-white/15" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        © {new Date().getFullYear()} Varylo
+                    </p>
+                    <LoginLangToggle />
+                </div>
             </div>
 
             {/* ── Right panel: form ── */}
             <div className="relative flex flex-1 items-center justify-center bg-[#FAFAFA] px-6 py-12 border-l border-[#E4E4E7]">
-                <div className="absolute top-5 right-5">
-                    <LanguageSwitcher />
-                </div>
-
                 <div className="w-full max-w-[380px]" style={{ fontFamily: 'Inter, sans-serif' }}>
                     {/* Mobile logo */}
                     <div className="lg:hidden flex justify-center mb-8">
