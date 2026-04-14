@@ -24,7 +24,10 @@ export default async function AiAgentsPage() {
 
     console.log('[AI Agents Page] Loading for companyId:', session.user.companyId);
 
-    let aiAgents: any[] = [], channels: any[] = [], company: any = null, ecommerceIntegration: any = null;
+    let aiAgents: Awaited<ReturnType<typeof prisma.aiAgent.findMany<{ include: { channels: true } }>>> = [];
+    let channels: Awaited<ReturnType<typeof prisma.channel.findMany>> = [];
+    let company: { googleCalendarRefreshToken: string | null } | null = null;
+    let ecommerceIntegration: { active: boolean } | null = null;
 
     try {
         console.log('[AI Agents Page] Step 1: aiAgent.findMany');
