@@ -12,7 +12,7 @@ function SubmitButton({ text, pendingText }: { text: string; pendingText: string
         <button
             type="submit"
             disabled={pending}
-            className="w-full h-11 flex items-center justify-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-black text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full h-11 flex items-center justify-center gap-2 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}
             {pending ? pendingText : text}
@@ -28,29 +28,29 @@ export default function LoginForm({ dict, lang }: { dict: any; lang: string }) {
         <form action={dispatch} className="space-y-4">
             {/* Email */}
             <div className="space-y-1.5">
-                <label htmlFor="email" className="block text-[13px] font-medium text-white/50">
+                <label htmlFor="email" className="block text-[13px] font-medium text-[#374151]">
                     {dict.emailLabel}
                 </label>
                 <input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="name@example.com"
+                    placeholder="nombre@empresa.com"
                     autoComplete="email"
                     required
-                    className="w-full h-11 px-4 rounded-lg bg-white/[0.05] border border-white/[0.08] text-white text-sm placeholder:text-white/20 outline-none focus:border-emerald-500/60 focus:bg-white/[0.07] transition-all"
+                    className="w-full h-10 px-3.5 rounded-lg border border-[#E4E4E7] bg-white text-[#09090B] text-sm placeholder:text-[#A1A1AA] outline-none focus:border-[#10B981] focus:ring-3 focus:ring-[#10B981]/10 transition-all"
                 />
             </div>
 
             {/* Password */}
             <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                    <label htmlFor="password" className="text-[13px] font-medium text-white/50">
+                    <label htmlFor="password" className="text-[13px] font-medium text-[#374151]">
                         {dict.passwordLabel}
                     </label>
                     <Link
                         href={`/${lang}/forgot-password`}
-                        className="text-[13px] text-emerald-400/70 hover:text-emerald-400 transition-colors"
+                        className="text-[13px] text-[#10B981] hover:text-[#059669] transition-colors"
                     >
                         {dict.forgotPassword}
                     </Link>
@@ -62,12 +62,12 @@ export default function LoginForm({ dict, lang }: { dict: any; lang: string }) {
                         type={showPassword ? 'text' : 'password'}
                         autoComplete="current-password"
                         required
-                        className="w-full h-11 px-4 pr-11 rounded-lg bg-white/[0.05] border border-white/[0.08] text-white text-sm placeholder:text-white/20 outline-none focus:border-emerald-500/60 focus:bg-white/[0.07] transition-all"
+                        className="w-full h-10 px-3.5 pr-10 rounded-lg border border-[#E4E4E7] bg-white text-[#09090B] text-sm placeholder:text-[#A1A1AA] outline-none focus:border-[#10B981] focus:ring-3 focus:ring-[#10B981]/10 transition-all"
                     />
                     <button
                         type="button"
                         onClick={() => setShowPassword((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-white/25 hover:text-white/60 transition-colors rounded"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] hover:text-[#71717A] transition-colors"
                         tabIndex={-1}
                         aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     >
@@ -80,16 +80,18 @@ export default function LoginForm({ dict, lang }: { dict: any; lang: string }) {
                 </div>
             </div>
 
-            {/* Error message */}
+            {/* Error */}
             {errorMessage && (
-                <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
-                    <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-                    <span className="text-sm text-red-400">{errorMessage}</span>
+                <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-lg bg-red-50 border border-red-100">
+                    <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                    <span className="text-[13px] text-red-600">{errorMessage}</span>
                 </div>
             )}
 
             {/* Submit */}
-            <SubmitButton text={dict.submitButton} pendingText={dict.submitButtonPending} />
+            <div className="pt-1">
+                <SubmitButton text={dict.submitButton} pendingText={dict.submitButtonPending} />
+            </div>
         </form>
     );
 }
