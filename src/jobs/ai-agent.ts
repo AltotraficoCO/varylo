@@ -17,7 +17,7 @@ interface AiAgentResult {
     transferredToHuman?: boolean;
 }
 
-const MAX_TOOL_ITERATIONS = 8;
+const MAX_TOOL_ITERATIONS = 20;
 
 // ── Tool definitions ────────────────────────────────────────────────
 
@@ -389,6 +389,9 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             // No tool calls — final text response
             replyContent = completion.content;
             break;
+        }
+        if (!replyContent) {
+            console.warn(`[AI Agent] Hit MAX_TOOL_ITERATIONS (${MAX_TOOL_ITERATIONS}) without final response`);
         }
 
         // Track usage (accumulated across all iterations)
