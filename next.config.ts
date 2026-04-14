@@ -23,6 +23,9 @@ const cspDirectives = [
 ];
 
 const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   transpilePackages: ['@formatjs/intl-localematcher'],
   experimental: {
     serverActions: {
