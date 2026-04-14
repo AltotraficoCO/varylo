@@ -22,24 +22,41 @@ export default async function AiAgentsPage() {
     const session = await auth();
     if (!session?.user?.companyId) return null;
 
-    const [aiAgents, channels, company, ecommerceIntegration] = await Promise.all([
-        prisma.aiAgent.findMany({
+    console.log('[AI Agents Page] Loading for companyId:', session.user.companyId);
+
+    let aiAgents: any[] = [], channels: any[] = [], company: any = null, ecommerceIntegration: any = null;
+
+    try {
+        console.log('[AI Agents Page] Step 1: aiAgent.findMany');
+        aiAgents = await prisma.aiAgent.findMany({
             where: { companyId: session.user.companyId },
             include: { channels: true },
             orderBy: { createdAt: 'desc' },
-        }),
-        prisma.channel.findMany({
-            where: { companyId: session.user.companyId },
-        }),
-        prisma.company.findUnique({
-            where: { id: session.user.companyId },
-            select: { googleCalendarRefreshToken: true },
-        }),
-        prisma.ecommerceIntegration.findUnique({
-            where: { companyId: session.user.companyId },
-            select: { active: true },
-        }),
-    ]);
+        });
+        console.log('[AI Agents Page] Step 1 OK, agents:', aiAgents.length);
+    } catch (e: any) {
+        console.error('[AI Agents Page] ERROR en aiAgent.findMany:', e.message, e.stack);
+        throw e;
+    }
+
+    try {
+        console.log('[AI Agents Page] Step 2: channel.findMany + company.findUnique + ecommerceIntegration.findUnique');
+        [channels, company, ecommerceIntegration] = await Promise.all([
+            prisma.channel.findMany({ where: { companyId: session.user.companyId } }),
+            prisma.company.findUnique({
+                where: { id: session.user.companyId },
+                select: { googleCalendarRefreshToken: true },
+            }),
+            prisma.ecommerceIntegration.findUnique({
+                where: { companyId: session.user.companyId },
+                select: { active: true },
+            }),
+        ]);
+        console.log('[AI Agents Page] Step 2 OK');
+    } catch (e: any) {
+        console.error('[AI Agents Page] ERROR en step 2:', e.message, e.stack);
+        throw e;
+    }
 
     const hasGoogleCalendar = !!company?.googleCalendarRefreshToken;
     const hasEcommerce = !!ecommerceIntegration?.active;
