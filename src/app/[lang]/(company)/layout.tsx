@@ -86,6 +86,22 @@ export default async function CompanyLayout({
                         dict={dict.dashboard}
                         sidebarDict={dict.dashboard.sidebar}
                     />
+                    {subscriptionExpired && (
+                        <div className="bg-red-50 border-b border-red-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="flex items-center gap-2 text-red-700 text-sm min-w-0">
+                                <AlertTriangle className="h-4 w-4 shrink-0" />
+                                <span className="truncate">
+                                    Tu suscripción ha vencido. Algunas funciones están limitadas.
+                                </span>
+                            </div>
+                            <Link
+                                href={`/${lang}/company/settings?tab=billing`}
+                                className="text-sm font-medium text-red-700 hover:text-red-800 underline whitespace-nowrap self-start sm:self-auto"
+                            >
+                                Renovar plan
+                            </Link>
+                        </div>
+                    )}
                     <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:px-10 lg:py-8 min-w-0 overflow-x-hidden">
                         {children}
                     </main>

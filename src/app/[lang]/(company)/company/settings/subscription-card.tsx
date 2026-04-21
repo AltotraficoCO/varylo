@@ -21,6 +21,14 @@ type ActiveSubscription = {
     paymentSource: { brand: string | null; lastFour: string | null };
 } | null;
 
+function getEffectiveStatus(sub: ActiveSubscription): string {
+    if (!sub) return '';
+    if ((sub.status === 'ACTIVE' || sub.status === 'TRIAL') && sub.currentPeriodEnd) {
+        if (new Date(sub.currentPeriodEnd).getTime() < Date.now()) return 'EXPIRED';
+    }
+    return sub.status;
+}
+
 type AvailablePlan = {
     id: string;
     priceInCents: number;

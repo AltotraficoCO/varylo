@@ -99,11 +99,6 @@ export async function POST(req: NextRequest) {
         // Verify webhook signature from Meta
         const signature = req.headers.get('x-hub-signature-256');
         const sigValid = await verifyWebhookSignature(rawBuffer, signature);
-        console.log('[WhatsApp Webhook] Incoming:', {
-            sigValid,
-            hasSignature: !!signature,
-            bodyPreview: rawBuffer.toString('utf-8').substring(0, 500),
-        });
         if (!sigValid) {
             return new NextResponse('Forbidden', { status: 403 });
         }
