@@ -135,7 +135,7 @@ export default async function SettingsPage(props: {
                 </p>
             </div>
 
-            <div className="flex gap-8">
+            <div className="flex flex-col md:flex-row md:gap-8">
                 {/* Sidebar Navigation — sticky */}
                 <nav className="hidden md:flex flex-col gap-1 w-48 shrink-0 sticky top-20 self-start">
                     {TABS.map((tab) => {

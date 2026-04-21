@@ -174,10 +174,10 @@ export default function AnalyticsPage() {
                 </div>
             )}
 
-            <div className="bg-white rounded-xl p-5 border border-[#E4E4E7] flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+            <div className="bg-white rounded-xl p-4 sm:p-5 border border-[#E4E4E7] flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <span className="text-[16px] font-semibold text-[#09090B]">{t.conversationTraffic || 'Conversation Traffic'}</span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         {[
                             { label: t.days7 || '7 days', days: 7 },
                             { label: t.days14 || '14 days', days: 14 },

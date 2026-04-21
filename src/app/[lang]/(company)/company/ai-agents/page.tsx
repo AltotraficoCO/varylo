@@ -60,14 +60,14 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold" style={{ color: '#09090B' }}>{t.title}</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-bold" style={{ color: '#09090B' }}>{t.title}</h1>
                     <p className="text-sm mt-1" style={{ color: '#71717A' }}>{t.subtitle}</p>
                 </div>
                 <Link
                     href={`/${lang}/company/ai-agents/new`}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white px-4 py-2.5 text-[14px] font-medium transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white px-4 py-2.5 text-[14px] font-medium transition-colors self-start sm:self-auto"
                 >
                     <Plus className="h-4 w-4" />
                     {t.newAgent}
@@ -97,12 +97,11 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
                         return (
                             <div
                                 key={agent.id}
-                                className="rounded-xl flex flex-col gap-4 hover:shadow-md transition-shadow"
+                                className="rounded-xl flex flex-col gap-4 hover:shadow-md transition-shadow p-4 sm:p-6"
                                 style={{
                                     backgroundColor: '#FFFFFF',
                                     border: '1px solid #E4E4E7',
                                     borderRadius: '12px',
-                                    padding: '24px',
                                 }}
                             >
                                 {/* Top row: icon + title + badge */}
@@ -201,7 +200,7 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
                                 )}
 
                                 {/* Actions */}
-                                <div className="flex items-center gap-2 mt-auto pt-2 border-t" style={{ borderColor: '#E4E4E7' }}>
+                                <div className="flex flex-wrap items-center gap-2 mt-auto pt-2 border-t" style={{ borderColor: '#E4E4E7' }}>
                                     <Link
                                         href={`/${lang}/company/ai-agents/${agent.id}/edit`}
                                         className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E4E7] px-3 py-1.5 text-[13px] font-medium text-[#3F3F46] hover:bg-[#F4F4F5] transition-colors"
@@ -209,7 +208,7 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
                                         <Pencil className="h-3 w-3" /> {t.editBtn}
                                     </Link>
                                     <DeleteAiAgentDialog agentId={agent.id} agentName={agent.name} />
-                                    <div className="ml-auto">
+                                    <div className="sm:ml-auto">
                                         <AiAgentStatusToggle id={agent.id} initialStatus={agent.active} />
                                     </div>
                                 </div>
