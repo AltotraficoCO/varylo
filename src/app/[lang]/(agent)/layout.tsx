@@ -43,7 +43,7 @@ export default async function AgentLayout({
         <DictionaryProvider dictionary={dict}>
             <div className="grid min-h-screen w-full lg:grid-cols-[240px_1fr]">
                 <Sidebar role="agent" lang={lang} className="hidden lg:block" dict={dict.dashboard.sidebar} />
-                <div className="flex flex-col min-h-screen">
+                <div className="flex flex-col min-h-screen min-w-0">
                     <DashboardHeader
                         title={dict.dashboard.agentTitle}
                         lang={lang}
@@ -54,7 +54,7 @@ export default async function AgentLayout({
                         dict={dict.dashboard}
                         sidebarDict={dict.dashboard.sidebar}
                     />
-                    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+                    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 min-w-0 overflow-x-hidden">
                         {children}
                     </main>
                 </div>
