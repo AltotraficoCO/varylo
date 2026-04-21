@@ -6,6 +6,7 @@ import { runAutomationPipeline } from '@/jobs/pipeline';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { rateLimitResponse } from '@/lib/rate-limit';
+import { readChannelSecret } from '@/lib/channel-config';
 
 export const maxDuration = 60;
 
@@ -44,8 +45,9 @@ async function verifyWebhookSignature(rawBody: Buffer, signature: string | null)
 
     for (const ch of channels) {
         const config = ch.configJson as { appSecret?: string } | null;
-        if (config?.appSecret) {
-            if (verifySignatureWithSecret(rawBody, signature, config.appSecret)) return true;
+        const channelAppSecret = readChannelSecret(config?.appSecret);
+        if (channelAppSecret && verifySignatureWithSecret(rawBody, signature, channelAppSecret)) {
+            return true;
         }
     }
 
@@ -170,18 +172,7 @@ export async function POST(req: NextRequest) {
             }
 
             if (!channel) {
-                // Log all Instagram channels to debug ID mismatch
-                const allIgChannels = await prisma.channel.findMany({
-                    where: { type: ChannelType.INSTAGRAM },
-                    select: { id: true, companyId: true, status: true, configJson: true },
-                });
-                console.error(`[Instagram Webhook] No channel found for recipientId: ${recipientId}, senderId: ${senderId}`);
-                console.error(`[Instagram Webhook] Available channels:`, JSON.stringify(allIgChannels.map(c => ({
-                    id: c.id,
-                    status: c.status,
-                    pageId: (c.configJson as any)?.pageId,
-                    igAccountId: (c.configJson as any)?.igAccountId,
-                })), null, 2));
+                console.error('[Instagram Webhook] No connected channel matched incoming recipientId');
                 return NextResponse.json({ status: 'no_channel' });
             }
 
@@ -199,9 +190,11 @@ export async function POST(req: NextRequest) {
                     let igName = 'Instagram User';
                     try {
                         const channelConfig = channel.configJson as { accessToken?: string } | null;
-                        if (channelConfig?.accessToken) {
+                        const igToken = readChannelSecret(channelConfig?.accessToken);
+                        if (igToken) {
                             const profileRes = await fetch(
-                                `https://graph.facebook.com/v21.0/${senderId}?fields=name,username&access_token=${channelConfig.accessToken}`
+                                `https://graph.facebook.com/v21.0/${senderId}?fields=name,username`,
+                                { headers: { Authorization: `Bearer ${igToken}` } },
                             );
                             if (profileRes.ok) {
                                 const profile = await profileRes.json();

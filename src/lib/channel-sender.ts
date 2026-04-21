@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType, MessageDirection } from '@prisma/client';
 import { sendInstagramMessageWithToken } from '@/lib/instagram';
 import { uploadDataUrlToStorage, buildMediaPath } from '@/lib/storage';
+import { readChannelSecret } from '@/lib/channel-config';
 
 interface SendMessageOptions {
     conversationId: string;
@@ -273,7 +274,8 @@ export async function sendChannelMessage({
         }
 
         const config = channel.configJson as { phoneNumberId?: string; accessToken?: string } | null;
-        if (config?.accessToken && config?.phoneNumberId) {
+        const accessToken = readChannelSecret(config?.accessToken);
+        if (accessToken && config?.phoneNumberId) {
             let payload: Record<string, any>;
 
             if (mediaUrl && mediaType && mimeType) {
@@ -284,7 +286,7 @@ export async function sendChannelMessage({
                     // Download MP3 from Supabase and upload to WhatsApp media API
                     const waMediaId = await uploadUrlToWhatsApp(
                         config.phoneNumberId,
-                        config.accessToken,
+                        accessToken,
                         fileUrl,
                         cleanMime, // audio/mpeg (MP3)
                         fileName || 'voice-note.mp3',
@@ -304,7 +306,7 @@ export async function sendChannelMessage({
                 else if (mediaUrl.startsWith('data:')) {
                     const waMediaId = await uploadMediaToWhatsApp(
                         config.phoneNumberId,
-                        config.accessToken,
+                        accessToken,
                         mediaUrl,
                         cleanMime,
                         fileName || 'file',
@@ -324,7 +326,7 @@ export async function sendChannelMessage({
             const res = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${config.accessToken}`,
+                    Authorization: `Bearer ${accessToken}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload),
@@ -343,9 +345,10 @@ export async function sendChannelMessage({
         // Web chat: no external API to call, message is stored in DB below
     } else if (channel.type === ChannelType.MESSENGER) {
         const config = channel.configJson as { accessToken?: string; pageId?: string } | null;
-        if (config?.accessToken) {
+        const msgToken = readChannelSecret(config?.accessToken);
+        if (msgToken) {
             // Messenger uses same API as Instagram DMs (Graph /PAGE_ID/messages)
-            const result = await sendInstagramMessageWithToken(contact.phone, content, config.accessToken, config.pageId);
+            const result = await sendInstagramMessageWithToken(contact.phone, content, msgToken, config?.pageId);
             if (!result.success) {
                 throw new Error(`Messenger API error: ${result.message}`);
             }
@@ -354,8 +357,9 @@ export async function sendChannelMessage({
         }
     } else if (channel.type === ChannelType.INSTAGRAM) {
         const config = channel.configJson as { accessToken?: string; pageId?: string } | null;
-        if (config?.accessToken) {
-            const result = await sendInstagramMessageWithToken(contact.phone, content, config.accessToken, config.pageId);
+        const igToken = readChannelSecret(config?.accessToken);
+        if (igToken) {
+            const result = await sendInstagramMessageWithToken(contact.phone, content, igToken, config?.pageId);
             if (!result.success) {
                 throw new Error(`Instagram API error: ${result.message}`);
             }

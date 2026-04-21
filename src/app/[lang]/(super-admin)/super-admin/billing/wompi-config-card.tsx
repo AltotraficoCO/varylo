@@ -128,20 +128,20 @@ export function WompiConfigCard() {
     return (
         <div className="space-y-6">
             {/* Header card */}
-            <div className="bg-card rounded-xl border p-5">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
+            <div className="bg-card rounded-xl border p-4 sm:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-start sm:items-center gap-3 min-w-0">
+                        <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
                             <CreditCard className="h-5 w-5" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <p className="font-semibold text-foreground">{t.title || 'Configuración Wompi'}</p>
                             <p className="text-[13px] text-muted-foreground">
                                 {t.description || 'Claves API de Wompi para procesar pagos. Los secretos se almacenan cifrados.'}
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
                         {hasExisting && (
                             <Badge variant="secondary" className="text-xs">
                                 <CheckCircle2 className="h-3 w-3 mr-1" />

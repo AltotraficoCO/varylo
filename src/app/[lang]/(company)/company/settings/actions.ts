@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType, ChannelStatus, AutomationPriority, AssignmentStrategy } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { encrypt } from '@/lib/encryption';
+import { writeChannelSecret } from '@/lib/channel-config';
 import { getGoogleAuthUrl } from '@/lib/google-calendar';
 import OpenAI from 'openai';
 
@@ -40,9 +41,9 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
 
         const configJson = {
             phoneNumberId,
-            accessToken,
+            accessToken: writeChannelSecret(accessToken),
             verifyToken,
-            appSecret,
+            appSecret: writeChannelSecret(appSecret),
             ...(wabaId ? { wabaId } : {}),
         };
 
@@ -185,8 +186,8 @@ export async function saveInstagramCredentials(prevState: string | undefined, fo
 
         const configJson = {
             pageId,
-            accessToken,
-            appSecret,
+            accessToken: writeChannelSecret(accessToken),
+            appSecret: writeChannelSecret(appSecret),
             verifyToken: verifyToken || (existingChannel?.configJson as any)?.verifyToken || '',
         };
 
@@ -496,9 +497,10 @@ export async function saveGeminiKey(prevState: string | undefined, formData: For
     }
 
     try {
-        // Validate key by calling the Gemini API
+        // Validate key by calling the Gemini API (header auth keeps the key out of access logs)
         const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models`,
+            { headers: { 'x-goog-api-key': apiKey } },
         );
         if (!res.ok) return 'Error: La API Key de Gemini no es válida. Verifica que sea correcta.';
     } catch {

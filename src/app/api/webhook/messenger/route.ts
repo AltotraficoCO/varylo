@@ -6,6 +6,7 @@ import { runAutomationPipeline } from '@/jobs/pipeline';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { rateLimitResponse } from '@/lib/rate-limit';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { readChannelSecret } from '@/lib/channel-config';
 
 export const maxDuration = 60;
 
@@ -31,7 +32,10 @@ async function verifyWebhookSignature(rawBody: Buffer, signature: string | null)
     });
     for (const ch of channels) {
         const config = ch.configJson as { appSecret?: string } | null;
-        if (config?.appSecret && verifySignatureWithSecret(rawBody, signature, config.appSecret)) return true;
+        const channelAppSecret = readChannelSecret(config?.appSecret);
+        if (channelAppSecret && verifySignatureWithSecret(rawBody, signature, channelAppSecret)) {
+            return true;
+        }
     }
     return false;
 }
@@ -130,9 +134,11 @@ export async function POST(req: NextRequest) {
             let displayName = 'Messenger User';
             try {
                 const config = channel.configJson as { accessToken?: string } | null;
-                if (config?.accessToken) {
+                const msgToken = readChannelSecret(config?.accessToken);
+                if (msgToken) {
                     const profileRes = await fetch(
-                        `https://graph.facebook.com/v21.0/${senderId}?fields=name&access_token=${config.accessToken}`
+                        `https://graph.facebook.com/v21.0/${senderId}?fields=name`,
+                        { headers: { Authorization: `Bearer ${msgToken}` } },
                     );
                     if (profileRes.ok) {
                         const profile = await profileRes.json();

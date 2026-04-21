@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
 import { getWhatsAppMediaUrl, downloadWhatsAppMedia } from '@/lib/whatsapp-media';
+import { readChannelSecret } from '@/lib/channel-config';
 
 /**
  * GET /api/media?messageId=xxx
@@ -81,16 +82,17 @@ async function handleWhatsAppMedia(message: {
     }
 
     const config = channel.configJson as { accessToken?: string } | null;
-    if (!config?.accessToken) {
+    const waToken = readChannelSecret(config?.accessToken);
+    if (!waToken) {
         return new NextResponse('Channel not configured', { status: 500 });
     }
 
-    const mediaInfo = await getWhatsAppMediaUrl(waMediaId, config.accessToken);
+    const mediaInfo = await getWhatsAppMediaUrl(waMediaId, waToken);
     if (!mediaInfo) {
         return new NextResponse('Failed to fetch media from WhatsApp', { status: 502 });
     }
 
-    const dataUrl = await downloadWhatsAppMedia(mediaInfo.url, config.accessToken, mediaInfo.mimeType);
+    const dataUrl = await downloadWhatsAppMedia(mediaInfo.url, waToken, mediaInfo.mimeType);
     if (!dataUrl) {
         return new NextResponse('Failed to download media', { status: 502 });
     }

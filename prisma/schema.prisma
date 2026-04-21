@@ -182,6 +182,8 @@ model Channel {
   conversations Conversation[]
   aiAgents    AiAgent[]     @relation("AiAgentChannels")
   chatbots    Chatbot[]     @relation("ChatbotChannels")
+
+  @@index([companyId])
 }
 
 model Contact {
@@ -207,6 +209,9 @@ model Contact {
   broadcastLogs    BroadcastLog[]
   deals            Deal[]
   quotes           Quote[]
+
+  @@index([companyId])
+  @@index([companyId, phone])
 }
 
 model Conversation {
@@ -237,6 +242,9 @@ model Conversation {
   chatbotSessions ChatbotSession[]
   capturedData    CapturedData[]
   deals           Deal[]
+
+  @@index([companyId, status])
+  @@index([companyId, updatedAt])
 }
 
 model Message {
@@ -263,6 +271,8 @@ model Message {
   conversation      Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@unique([providerMessageId, companyId])
+  @@index([companyId, createdAt])
+  @@index([conversationId])
 }
 
 model ContactLead {
@@ -300,6 +310,8 @@ model Tag {
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   contacts      Contact[]
+
+  @@index([companyId])
 }
 
 model AiAgent {
@@ -325,6 +337,8 @@ model AiAgent {
   company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   channels           Channel[] @relation("AiAgentChannels")
   conversations      Conversation[]
+
+  @@index([companyId])
 }
 
 model Chatbot {
@@ -339,6 +353,8 @@ model Chatbot {
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   channels  Channel[] @relation("ChatbotChannels")
   sessions  ChatbotSession[]
+
+  @@index([companyId])
 }
 
 model ChatbotSession {
@@ -379,6 +395,8 @@ model AiUsageLog {
   createdAt        DateTime @default(now())
 
   company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
 }
 
 model PasswordResetToken {

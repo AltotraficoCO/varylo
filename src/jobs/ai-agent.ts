@@ -11,6 +11,7 @@ import { mapFieldToContact, validateCapturedValue, inferValidationType } from '@
 // CRM removed
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
+import { readChannelSecret } from '@/lib/channel-config';
 
 interface AiAgentResult {
     handled: boolean;
@@ -188,11 +189,12 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
         // Fire-and-forget typing indicator (don't block on it)
         if (conversation.channel?.type === 'WHATSAPP') {
             const config = conversation.channel.configJson as { phoneNumberId?: string; accessToken?: string } | null;
+            const waToken = readChannelSecret(config?.accessToken);
             const lastInbound = [...conversation.messages].reverse().find(m => m.direction === 'INBOUND');
-            if (config?.phoneNumberId && config?.accessToken && lastInbound?.providerMessageId) {
+            if (config?.phoneNumberId && waToken && lastInbound?.providerMessageId) {
                 sendWhatsAppTypingIndicator(
                     config.phoneNumberId,
-                    config.accessToken,
+                    waToken,
                     conversation.contact?.phone || '',
                     lastInbound.providerMessageId,
                 ).catch(() => {});
@@ -696,10 +698,13 @@ async function handleAnalyzeFile(
                 try {
                     console.log('[analyze_file] Calling Gemini 2.0 Flash vision...');
                     const geminiRes = await fetch(
-                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
                         {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-goog-api-key': geminiKey,
+                            },
                             body: JSON.stringify({
                                 contents: [{
                                     parts: [
