@@ -5,10 +5,36 @@ import { ChannelType, MessageDirection } from '@prisma/client';
 import { runAutomationPipeline } from '@/jobs/pipeline';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { rateLimitResponse } from '@/lib/rate-limit';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 export const maxDuration = 60;
 
 const MAX_MESSAGE_LENGTH = 4096;
+
+function verifySignatureWithSecret(rawBody: Buffer, signature: string, appSecret: string): boolean {
+    const expectedSignature = createHmac('sha256', appSecret).update(rawBody).digest('hex');
+    const expected = Buffer.from(`sha256=${expectedSignature}`, 'utf8');
+    const actual = Buffer.from(signature, 'utf8');
+    if (expected.length !== actual.length) return false;
+    return timingSafeEqual(expected, actual);
+}
+
+async function verifyWebhookSignature(rawBody: Buffer, signature: string | null): Promise<boolean> {
+    if (!signature || !signature.startsWith('sha256=')) return false;
+
+    const globalSecret = process.env.META_APP_SECRET;
+    if (globalSecret && verifySignatureWithSecret(rawBody, signature, globalSecret)) return true;
+
+    const channels = await prisma.channel.findMany({
+        where: { type: ChannelType.MESSENGER, status: 'CONNECTED' },
+        select: { configJson: true },
+    });
+    for (const ch of channels) {
+        const config = ch.configJson as { appSecret?: string } | null;
+        if (config?.appSecret && verifySignatureWithSecret(rawBody, signature, config.appSecret)) return true;
+    }
+    return false;
+}
 
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
@@ -48,12 +74,17 @@ export async function POST(req: NextRequest) {
     if (rateLimited) return rateLimited;
 
     try {
-        const body = await req.json();
+        const rawBuffer = Buffer.from(await req.arrayBuffer());
 
-        console.log('[Messenger Webhook] Incoming payload:', JSON.stringify(body, null, 2));
+        const signature = req.headers.get('x-hub-signature-256');
+        const signatureValid = await verifyWebhookSignature(rawBuffer, signature);
+        if (!signatureValid) {
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
+        }
+
+        const body = JSON.parse(rawBuffer.toString('utf-8'));
 
         if (body.object !== 'page') {
-            console.log('[Messenger Webhook] Ignored - object is:', body.object);
             return NextResponse.json({ status: 'ignored' });
         }
 

@@ -184,9 +184,12 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
             { x: 0, opacity: 1, duration: 0.7, ease: 'power3.out', stagger: 0.1, clearProps: 'all',
               scrollTrigger: { trigger: '.metrics-section', start: 'top 80%', once: true } });
 
-        // ── HOW IT WORKS — CSS sticky (no GSAP pin, no spacer bugs) ──────────
+        // ── HOW IT WORKS — horizontal pin on desktop only.
+        // On <1024px the panels stack vertically via CSS (see globals.css),
+        // so GSAP must not translate the track. iOS Safari's dynamic viewport
+        // also breaks the calc(100vh + ...) pin at this breakpoint.
         const howPanels = gsap.utils.toArray<HTMLElement>('.how-panel');
-        if (howPanels.length > 0) {
+        if (howPanels.length > 0 && window.matchMedia('(min-width: 1024px)').matches) {
             gsap.to('.how-track', {
                 x: () => -(howPanels.length - 1) * window.innerWidth,
                 ease: 'none',
@@ -371,15 +374,15 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                                 </div>
                                 {/* Line 2: white — capped so "TODOS LOS" stays on one line */}
                                 <div className="hero-line-2 -mt-1">
-                                    <h1 className="text-white font-black uppercase leading-[.88] whitespace-nowrap"
+                                    <h1 className="text-white font-black uppercase leading-[.88] sm:whitespace-nowrap"
                                         style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'min(9.5vw, 6rem)' }}>
                                         {displayLang === 'es' ? 'TODOS LOS' : 'ALL YOUR'}
                                     </h1>
                                 </div>
                                 {/* Line 3: emerald — largest */}
                                 <div className="hero-line-3 -mt-1">
-                                    <h1 className="font-black uppercase leading-[.88] whitespace-nowrap"
-                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(5rem,12vw,10.5rem)', color: '#10b981' }}>
+                                    <h1 className="font-black uppercase leading-[.88] sm:whitespace-nowrap"
+                                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(3rem,12vw,10.5rem)', color: '#10b981' }}>
                                         {displayLang === 'es' ? 'CANALES' : 'CHANNELS'}
                                     </h1>
                                 </div>

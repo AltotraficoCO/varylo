@@ -5,10 +5,18 @@ import { prisma } from '@/lib/prisma';
 import { AI_AGENT_TYPES } from '@/lib/ai-agent-types';
 import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
+import { validateExternalWebhookUrl } from '@/lib/url-validator';
 
-function parseWebhookConfig(formData: FormData): Prisma.InputJsonValue | null {
+type WebhookParseResult =
+    | { ok: true; value: Prisma.InputJsonValue | null }
+    | { ok: false; error: string };
+
+async function parseWebhookConfig(formData: FormData): Promise<WebhookParseResult> {
     const webhookUrl = (formData.get('webhookUrl') as string)?.trim() || '';
-    if (!webhookUrl) return null;
+    if (!webhookUrl) return { ok: true, value: null };
+
+    const validated = await validateExternalWebhookUrl(webhookUrl);
+    if (!validated.ok) return { ok: false, error: `Webhook URL: ${validated.error}` };
 
     const webhookSecret = (formData.get('webhookSecret') as string)?.trim() || '';
     const webhookHeadersRaw = (formData.get('webhookHeaders') as string)?.trim() || '';
@@ -23,9 +31,12 @@ function parseWebhookConfig(formData: FormData): Prisma.InputJsonValue | null {
     }
 
     return {
-        url: webhookUrl,
-        ...(webhookSecret ? { secret: webhookSecret } : {}),
-        ...(headers ? { headers } : {}),
+        ok: true,
+        value: {
+            url: validated.url.toString(),
+            ...(webhookSecret ? { secret: webhookSecret } : {}),
+            ...(headers ? { headers } : {}),
+        },
     };
 }
 
@@ -74,7 +85,9 @@ export async function createAiAgent(prevState: string | undefined, formData: For
         ? transferKeywordsRaw.split(',').map(k => k.trim()).filter(Boolean).slice(0, 50)
         : ['humano', 'agente', 'persona'];
 
-    const webhookConfigJson = parseWebhookConfig(formData);
+    const webhookParsed = await parseWebhookConfig(formData);
+    if (!webhookParsed.ok) return `Error: ${webhookParsed.error}`;
+    const webhookConfigJson = webhookParsed.value;
 
     try {
         // Verify channel IDs belong to this company
@@ -160,7 +173,9 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
         ? transferKeywordsRaw.split(',').map(k => k.trim()).filter(Boolean).slice(0, 50)
         : ['humano', 'agente', 'persona'];
 
-    const webhookConfigJson = parseWebhookConfig(formData);
+    const webhookParsed = await parseWebhookConfig(formData);
+    if (!webhookParsed.ok) return `Error: ${webhookParsed.error}`;
+    const webhookConfigJson = webhookParsed.value;
 
     try {
         const validChannels = await prisma.channel.findMany({

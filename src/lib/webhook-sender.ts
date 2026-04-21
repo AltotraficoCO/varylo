@@ -1,5 +1,6 @@
 import { createHmac } from 'crypto';
 import type { WebhookConfig } from '@/types/chatbot';
+import { validateExternalWebhookUrl } from '@/lib/url-validator';
 
 interface WebhookPayload {
     event: string;
@@ -33,6 +34,13 @@ export async function sendWebhook(
     config: WebhookConfig,
     payload: WebhookPayload,
 ): Promise<{ ok: boolean; status?: number; error?: string }> {
+    const validated = await validateExternalWebhookUrl(config.url);
+    if (!validated.ok) {
+        console.error(`[Webhook] Rejected unsafe URL ${config.url}: ${validated.error}`);
+        return { ok: false, error: validated.error };
+    }
+    const safeUrl = validated.url.toString();
+
     const body = JSON.stringify(payload);
 
     const headers: Record<string, string> = {
@@ -50,7 +58,7 @@ export async function sendWebhook(
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-            const res = await fetch(config.url, {
+            const res = await fetch(safeUrl, {
                 method: 'POST',
                 headers,
                 body,

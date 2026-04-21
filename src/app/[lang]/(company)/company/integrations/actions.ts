@@ -3,6 +3,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { validateExternalWebhookUrl } from '@/lib/url-validator';
 
 export async function disconnectEcommerceById(storeId: string) {
     const session = await auth();
@@ -39,13 +40,16 @@ export async function createWebhookIntegration(data: {
     if (!data.webhookUrl?.trim()) return { success: false, error: 'URL del webhook es obligatoria' };
     if (data.events.length === 0) return { success: false, error: 'Selecciona al menos un evento' };
 
+    const validated = await validateExternalWebhookUrl(data.webhookUrl);
+    if (!validated.ok) return { success: false, error: validated.error };
+
     try {
         await prisma.webhookIntegration.create({
             data: {
                 companyId: session.user.companyId,
                 platform: data.platform,
                 name: data.name.trim() || `${data.platform} webhook`,
-                webhookUrl: data.webhookUrl.trim(),
+                webhookUrl: validated.url.toString(),
                 secret: data.secret?.trim() || null,
                 events: data.events,
                 active: true,
@@ -81,16 +85,23 @@ export async function toggleWebhookIntegration(integrationId: string, active: bo
     const session = await auth();
     if (!session?.user?.companyId) return { success: false, error: 'No autorizado' };
 
-    await prisma.webhookIntegration.update({
-        where: { id: integrationId },
+    const result = await prisma.webhookIntegration.updateMany({
+        where: { id: integrationId, companyId: session.user.companyId },
         data: { active },
     });
+    if (result.count === 0) return { success: false, error: 'No encontrado' };
 
     revalidatePath('/company/integrations');
     return { success: true };
 }
 
 export async function testWebhookIntegration(webhookUrl: string) {
+    const session = await auth();
+    if (!session?.user?.companyId) return { success: false, status: 0, message: 'No autorizado' };
+
+    const validated = await validateExternalWebhookUrl(webhookUrl);
+    if (!validated.ok) return { success: false, status: 0, message: validated.error };
+
     try {
         const body = JSON.stringify({
             event: 'test',
@@ -98,7 +109,7 @@ export async function testWebhookIntegration(webhookUrl: string) {
             data: { message: 'Prueba de conexion desde Varylo' },
         });
 
-        const res = await fetch(webhookUrl, {
+        const res = await fetch(validated.url.toString(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Varylo-Event': 'test' },
             body,

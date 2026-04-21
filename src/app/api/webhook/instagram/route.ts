@@ -97,18 +97,13 @@ export async function POST(req: NextRequest) {
     try {
         const rawBuffer = Buffer.from(await req.arrayBuffer());
 
-        // Verify webhook signature from Meta
         const signature = req.headers.get('x-hub-signature-256');
-        // TODO: Fix signature verification - Meta may sign with a different secret
-        // than META_APP_SECRET for Instagram webhooks. Skipping for now.
-        // const signatureValid = await verifyWebhookSignature(rawBuffer, signature);
-        // if (!signatureValid) {
-        //     return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
-        // }
+        const signatureValid = await verifyWebhookSignature(rawBuffer, signature);
+        if (!signatureValid) {
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
+        }
 
         const body = JSON.parse(rawBuffer.toString('utf-8'));
-
-        console.log('[Instagram Webhook] Incoming payload:', JSON.stringify(body, null, 2));
 
         // Check format
         const entry = body.entry?.[0];
