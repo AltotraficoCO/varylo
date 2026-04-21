@@ -129,16 +129,16 @@ export function BroadcastsClient({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#09090B', lineHeight: 1.2 }}>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[22px] sm:text-[28px] font-bold text-[#09090B] leading-tight">
               {t.title || 'Difusiones'}
             </h1>
-            <p style={{ fontSize: 14, color: '#71717A', marginTop: 4 }}>
+            <p className="text-sm text-[#71717A] mt-1">
               {t.subtitle || 'Envía plantillas de WhatsApp a listas de contactos'}
             </p>
             {tierLabel && (
-              <div className="flex items-center gap-1.5 mt-2">
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                 <Badge variant="outline" className={cn('text-[10px] px-2 h-5', qualityColor)}>
                   Tier: {tierLabel}
                 </Badge>
@@ -150,103 +150,40 @@ export function BroadcastsClient({
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setTab('lists')}
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: '#3F3F46',
-                border: '1px solid #E4E4E7',
-                borderRadius: 8,
-                padding: '8px 16px',
-                background: 'transparent',
-                cursor: 'pointer',
-              }}
-            >
-              {t.createList || 'Listas'}
-            </button>
-            <button
-              onClick={() => setTab('broadcasts')}
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: '#3F3F46',
-                border: '1px solid #E4E4E7',
-                borderRadius: 8,
-                padding: '8px 16px',
-                background: 'transparent',
-                cursor: 'pointer',
-              }}
-            >
-              {t.history || 'Historial'}
-            </button>
-            <button
-              onClick={() => {
-                if (tab === 'lists') {
-                  setShowCreateList(true);
-                } else {
-                  setShowBroadcast(true);
-                }
-              }}
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: '#FFFFFF',
-                backgroundColor: '#10B981',
-                border: 'none',
-                borderRadius: 8,
-                padding: '8px 16px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <Plus className="h-4 w-4" />
-              {t.sendBroadcast || 'Nueva difusión'}
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              if (tab === 'lists') {
+                setShowCreateList(true);
+              } else {
+                setShowBroadcast(true);
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white px-4 py-2 text-sm font-medium transition-colors self-start shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+            {tab === 'lists' ? (t.createList || 'Nueva lista') : (t.sendBroadcast || 'Nueva difusión')}
+          </button>
         </div>
       </div>
 
       {/* Tab bar */}
-      <div style={{ borderBottom: '1px solid #E4E4E7', width: '100%' }}>
-        <div className="flex">
+      <div className="border-b border-[#E4E4E7] w-full overflow-x-auto">
+        <div className="flex min-w-max">
           <button
             onClick={() => setTab('lists')}
-            style={{
-              fontSize: 14,
-              fontWeight: tab === 'lists' ? 600 : 400,
-              color: tab === 'lists' ? '#09090B' : '#71717A',
-              padding: '12px 16px',
-              borderBottom: tab === 'lists' ? '2px solid #10B981' : '2px solid transparent',
-              background: 'transparent',
-              border: 'none',
-              borderBottomWidth: 2,
-              borderBottomStyle: 'solid',
-              borderBottomColor: tab === 'lists' ? '#10B981' : 'transparent',
-              cursor: 'pointer',
-              transition: 'color 0.15s, border-color 0.15s',
-            }}
+            className={cn(
+              "text-sm px-4 py-3 bg-transparent border-0 border-b-2 cursor-pointer transition-colors whitespace-nowrap",
+              tab === 'lists' ? "font-semibold text-[#09090B] border-[#10B981]" : "font-normal text-[#71717A] border-transparent"
+            )}
           >
             {t.selectContacts || 'Listas de contactos'}
           </button>
           <button
             onClick={() => setTab('broadcasts')}
-            style={{
-              fontSize: 14,
-              fontWeight: tab === 'broadcasts' ? 600 : 400,
-              color: tab === 'broadcasts' ? '#09090B' : '#71717A',
-              padding: '12px 16px',
-              background: 'transparent',
-              border: 'none',
-              borderBottomWidth: 2,
-              borderBottomStyle: 'solid',
-              borderBottomColor: tab === 'broadcasts' ? '#10B981' : 'transparent',
-              cursor: 'pointer',
-              transition: 'color 0.15s, border-color 0.15s',
-            }}
+            className={cn(
+              "text-sm px-4 py-3 bg-transparent border-0 border-b-2 cursor-pointer transition-colors whitespace-nowrap",
+              tab === 'broadcasts' ? "font-semibold text-[#09090B] border-[#10B981]" : "font-normal text-[#71717A] border-transparent"
+            )}
           >
             {t.history || 'Historial de envíos'}
           </button>
