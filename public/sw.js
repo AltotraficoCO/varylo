@@ -25,15 +25,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // Network-first for API and navigation requests
-  if (request.url.includes('/api/') || request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match(request))
-    );
+  // Let navigation and API requests go directly to the network (no SW interception)
+  // Intercepting navigations causes CSP violations in some browsers
+  if (request.mode === 'navigate' || request.url.includes('/api/')) {
     return;
   }
 
-  // Cache-first for static assets
+  // Cache-first for static assets only
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request))
   );

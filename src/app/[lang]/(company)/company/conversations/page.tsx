@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma'; // force re-sync after client generation
+import { SubscriptionGate } from '@/components/subscription-gate';
 
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -195,6 +196,7 @@ export default async function ConversationsPage({
     })();
 
     return (
+        <SubscriptionGate featureName="Conversaciones">
         <ConversationsRealtimeWrapper>
         <div className="flex h-[calc(100vh-5rem)] flex-col md:flex-row border rounded-xl overflow-hidden bg-background">
             {/* Sidebar List — hidden on mobile when a conversation is selected */}
@@ -489,5 +491,6 @@ export default async function ConversationsPage({
             }
         </div >
         </ConversationsRealtimeWrapper>
+        </SubscriptionGate>
     );
 }

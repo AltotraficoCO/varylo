@@ -122,6 +122,7 @@ export async function adjustCompanyCredits(data: z.infer<typeof adjustCreditsSch
 const toggleSubSchema = z.object({
     subscriptionId: z.string(),
     newStatus: z.nativeEnum(SubscriptionStatus),
+    extensionDays: z.number().int().min(1).optional(),
 });
 
 export async function toggleSubscriptionStatus(data: z.infer<typeof toggleSubSchema>) {
@@ -130,12 +131,33 @@ export async function toggleSubscriptionStatus(data: z.infer<typeof toggleSubSch
     if (!result.success) return { success: false, error: 'Datos inválidos' };
 
     try {
+        const updateData: any = {
+            status: result.data.newStatus,
+        };
+
+        if (result.data.newStatus === 'CANCELLED') {
+            updateData.cancelledAt = new Date();
+        } else {
+            updateData.cancelledAt = null;
+            // When reactivating, extend the period if days provided or if already expired
+            if (result.data.newStatus === 'ACTIVE') {
+                const existing = await prisma.subscription.findUnique({
+                    where: { id: result.data.subscriptionId },
+                    select: { currentPeriodEnd: true, planPricing: { select: { billingPeriodDays: true } } },
+                });
+                const isExpired = existing && existing.currentPeriodEnd < new Date();
+                if (isExpired || result.data.extensionDays) {
+                    const days = result.data.extensionDays || existing?.planPricing?.billingPeriodDays || 30;
+                    const now = new Date();
+                    updateData.currentPeriodStart = now;
+                    updateData.currentPeriodEnd = new Date(now.getTime() + days * 86400000);
+                }
+            }
+        }
+
         const sub = await prisma.subscription.update({
             where: { id: result.data.subscriptionId },
-            data: {
-                status: result.data.newStatus,
-                ...(result.data.newStatus === 'CANCELLED' ? { cancelledAt: new Date() } : { cancelledAt: null }),
-            },
+            data: updateData,
         });
 
         revalidatePath('/super-admin/companies');

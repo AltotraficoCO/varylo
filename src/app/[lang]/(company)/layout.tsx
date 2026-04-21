@@ -4,6 +4,8 @@ import { getDictionary, Locale } from '@/lib/dictionary';
 import { DictionaryProvider } from '@/lib/i18n-context';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
 
 export default async function CompanyLayout({
     children,
@@ -18,10 +20,11 @@ export default async function CompanyLayout({
 
     let tags: any[] = [];
     let userStatus: 'ONLINE' | 'BUSY' | 'OFFLINE' = 'OFFLINE';
+    let subscriptionExpired = false;
 
     if (session?.user?.companyId) {
         try {
-            const [fetchedTags, user] = await Promise.all([
+            const [fetchedTags, user, activeSub] = await Promise.all([
                 prisma.tag.findMany({
                     where: {
                         companyId: session.user.companyId,
@@ -33,9 +36,26 @@ export default async function CompanyLayout({
                     where: { id: session.user.id },
                     select: { status: true },
                 }) : null,
+                prisma.subscription.findFirst({
+                    where: { companyId: session.user.companyId, status: { in: ['ACTIVE', 'TRIAL'] } },
+                    select: { currentPeriodEnd: true },
+                }),
             ]);
             tags = fetchedTags;
             userStatus = (user?.status as typeof userStatus) || 'OFFLINE';
+
+            // Check if subscription is expired
+            if (activeSub && activeSub.currentPeriodEnd < new Date()) {
+                subscriptionExpired = true;
+            }
+            // No active subscription at all (CANCELLED or none)
+            if (!activeSub) {
+                const anySub = await prisma.subscription.findFirst({
+                    where: { companyId: session.user.companyId },
+                    select: { id: true },
+                });
+                if (anySub) subscriptionExpired = true;
+            }
 
             // Auto-set to ONLINE if currently OFFLINE (user just loaded dashboard)
             if (session.user.id && userStatus === 'OFFLINE') {

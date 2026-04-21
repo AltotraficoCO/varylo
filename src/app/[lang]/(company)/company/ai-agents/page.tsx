@@ -24,8 +24,16 @@ export default async function AiAgentsPage({ params }: { params: Promise<{ lang:
     const session = await auth();
     if (!session?.user?.companyId) return null;
 
-    const [aiAgents, channels, company, ecommerceIntegration] = await Promise.all([
-        prisma.aiAgent.findMany({
+    console.log('[AI Agents Page] Loading for companyId:', session.user.companyId);
+
+    let aiAgents: Awaited<ReturnType<typeof prisma.aiAgent.findMany<{ include: { channels: true } }>>> = [];
+    let channels: Awaited<ReturnType<typeof prisma.channel.findMany>> = [];
+    let company: { googleCalendarRefreshToken: string | null } | null = null;
+    let ecommerceIntegration: { active: boolean } | null = null;
+
+    try {
+        console.log('[AI Agents Page] Step 1: aiAgent.findMany');
+        aiAgents = await prisma.aiAgent.findMany({
             where: { companyId: session.user.companyId },
             include: {
                 channels: true,

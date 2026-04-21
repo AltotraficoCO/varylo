@@ -26,12 +26,30 @@ export async function GET(req: NextRequest) {
             where: {
                 status: 'ACTIVE',
                 currentPeriodEnd: { lte: now },
-                cancelledAt: null,  // Don't charge if user cancelled
+                cancelledAt: null,
             },
-            select: { id: true },
+            include: {
+                paymentSource: { select: { wompiSourceId: true } },
+            },
         });
 
         for (const sub of dueSubscriptions) {
+            // Manual/courtesy subscriptions — just expire them
+            const isManual = sub.paymentSource.wompiSourceId.startsWith('manual_');
+            if (isManual) {
+                await prisma.subscription.update({
+                    where: { id: sub.id },
+                    data: { status: 'CANCELLED', cancelledAt: now },
+                });
+                await prisma.company.update({
+                    where: { id: sub.companyId },
+                    data: { plan: Plan.STARTER },
+                });
+                cancelled++;
+                console.log(`[Cron] Expired courtesy subscription ${sub.id}`);
+                continue;
+            }
+
             try {
                 await chargeSubscription(sub.id);
                 charged++;
@@ -47,10 +65,28 @@ export async function GET(req: NextRequest) {
                 status: 'TRIAL',
                 currentPeriodEnd: { lte: now },
             },
-            select: { id: true },
+            include: {
+                paymentSource: { select: { wompiSourceId: true } },
+            },
         });
 
         for (const sub of trialEndedSubs) {
+            // Manual/courtesy trials — just expire them
+            const isManual = sub.paymentSource.wompiSourceId.startsWith('manual_');
+            if (isManual) {
+                await prisma.subscription.update({
+                    where: { id: sub.id },
+                    data: { status: 'CANCELLED', cancelledAt: now },
+                });
+                await prisma.company.update({
+                    where: { id: sub.companyId },
+                    data: { plan: Plan.STARTER },
+                });
+                cancelled++;
+                console.log(`[Cron] Expired courtesy trial ${sub.id}`);
+                continue;
+            }
+
             // Move trial to ACTIVE and set new period
             await prisma.subscription.update({
                 where: { id: sub.id },

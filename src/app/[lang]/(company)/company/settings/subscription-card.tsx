@@ -90,7 +90,9 @@ export function SubscriptionCard({
     }
 
     if (subscription) {
-        const status = STATUS_LABELS[subscription.status] || STATUS_LABELS.ACTIVE;
+        const effectiveStatus = getEffectiveStatus(subscription);
+        const status = STATUS_LABELS[effectiveStatus] || STATUS_LABELS.ACTIVE;
+        const isExpired = effectiveStatus === 'EXPIRED';
         return (
             <Card>
                 <CardHeader>
@@ -113,20 +115,30 @@ export function SubscriptionCard({
                             {new Date(subscription.currentPeriodStart).toLocaleDateString('es-CO')} —{' '}
                             {new Date(subscription.currentPeriodEnd).toLocaleDateString('es-CO')}
                         </div>
-                        {subscription.paymentSource.lastFour && (
+                        {subscription.paymentSource.lastFour && subscription.paymentSource.brand !== 'CORTESIA' && (
                             <div>
                                 <span className="text-muted-foreground">{t.cardLabel || 'Tarjeta:'}</span>{' '}
                                 {subscription.paymentSource.brand} •••• {subscription.paymentSource.lastFour}
                             </div>
                         )}
                     </div>
+                    {isExpired && (
+                        <div className="flex items-center gap-2 text-red-700 text-sm bg-red-50 p-3 rounded-lg">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span>
+                                Tu suscripción venció el{' '}
+                                <strong>{new Date(subscription.currentPeriodEnd).toLocaleDateString('es-CO')}</strong>.
+                                Renueva tu plan para seguir usando todas las funciones.
+                            </span>
+                        </div>
+                    )}
                     {subscription.status === 'PAST_DUE' && (
                         <div className="flex items-center gap-2 text-amber-700 text-sm">
                             <AlertTriangle className="h-4 w-4" />
                             <span>{t.paymentIssue || 'Hay un problema con tu pago. Actualiza tu tarjeta.'}</span>
                         </div>
                     )}
-                    {subscription.cancelledAt && subscription.status !== 'CANCELLED' && (
+                    {subscription.cancelledAt && subscription.status !== 'CANCELLED' && !isExpired && (
                         <div className="flex items-center gap-2 text-amber-700 text-sm bg-amber-50 p-3 rounded-lg">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             <span>
@@ -139,7 +151,7 @@ export function SubscriptionCard({
                     {error && <p className="text-sm text-red-500">{error}</p>}
                 </CardContent>
                 <CardFooter>
-                    {!subscription.cancelledAt && (
+                    {!subscription.cancelledAt && !isExpired && (
                         <Button
                             variant="destructive"
                             size="sm"

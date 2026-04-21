@@ -66,6 +66,15 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
             });
         }
 
+        // Re-subscribe WABA to webhooks whenever credentials are saved
+        if (wabaId && accessToken) {
+            await fetch(`https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ access_token: accessToken }),
+            }).catch(() => {});
+        }
+
         revalidatePath('/[lang]/company/settings', 'page');
         return 'Success: Credentials saved successfully.';
     } catch (error) {
