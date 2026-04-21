@@ -118,7 +118,7 @@ export default function AnalyticsPage() {
                 <p className="text-[14px] text-[#71717A] mt-1">{t.subtitle || 'Summary of your operation metrics'}</p>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white rounded-xl p-5 border border-[#E4E4E7] flex flex-col gap-2">
                     <span className="text-[13px] text-[#71717A]">{tc.open || 'Open'}</span>
                     <span className="text-[28px] font-bold text-[#09090B] leading-none">{data.summary.open}</span>
@@ -143,7 +143,7 @@ export default function AnalyticsPage() {
                         <span className="text-base">✨</span>
                         <span className="text-[16px] font-semibold text-[#09090B]">{t.aiAnalysis || 'AI Analysis'}</span>
                     </div>
-                    <div className="grid grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                         <div className="flex flex-col gap-1">
                             <span className="text-[12px] text-[#71717A]">{t.avgTone || 'Avg. tone'}</span>
                             <span className="text-[20px] font-bold text-[#09090B] leading-none">{data.aiMetrics.avgTone}</span>
@@ -205,8 +205,9 @@ export default function AnalyticsPage() {
                     </div>
                 </div>
                 <div
-                    className={`relative flex gap-2 ${heatmapLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                    className={`relative flex gap-2 overflow-x-auto ${heatmapLoading ? 'opacity-50 pointer-events-none' : ''}`}
                     onMouseLeave={() => setTooltip(null)}
+                    style={{ minWidth: 0 }}
                 >
                     {tooltip && (
                         <div
@@ -216,6 +217,7 @@ export default function AnalyticsPage() {
                             {tooltip.text}
                         </div>
                     )}
+                    <div className="flex gap-2 min-w-[720px]">
                     <div className="flex flex-col gap-[3px] pt-0 shrink-0">
                         {dayNamesShort.map((day: string) => (
                             <div key={day} className="h-[16px] flex items-center">
@@ -259,15 +261,17 @@ export default function AnalyticsPage() {
                             ))}
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-[#E4E4E7] overflow-hidden">
+            <div className="bg-white rounded-xl border border-[#E4E4E7] overflow-x-auto">
+              <div className="min-w-[560px]">
                 <div className="px-5 py-4">
                     <span className="text-[16px] font-semibold text-[#09090B]">{t.convByAgent || 'Conversations by agent'}</span>
                 </div>
                 <div className="flex items-center bg-[#F4F4F5] px-5 py-3">
-                    <div className="flex-1 text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">Agent</div>
+                    <div className="flex-1 min-w-[200px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">Agent</div>
                     <div className="w-[120px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">{tc.open || 'Open'}</div>
                     <div className="w-[120px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">{tc.unattended || 'Unattended'}</div>
                 </div>
@@ -276,11 +280,11 @@ export default function AnalyticsPage() {
                 ) : (
                     data.conversationsByAgent.map((agent: any) => (
                         <div key={agent.id} className="flex items-center px-5 py-3.5 border-t border-[#F4F4F5]">
-                            <div className="flex-1 flex items-center gap-2.5">
+                            <div className="flex-1 min-w-[200px] flex items-center gap-2.5">
                                 <div className="h-8 w-8 rounded-full bg-[#F4F4F5] flex items-center justify-center text-[12px] font-medium text-[#71717A] shrink-0">
                                     {agent.avatar}
                                 </div>
-                                <span className="text-[14px] font-medium text-[#09090B]">{agent.name}</span>
+                                <span className="text-[14px] font-medium text-[#09090B] truncate">{agent.name}</span>
                             </div>
                             <div className="w-[120px] text-[14px] font-medium text-[#09090B]">{agent.openCount}</div>
                             <div className={`w-[120px] text-[14px] font-medium ${agent.unattendedCount > 0 ? 'text-[#EF4444]' : 'text-[#09090B]'}`}>
@@ -289,6 +293,7 @@ export default function AnalyticsPage() {
                         </div>
                     ))
                 )}
+              </div>
             </div>
         </div>
     );

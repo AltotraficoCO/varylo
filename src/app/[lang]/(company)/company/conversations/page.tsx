@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2, MessageSquare } from "lucide-react";
+import { Search, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2, MessageSquare, ArrowLeft } from "lucide-react";
 import Link from 'next/link';
 import { cn } from "@/lib/utils";
 import ChatInput from './chat-input';
@@ -185,11 +185,23 @@ export default async function ConversationsPage({
         }
     }
 
+    const hasSelection = !!selectedConversation;
+    const backToListHref = (() => {
+        const qs = new URLSearchParams();
+        if (filter) qs.set('filter', filter);
+        if (tag) qs.set('tag', tag);
+        const query = qs.toString();
+        return `/${lang}/company/conversations${query ? `?${query}` : ''}`;
+    })();
+
     return (
         <ConversationsRealtimeWrapper>
         <div className="flex h-[calc(100vh-5rem)] flex-col md:flex-row border rounded-xl overflow-hidden bg-background">
-            {/* Sidebar List */}
-            <div className="w-full md:w-[320px] lg:w-[380px] border-r flex flex-col bg-card">
+            {/* Sidebar List — hidden on mobile when a conversation is selected */}
+            <div className={cn(
+                "w-full md:w-[320px] lg:w-[380px] border-r flex-col bg-card",
+                hasSelection ? "hidden md:flex" : "flex"
+            )}>
                 {/* Header & Tabs */}
                 <div className="border-b">
                     <div className="px-4 py-3 flex items-center justify-between">
@@ -267,21 +279,31 @@ export default async function ConversationsPage({
                 />
             </div>
 
-            {/* Main Area (Chat or Welcome) */}
-            <div className="flex-1 flex flex-col bg-card min-w-0">
+            {/* Main Area (Chat or Welcome) — hidden on mobile when no conversation is selected */}
+            <div className={cn(
+                "flex-1 flex-col bg-card min-w-0",
+                hasSelection ? "flex" : "hidden md:flex"
+            )}>
                 {selectedConversation ? (
                     <>
                         {/* Chat Header */}
-                        <div className="h-16 border-b flex items-center px-6 bg-card justify-between sticky top-0 z-10">
-                            <div className="flex items-center gap-3">
+                        <div className="h-16 border-b flex items-center px-3 sm:px-6 bg-card justify-between sticky top-0 z-10 gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <Link
+                                    href={backToListHref}
+                                    className="md:hidden shrink-0 -ml-1 p-2 rounded-md hover:bg-muted text-foreground"
+                                    aria-label="Volver a la lista"
+                                >
+                                    <ArrowLeft className="h-5 w-5" />
+                                </Link>
                                 <ContactAvatar
                                     name={selectedConversation.contact?.name}
                                     phone={selectedConversation.contact?.phone}
                                     imageUrl={selectedConversation.contact?.imageUrl}
-                                    className="h-9 w-9"
+                                    className="h-9 w-9 shrink-0"
                                 />
-                                <div>
-                                    <h3 className="font-medium text-sm text-foreground">{selectedConversation.contact?.name}</h3>
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="font-medium text-sm text-foreground truncate">{selectedConversation.contact?.name}</h3>
                                     <div className="flex items-center gap-2">
                                         {selectedConversation.channel?.type === ChannelType.INSTAGRAM ? (
                                             <Badge variant="outline" className="text-[10px] h-4 px-1 border-pink-200 text-pink-600 bg-pink-50 flex items-center gap-1">
@@ -309,7 +331,9 @@ export default async function ConversationsPage({
                                 </div>
                             </div>
                             {selectedConversation.channel?.type !== ChannelType.WEB_CHAT && (
-                                <WindowTimer conversationId={selectedConversation.id} />
+                                <div className="shrink-0">
+                                    <WindowTimer conversationId={selectedConversation.id} />
+                                </div>
                             )}
                         </div>
 
@@ -321,7 +345,7 @@ export default async function ConversationsPage({
                         {selectedConversation.status === 'RESOLVED' ? (
                             <ReopenBanner conversationId={selectedConversation.id} />
                         ) : (
-                            <div className="p-4 bg-card border-t">
+                            <div className="p-3 sm:p-4 bg-card border-t sticky bottom-0 z-10" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
                                 <ChatInput
                                 conversationId={selectedConversation.id}
                                 channelType={selectedConversation.channel?.type}

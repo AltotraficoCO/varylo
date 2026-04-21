@@ -174,7 +174,7 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ lang
                     {/* Financial summary */}
                     <div>
                         <h2 className="text-sm font-semibold text-foreground mb-3">Resumen financiero</h2>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="bg-card rounded-xl border p-5 flex items-center gap-4">
                                 <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
                                     <Coins className="h-5 w-5" />

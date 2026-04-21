@@ -170,7 +170,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="model">{t.model}</Label>
                             <Select name="model" defaultValue="gpt-4o-mini">

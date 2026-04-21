@@ -150,8 +150,8 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                     <div className="px-6 py-4 border-b border-[#F4F4F5] bg-[#FAFAFA]">
                         <h2 className="text-[15px] font-semibold text-[#09090B]">{t.modelAndBehavior}</h2>
                     </div>
-                    <div className="p-6 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 sm:p-6 space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label className="text-[13px] font-medium text-[#3F3F46]">{t.modelLabel}</Label>
                                 <select value={model} onChange={e => setModel(e.target.value)} className="w-full h-10 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[14px]">

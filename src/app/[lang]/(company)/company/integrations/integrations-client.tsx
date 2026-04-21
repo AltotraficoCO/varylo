@@ -336,7 +336,7 @@ export function IntegrationsClient({ openai, anthropic, gemini, googleCalendar, 
                         </div>
                         <div className="space-y-2">
                             <Label className="text-[13px] font-medium text-[#3F3F46]">Eventos</Label>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {AVAILABLE_EVENTS.map(evt => (
                                     <label key={evt.key} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#E4E4E7] cursor-pointer hover:bg-[#FAFAFA]">
                                         <Checkbox

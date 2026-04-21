@@ -167,3 +167,14 @@
     animation: none !important;
   }
 }
+
+/* Prevent iOS Safari from zooming in when focusing inputs with font-size <16px.
+   shadcn/ui defaults to text-sm (14px) on Input/Textarea/Select which triggers the zoom.
+   We only override on small screens so desktop keeps its denser typography. */
+@media (max-width: 767.98px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

@@ -63,48 +63,52 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
             </div>
 
             <div className="bg-white rounded-xl border border-[#E4E4E7] overflow-hidden">
-                <div className="flex items-center py-3 px-5 bg-[#F4F4F5] rounded-t-xl">
-                    <div className="flex-1 text-xs font-semibold text-[#71717A] tracking-[0.3px]">Nombre</div>
-                    <div className="flex-1 text-xs font-semibold text-[#71717A] tracking-[0.3px]">Email</div>
-                    <div className="w-[100px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Rol</div>
-                    <div className="w-[120px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Estado</div>
-                    <div className="w-[100px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">{t.openConv}</div>
-                </div>
+                <div className="overflow-x-auto">
+                    <div className="min-w-[640px]">
+                        <div className="flex items-center py-3 px-5 bg-[#F4F4F5] rounded-t-xl">
+                            <div className="flex-1 min-w-[140px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Nombre</div>
+                            <div className="flex-1 min-w-[160px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Email</div>
+                            <div className="w-[100px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Rol</div>
+                            <div className="w-[120px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Estado</div>
+                            <div className="w-[100px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">{t.openConv}</div>
+                        </div>
 
-                {agents.length === 0 ? (
-                    <div className="py-12 text-center text-sm text-[#71717A]">
-                        {t.noAgents}
+                        {agents.length === 0 ? (
+                            <div className="py-12 text-center text-sm text-[#71717A]">
+                                {t.noAgents}
+                            </div>
+                        ) : (
+                            <div>
+                                {agents.map((agent) => {
+                                    const openConvs = agent._count.assignedConversations;
+                                    return (
+                                        <div key={agent.id} className="flex items-center py-3.5 px-5 border-t border-[#F4F4F5]">
+                                            <div className="flex-1 min-w-[140px] flex items-center gap-3">
+                                                <ContactAvatar name={agent.name || 'Agent'} className="h-9 w-9 shrink-0" />
+                                                <span className="text-sm font-medium text-[#09090B] truncate">{agent.name}</span>
+                                            </div>
+                                            <div className="flex-1 min-w-[160px] text-sm text-[#3F3F46] truncate">{agent.email}</div>
+                                            <div className="w-[100px]">
+                                                <span className={`inline-block rounded-xl px-2.5 py-1 text-xs font-medium ${roleBadgeClass[agent.role] || roleBadgeClass.AGENT}`}>
+                                                    {roleLabel[agent.role] || agent.role}
+                                                </span>
+                                            </div>
+                                            <div className="w-[120px] flex items-center gap-1.5">
+                                                <span className={`h-2 w-2 rounded-full ${statusDotColor[agent.status] || 'bg-[#A1A1AA]'}`} />
+                                                <span className={`text-[13px] ${statusTextClass[agent.status] || 'text-[#71717A]'}`}>
+                                                    {statusLabel[agent.status] || agent.status}
+                                                </span>
+                                            </div>
+                                            <div className={`w-[100px] text-sm font-medium ${openConvs > 0 ? 'text-[#09090B]' : 'text-[#71717A]'}`}>
+                                                {openConvs}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
-                ) : (
-                    <div>
-                        {agents.map((agent) => {
-                            const openConvs = agent._count.assignedConversations;
-                            return (
-                                <div key={agent.id} className="flex items-center py-3.5 px-5 border-t border-[#F4F4F5]">
-                                    <div className="flex-1 flex items-center gap-3">
-                                        <ContactAvatar name={agent.name || 'Agent'} className="h-9 w-9" />
-                                        <span className="text-sm font-medium text-[#09090B] truncate">{agent.name}</span>
-                                    </div>
-                                    <div className="flex-1 text-sm text-[#3F3F46] truncate">{agent.email}</div>
-                                    <div className="w-[100px]">
-                                        <span className={`inline-block rounded-xl px-2.5 py-1 text-xs font-medium ${roleBadgeClass[agent.role] || roleBadgeClass.AGENT}`}>
-                                            {roleLabel[agent.role] || agent.role}
-                                        </span>
-                                    </div>
-                                    <div className="w-[120px] flex items-center gap-1.5">
-                                        <span className={`h-2 w-2 rounded-full ${statusDotColor[agent.status] || 'bg-[#A1A1AA]'}`} />
-                                        <span className={`text-[13px] ${statusTextClass[agent.status] || 'text-[#71717A]'}`}>
-                                            {statusLabel[agent.status] || agent.status}
-                                        </span>
-                                    </div>
-                                    <div className={`w-[100px] text-sm font-medium ${openConvs > 0 ? 'text-[#09090B]' : 'text-[#71717A]'}`}>
-                                        {openConvs}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                </div>
             </div>
         </div>
     );

@@ -50,7 +50,7 @@ export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OF
     const t = dict || defaultDict;
 
     return (
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-6 lg:h-[60px] justify-between lg:justify-end">
+        <header className="flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-3 sm:px-6 lg:h-[60px] justify-between lg:justify-end">
             <Sheet open={open} onOpenChange={setOpen}>
                 <SheetTrigger asChild>
                     <Button
@@ -74,9 +74,9 @@ export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OF
                 </SheetContent>
             </Sheet>
 
-            <div className="w-full flex-1 lg:hidden">
-                <div className="flex items-center ml-2">
-                    <Image src="/logo.png" alt="Varylo" width={120} height={67} />
+            <div className="flex-1 min-w-0 lg:hidden">
+                <div className="flex items-center">
+                    <Image src="/logo.png" alt="Varylo" width={96} height={54} className="h-8 w-auto" priority />
                 </div>
             </div>
 

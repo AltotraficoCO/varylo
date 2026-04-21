@@ -80,7 +80,7 @@ export default async function CompaniesPage({ params }: { params: Promise<{ lang
             </div>
 
             {/* Summary stats */}
-            <div className="grid gap-4 grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
                 <div className="bg-card rounded-xl border p-5 space-y-2.5">
                     <div className="flex items-center justify-between">
                         <p className="text-[13px] text-[#71717A]">{t.totalCompanies}</p>
@@ -111,7 +111,8 @@ export default async function CompaniesPage({ params }: { params: Promise<{ lang
             </div>
 
             {/* Companies list */}
-            <div className="bg-card rounded-xl border overflow-hidden">
+            <div className="bg-card rounded-xl border overflow-x-auto">
+              <div className="min-w-[560px]">
                 {/* List header */}
                 <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_auto_auto_auto] px-5 py-3 border-b border-[#F4F4F5] dark:border-[#27272A]">
                     <p className="text-[13px] font-medium text-[#71717A]">{t.company}</p>
@@ -202,6 +203,7 @@ export default async function CompaniesPage({ params }: { params: Promise<{ lang
                         })}
                     </div>
                 )}
+              </div>
             </div>
         </div>
     );

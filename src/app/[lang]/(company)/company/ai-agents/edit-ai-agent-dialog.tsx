@@ -168,7 +168,7 @@ export function EditAiAgentDialog({ agent, channels, hasGoogleCalendar, hasEcomm
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="edit-model">{t.model}</Label>
                             <Select name="model" defaultValue={agent.model}>

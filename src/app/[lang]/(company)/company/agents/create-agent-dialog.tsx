@@ -43,20 +43,20 @@ export function CreateAgentDialog() {
                     </DialogDescription>
                 </DialogHeader>
                 <form action={action} className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">
+                    <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+                        <Label htmlFor="name" className="sm:text-right">
                             Nombre
                         </Label>
                         <Input
                             id="name"
                             name="name"
                             placeholder="Juan Pérez"
-                            className="col-span-3"
+                            className="sm:col-span-3"
                             required
                         />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="email" className="text-right">
+                    <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+                        <Label htmlFor="email" className="sm:text-right">
                             Email
                         </Label>
                         <Input
@@ -64,19 +64,19 @@ export function CreateAgentDialog() {
                             name="email"
                             type="email"
                             placeholder="juan@empresa.com"
-                            className="col-span-3"
+                            className="sm:col-span-3"
                             required
                         />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="password" className="text-right">
+                    <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+                        <Label htmlFor="password" className="sm:text-right">
                             Contraseña
                         </Label>
                         <Input
                             id="password"
                             name="password"
                             type="password"
-                            className="col-span-3"
+                            className="sm:col-span-3"
                             required
                             minLength={6}
                         />

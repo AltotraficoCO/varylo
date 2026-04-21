@@ -145,20 +145,22 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
         );
     }
 
+    const isSmallScreen = typeof window !== 'undefined' && window.matchMedia('(max-width: 767.98px)').matches;
+
     return (
         <div className="space-y-5">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-[#EFF6FF] flex items-center justify-center">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-xl bg-[#EFF6FF] flex items-center justify-center shrink-0">
                         <CalendarDays className="h-5 w-5 text-[#3B82F6]" />
                     </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-[#09090B]">{cal.title || 'Calendario'}</h1>
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-bold text-[#09090B]">{cal.title || 'Calendario'}</h1>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
-                            <span className="text-[13px] text-[#71717A]">Sincronizado con Google Calendar</span>
-                            {loading && <Loader2 className="h-3 w-3 animate-spin text-[#A1A1AA]" />}
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] shrink-0" />
+                            <span className="text-[12px] sm:text-[13px] text-[#71717A] truncate">Sincronizado con Google Calendar</span>
+                            {loading && <Loader2 className="h-3 w-3 animate-spin text-[#A1A1AA] shrink-0" />}
                         </div>
                     </div>
                 </div>
@@ -183,12 +185,16 @@ export function CalendarClient({ isConnected }: { isConnected: boolean }) {
             </div>
 
             {/* Calendar container */}
-            <div className="bg-white rounded-2xl border border-[#E4E4E7] p-5 shadow-sm varylo-calendar">
+            <div className="bg-white rounded-2xl border border-[#E4E4E7] p-2 sm:p-5 shadow-sm varylo-calendar overflow-x-auto">
                 <FullCalendar
                     ref={calendarRef}
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-                    initialView="timeGridWeek"
-                    headerToolbar={{
+                    initialView={isSmallScreen ? 'listWeek' : 'timeGridWeek'}
+                    headerToolbar={isSmallScreen ? {
+                        left: 'prev,next',
+                        center: 'title',
+                        right: 'listWeek,dayGridMonth',
+                    } : {
                         left: 'prev,next today',
                         center: 'title',
                         right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',

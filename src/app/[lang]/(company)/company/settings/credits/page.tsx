@@ -84,8 +84,8 @@ export default async function CreditsHistoryPage({ params }: { params: Promise<{
                     <CardTitle>{t.transactions}</CardTitle>
                     <CardDescription>{t.transactionsDesc}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <Table>
+                <CardContent className="overflow-x-auto">
+                    <Table className="min-w-[640px]">
                         <TableHeader>
                             <TableRow>
                                 <TableHead>{t.date}</TableHead>

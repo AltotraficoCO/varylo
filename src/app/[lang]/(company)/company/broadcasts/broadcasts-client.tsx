@@ -286,13 +286,14 @@ export function BroadcastsClient({
               </button>
             </div>
           ) : (
-            <div style={{ borderRadius: 12, border: '1px solid #E4E4E7', overflow: 'hidden' }}>
+            <div style={{ borderRadius: 12, border: '1px solid #E4E4E7', overflowX: 'auto' }}>
+              <div style={{ minWidth: 640 }}>
               {/* Table header */}
               <div
                 className="flex items-center"
                 style={{ backgroundColor: '#F4F4F5', padding: '12px 16px' }}
               >
-                <div className="flex-1" style={{ fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                <div className="flex-1" style={{ minWidth: 140, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
                   {ui.name || 'Nombre'}
                 </div>
                 <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
@@ -312,7 +313,7 @@ export function BroadcastsClient({
                   className="flex items-center"
                   style={{ padding: '14px 16px', borderTop: '1px solid #E4E4E7' }}
                 >
-                  <div className="flex-1" style={{ fontSize: 14, fontWeight: 500, color: '#09090B' }}>
+                  <div className="flex-1" style={{ minWidth: 140, fontSize: 14, fontWeight: 500, color: '#09090B' }}>
                     {list.name}
                   </div>
                   <div style={{ width: 120, fontSize: 14, fontWeight: 400, color: '#3F3F46' }}>
@@ -371,6 +372,7 @@ export function BroadcastsClient({
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )}
         </>
@@ -412,13 +414,14 @@ export function BroadcastsClient({
               )}
             </div>
           ) : (
-            <div style={{ borderRadius: 12, border: '1px solid #E4E4E7', overflow: 'hidden' }}>
+            <div style={{ borderRadius: 12, border: '1px solid #E4E4E7', overflowX: 'auto' }}>
+              <div style={{ minWidth: 900 }}>
               {/* Table header */}
               <div
                 className="flex items-center"
                 style={{ backgroundColor: '#F4F4F5', padding: '12px 16px' }}
               >
-                <div className="flex-1" style={{ fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                <div className="flex-1" style={{ minWidth: 160, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
                   {t.messageTemplate || 'Plantilla'}
                 </div>
                 <div style={{ width: 140, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
@@ -451,7 +454,7 @@ export function BroadcastsClient({
                     className="flex items-center"
                     style={{ padding: '14px 16px', borderTop: '1px solid #E4E4E7' }}
                   >
-                    <div className="flex-1" style={{ fontSize: 14, fontWeight: 500, color: '#09090B' }}>
+                    <div className="flex-1" style={{ minWidth: 160, fontSize: 14, fontWeight: 500, color: '#09090B' }}>
                       {b.templateName}
                     </div>
                     <div style={{ width: 140, fontSize: 14, fontWeight: 400, color: '#3F3F46' }}>
@@ -486,6 +489,7 @@ export function BroadcastsClient({
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
         </>

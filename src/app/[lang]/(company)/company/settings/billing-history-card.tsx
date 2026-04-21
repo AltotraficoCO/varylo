@@ -57,13 +57,13 @@ export function BillingHistoryCard({ attempts }: { attempts: BillingAttemptRow[]
                 </div>
                 <CardDescription>{t.description || 'Tus cobros recientes de suscripción.'}</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
                 {attempts.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
                         {t.noCharges || 'No hay cobros registrados aún.'}
                     </p>
                 ) : (
-                    <Table>
+                    <Table className="min-w-[640px]">
                         <TableHeader>
                             <TableRow>
                                 <TableHead>{t.dateCol || 'Fecha'}</TableHead>

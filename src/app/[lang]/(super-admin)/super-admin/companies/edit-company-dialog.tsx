@@ -170,11 +170,11 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                     </DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
-                        <TabsTrigger value="details">{t.detailsTab || 'Detalles'}</TabsTrigger>
-                        <TabsTrigger value="subscription">{t.subscriptionTab || 'Suscripción'}</TabsTrigger>
-                        <TabsTrigger value="users">{t.usersTab || 'Usuarios'}</TabsTrigger>
-                        <TabsTrigger value="credits">{t.creditsTab || 'Créditos'}</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+                        <TabsTrigger value="details" className="text-xs sm:text-sm">{t.detailsTab || 'Detalles'}</TabsTrigger>
+                        <TabsTrigger value="subscription" className="text-xs sm:text-sm">{t.subscriptionTab || 'Suscripción'}</TabsTrigger>
+                        <TabsTrigger value="users" className="text-xs sm:text-sm">{t.usersTab || 'Usuarios'}</TabsTrigger>
+                        <TabsTrigger value="credits" className="text-xs sm:text-sm">{t.creditsTab || 'Créditos'}</TabsTrigger>
                     </TabsList>
                     <TabsContent value="details">
                         <Form {...form}>
@@ -276,7 +276,7 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                     </div>
 
                                     {/* Dates */}
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div className="rounded-lg border p-3">
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                                                 <CalendarDays className="h-3.5 w-3.5" />

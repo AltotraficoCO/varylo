@@ -136,12 +136,12 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-[28px] font-bold text-[#09090B]">{t.title || 'Contactos'}</h1>
-                    <p className="text-[14px] text-[#71717A] mt-1">{t.subtitle || 'Gestiona tus contactos y listas'}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="min-w-0">
+                    <h1 className="text-[22px] sm:text-[28px] font-bold text-[#09090B]">{t.title || 'Contactos'}</h1>
+                    <p className="text-[13px] sm:text-[14px] text-[#71717A] mt-1">{t.subtitle || 'Gestiona tus contactos y listas'}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Button
                         variant="outline"
                         className="rounded-lg px-4 py-2 text-[14px] font-medium text-[#3F3F46]"
@@ -186,8 +186,8 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
             </div>
 
             {/* Search & Filters */}
-            <div className="flex items-center gap-3">
-                <form onSubmit={handleSearch} className="relative w-72">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <form onSubmit={handleSearch} className="relative w-full sm:w-72">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder={t.search || 'Buscar contactos...'}
@@ -196,7 +196,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                         onChange={(e) => setSearchValue(e.target.value)}
                     />
                 </form>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0">
                     {CHANNEL_OPTIONS.map(opt => {
                         const Icon = opt.icon;
                         const isActive = channel === opt.value || (!channel && !opt.value);
@@ -242,7 +242,8 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
             </div>
 
             {/* Table */}
-            <div className="rounded-xl border border-[#E4E4E7] overflow-hidden">
+            <div className="rounded-xl border border-[#E4E4E7] overflow-x-auto">
+              <div className="min-w-[760px]">
                 {/* Table Header */}
                 <div className="flex items-center bg-[#F4F4F5] py-3 px-4 text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">
                     <div className="w-[36px] shrink-0" />
@@ -350,6 +351,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                         })}
                     </div>
                 )}
+              </div>
             </div>
 
             {/* Template dialog */}

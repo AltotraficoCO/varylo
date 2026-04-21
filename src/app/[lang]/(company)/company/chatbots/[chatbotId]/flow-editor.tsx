@@ -413,6 +413,24 @@ function FlowCanvas({
 
     return (
         <div className="h-[calc(100vh-120px)] flex flex-col">
+            {/* Mobile-only "open on desktop" banner — flow editor is not usable on touch/small screens */}
+            <div className="lg:hidden flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
+                <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+                    <ArrowLeft className="h-6 w-6 text-muted-foreground rotate-180" />
+                </div>
+                <h2 className="text-lg font-semibold">Abre el editor en tu computadora</h2>
+                <p className="text-sm text-muted-foreground max-w-xs">
+                    El editor de flujo del chatbot requiere pantalla grande y mouse. Vuelve a esta página desde tu computadora para editar el flujo.
+                </p>
+                <Link href={backHref}>
+                    <Button variant="outline" size="sm">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        {t.backBtn || ui.back}
+                    </Button>
+                </Link>
+            </div>
+            {/* Desktop editor */}
+            <div className="hidden lg:flex flex-col h-full">
             {/* Top bar */}
             <div className="flex items-center justify-between py-3 px-4 border-b bg-background z-10">
                 <Link href={backHref}>
@@ -514,6 +532,7 @@ function FlowCanvas({
                         onClose={() => setSelectedNodeId(null)}
                     />
                 )}
+            </div>
             </div>
         </div>
     );
