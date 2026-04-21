@@ -217,7 +217,6 @@ export async function POST(req: NextRequest) {
                             companyId,
                             phone: senderId,
                             name: igName,
-                            companyName: "Instagram",
                             originChannel: ChannelType.INSTAGRAM,
                         }
                     });

@@ -148,7 +148,6 @@ export async function POST(req: NextRequest) {
                     companyId,
                     phone: senderId,
                     name: displayName,
-                    companyName: 'Messenger',
                     originChannel: ChannelType.MESSENGER,
                 },
             });
