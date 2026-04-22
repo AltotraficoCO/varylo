@@ -20,10 +20,14 @@ import { createLandingPlan, upsertPlanPricing } from './actions';
 import { Plus, X, RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchUsdToCop, FALLBACK_RATE } from '@/lib/exchange-rate';
+import { useDictionary } from '@/lib/i18n-context';
 
 export function CreatePlanDialog({ onCreated }: { onCreated: () => void }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.createPlanDialog || {};
+    const ui = dict.ui || {};
 
     // Plan fields
     const [slug, setSlug] = useState('');
@@ -160,13 +164,13 @@ export function CreatePlanDialog({ onCreated }: { onCreated: () => void }) {
             <DialogTrigger asChild>
                 <Button className="gap-2">
                     <Plus className="h-4 w-4" />
-                    Crear plan
+                    {t.createPlan || 'Crear plan'}
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Nuevo plan</DialogTitle>
-                    <DialogDescription>Crea un nuevo plan con pricing incluido.</DialogDescription>
+                    <DialogTitle>{t.newPlan || 'Nuevo plan'}</DialogTitle>
+                    <DialogDescription>{t.newPlanDesc || 'Crea un nuevo plan con pricing incluido.'}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     {/* Basic info */}
@@ -330,9 +334,9 @@ export function CreatePlanDialog({ onCreated }: { onCreated: () => void }) {
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                    <Button variant="outline" onClick={() => setOpen(false)}>{ui.cancel || 'Cancelar'}</Button>
                     <Button onClick={handleCreate} disabled={loading || !name.trim()}>
-                        {loading ? 'Creando...' : 'Crear plan'}
+                        {loading ? (t.creating || 'Creando...') : (t.createPlan || 'Crear plan')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

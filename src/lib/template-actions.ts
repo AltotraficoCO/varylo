@@ -195,8 +195,6 @@ export async function sendTemplateMessage(params: {
             template: templatePayload,
         };
 
-        console.log('[sendTemplateMessage] Sending to Meta:', JSON.stringify(metaBody, null, 2));
-
         const res = await fetch(
             `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`,
             {
@@ -210,7 +208,6 @@ export async function sendTemplateMessage(params: {
         );
 
         const resData = await res.json().catch(() => ({}));
-        console.log('[sendTemplateMessage] Meta response:', res.status, JSON.stringify(resData));
 
         if (!res.ok) {
             const errorMsg = (resData as any)?.error?.message || `HTTP ${res.status}`;

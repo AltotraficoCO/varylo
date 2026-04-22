@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toggleConversationTag } from "./actions";
 import { toast } from "sonner";
+import { useDictionary } from '@/lib/i18n-context';
 
 interface TagData {
     id: string;
@@ -35,14 +36,16 @@ interface TagSelectorProps {
 
 export function TagSelector({ conversationId, availableTags, selectedTags }: TagSelectorProps) {
     const [open, setOpen] = React.useState(false);
+    const dict = useDictionary();
+    const t = dict.conversations || {};
 
     const handleToggle = async (tagId: string) => {
         try {
             await toggleConversationTag(conversationId, tagId);
-            // Optimistic update is hard without managing state locally deeply, 
+            // Optimistic update is hard without managing state locally deeply,
             // but server action revalidates path, so UI should update.
         } catch (error) {
-            toast.error("Failed to update tag");
+            toast.error(t.errorUpdateTag);
         }
     };
 
@@ -76,16 +79,16 @@ export function TagSelector({ conversationId, availableTags, selectedTags }: Tag
                         className="w-full justify-between"
                     >
                         <span className="flex items-center gap-2 text-muted-foreground">
-                            <Plus className="h-4 w-4" /> Agregar etiqueta
+                            <Plus className="h-4 w-4" /> {t.addTag}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[200px] p-0" align="start">
                     <Command>
-                        <CommandInput placeholder="Buscar etiqueta..." />
+                        <CommandInput placeholder={t.searchTag} />
                         <CommandList>
-                            <CommandEmpty>No se encontraron etiquetas.</CommandEmpty>
+                            <CommandEmpty>{t.noTagsFound}</CommandEmpty>
                             <CommandGroup>
                                 {availableTags.map((tag) => {
                                     const isSelected = selectedTags.some(t => t.id === tag.id);

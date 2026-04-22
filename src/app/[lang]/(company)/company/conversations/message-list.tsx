@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { FileText, Download, Play, Pause, AlertCircle } from 'lucide-react';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface Message {
     id: string;
@@ -73,7 +74,7 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
     return new Blob([arrayBuffer], { type: 'audio/wav' });
 }
 
-function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: string | null; isOutbound: boolean }) {
+function AudioPlayer({ src, mimeType, isOutbound, audioUnsupportedLabel }: { src: string; mimeType?: string | null; isOutbound: boolean; audioUnsupportedLabel: string }) {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [error, setError] = useState(false);
     const [playing, setPlaying] = useState(false);
@@ -83,51 +84,10 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        let cancelled = false;
-        let url: string | null = null;
-
-        async function loadAudio() {
-            try {
-                const res = await fetch(src);
-                if (!res.ok) throw new Error('fetch failed');
-                const arrayBuffer = await res.arrayBuffer();
-
-                // Check if it's OGG/Opus (needs conversion for Safari)
-                const mime = (mimeType?.split(';')[0] || '').toLowerCase();
-                const isOgg = mime.includes('ogg') || mime.includes('opus') || src.endsWith('.ogg');
-
-                if (isOgg) {
-                    // Decode with AudioContext (supports OGG Opus in all browsers)
-                    // then convert to WAV which is universally playable
-                    const audioCtx = new AudioContext();
-                    try {
-                        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
-                        const wavBlob = audioBufferToWav(audioBuffer);
-                        url = URL.createObjectURL(wavBlob);
-                    } finally {
-                        await audioCtx.close();
-                    }
-                } else {
-                    // Non-OGG: use blob directly
-                    const blob = new Blob([arrayBuffer], { type: mime || 'audio/mpeg' });
-                    url = URL.createObjectURL(blob);
-                }
-
-                if (!cancelled && url) {
-                    setBlobUrl(url);
-                }
-            } catch {
-                if (!cancelled) setError(true);
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        }
-        loadAudio();
-        return () => {
-            cancelled = true;
-            if (url) URL.revokeObjectURL(url);
-        };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // Use the src URL directly - let the browser's <audio> element handle format support
+        // The media proxy (/api/media) serves with correct Content-Type headers
+        setBlobUrl(src);
+        setLoading(false);
     }, [src]);
 
     function formatTime(s: number) {
@@ -170,7 +130,7 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
                 )}
             >
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>Audio no compatible — toca para descargar</span>
+                <span>{audioUnsupportedLabel}</span>
                 <Download className="h-4 w-4 shrink-0" />
             </a>
         );
@@ -243,7 +203,7 @@ function AudioPlayer({ src, mimeType, isOutbound }: { src: string; mimeType?: st
     );
 }
 
-function MediaContent({ msg }: { msg: Message }) {
+function MediaContent({ msg, t }: { msg: Message; t: Record<string, string> }) {
     const isOutbound = msg.direction === 'OUTBOUND';
     const src = resolveMediaSrc(msg);
 
@@ -275,7 +235,7 @@ function MediaContent({ msg }: { msg: Message }) {
             );
 
         case 'audio':
-            return <AudioPlayer src={src} mimeType={msg.mimeType} isOutbound={isOutbound} />;
+            return <AudioPlayer src={src} mimeType={msg.mimeType} isOutbound={isOutbound} audioUnsupportedLabel={t.audioUnsupported} />;
 
         case 'document':
             return (
@@ -293,8 +253,8 @@ function MediaContent({ msg }: { msg: Message }) {
                 >
                     <FileText className="h-8 w-8 shrink-0" />
                     <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium">{msg.fileName || 'Documento'}</p>
-                        <p className="text-xs opacity-70">{msg.mimeType || 'Archivo'}</p>
+                        <p className="truncate font-medium">{msg.fileName || t.documentLabel}</p>
+                        <p className="text-xs opacity-70">{msg.mimeType || t.fileLabel}</p>
                     </div>
                     <Download className="h-4 w-4 shrink-0" />
                 </a>
@@ -305,18 +265,18 @@ function MediaContent({ msg }: { msg: Message }) {
     }
 }
 
-function formatDateDivider(date: Date): string {
+function formatDateDivider(date: Date, t: Record<string, string>): string {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const diffDays = Math.round((today.getTime() - msgDay.getTime()) / (24 * 60 * 60 * 1000));
 
-    if (diffDays === 0) return 'Hoy';
-    if (diffDays === 1) return 'Ayer';
+    if (diffDays === 0) return t.today;
+    if (diffDays === 1) return t.yesterday;
     if (diffDays < 7) {
-        return date.toLocaleDateString('es-CO', { weekday: 'long' });
+        return date.toLocaleDateString(undefined, { weekday: 'long' });
     }
-    return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+    return date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function getDateKey(date: Date): string {
@@ -324,6 +284,8 @@ function getDateKey(date: Date): string {
 }
 
 export function MessageList({ messages }: { messages: Message[] }) {
+    const dict = useDictionary();
+    const t = dict.conversations || {};
     const bottomRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -358,7 +320,7 @@ export function MessageList({ messages }: { messages: Message[] }) {
                             <div className="flex items-center gap-3 my-5">
                                 <div className="flex-1 h-px bg-border" />
                                 <span className="bg-white dark:bg-zinc-800 text-muted-foreground text-[11px] font-medium px-3 py-1 rounded-md shadow-sm border capitalize">
-                                    {formatDateDivider(msgDate)}
+                                    {formatDateDivider(msgDate, t)}
                                 </span>
                                 <div className="flex-1 h-px bg-border" />
                             </div>
@@ -377,7 +339,7 @@ export function MessageList({ messages }: { messages: Message[] }) {
                                         : "bg-card border rounded-bl-none text-foreground"
                                 )}
                             >
-                                {hasMedia && <MediaContent msg={msg} />}
+                                {hasMedia && <MediaContent msg={msg} t={t} />}
                                 {isTemplate && (
                                     <p className={cn("whitespace-pre-wrap italic opacity-90", hasMedia && "mt-1.5")}>
                                         {msg.content.slice(1, -1)}

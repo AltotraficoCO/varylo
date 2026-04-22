@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
 import { getWhatsAppMediaUrl, downloadWhatsAppMedia } from '@/lib/whatsapp-media';
+import { readChannelSecret } from '@/lib/channel-config';
 
 /**
  * GET /api/media?messageId=xxx
@@ -48,6 +49,21 @@ export async function GET(req: NextRequest) {
         return handleHttpMedia(message);
     }
 
+    // Data URL fallback (when Supabase upload failed)
+    if (message.mediaUrl.startsWith('data:')) {
+        const base64Data = message.mediaUrl.split(',')[1];
+        if (base64Data) {
+            const buffer = Buffer.from(base64Data, 'base64');
+            const mime = message.mimeType || 'application/octet-stream';
+            return new NextResponse(buffer, {
+                headers: {
+                    'Content-Type': mime,
+                    'Cache-Control': 'private, max-age=3600',
+                },
+            });
+        }
+    }
+
     return new NextResponse('Unsupported media format', { status: 400 });
 }
 
@@ -66,16 +82,17 @@ async function handleWhatsAppMedia(message: {
     }
 
     const config = channel.configJson as { accessToken?: string } | null;
-    if (!config?.accessToken) {
+    const waToken = readChannelSecret(config?.accessToken);
+    if (!waToken) {
         return new NextResponse('Channel not configured', { status: 500 });
     }
 
-    const mediaInfo = await getWhatsAppMediaUrl(waMediaId, config.accessToken);
+    const mediaInfo = await getWhatsAppMediaUrl(waMediaId, waToken);
     if (!mediaInfo) {
         return new NextResponse('Failed to fetch media from WhatsApp', { status: 502 });
     }
 
-    const dataUrl = await downloadWhatsAppMedia(mediaInfo.url, config.accessToken, mediaInfo.mimeType);
+    const dataUrl = await downloadWhatsAppMedia(mediaInfo.url, waToken, mediaInfo.mimeType);
     if (!dataUrl) {
         return new NextResponse('Failed to download media', { status: 502 });
     }

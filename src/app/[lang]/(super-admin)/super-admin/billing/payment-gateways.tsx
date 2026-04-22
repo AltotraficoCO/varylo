@@ -1,29 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, CreditCard, Banknote, Wallet } from 'lucide-react';
+import { CreditCard, Banknote, Wallet, ChevronRight } from 'lucide-react';
 import { WompiConfigCard } from './wompi-config-card';
+import { useDictionary } from '@/lib/i18n-context';
+import { cn } from '@/lib/utils';
+
+type GatewayId = 'wompi' | 'stripe' | 'mercadopago';
 
 type Gateway = {
-    id: string;
+    id: GatewayId;
     name: string;
     description: string;
     icon: React.ComponentType<{ className?: string }>;
     status: 'active' | 'coming_soon';
-    color: string;
+    iconClass: string;
 };
 
 const GATEWAYS: Gateway[] = [
     {
         id: 'wompi',
         name: 'Wompi',
-        description: 'Pasarela de pagos para Colombia. Tarjetas, PSE, Nequi y más.',
+        description: 'Pasarela para Colombia. Tarjetas, PSE, Nequi y más.',
         icon: CreditCard,
         status: 'active',
-        color: 'bg-emerald-50 text-emerald-600 border-emerald-200',
+        iconClass: 'bg-emerald-50 text-emerald-600',
     },
     {
         id: 'stripe',
@@ -31,7 +33,7 @@ const GATEWAYS: Gateway[] = [
         description: 'Pagos internacionales con tarjeta de crédito y débito.',
         icon: Wallet,
         status: 'coming_soon',
-        color: 'bg-violet-50 text-violet-600 border-violet-200',
+        iconClass: 'bg-violet-50 text-violet-600',
     },
     {
         id: 'mercadopago',
@@ -39,71 +41,78 @@ const GATEWAYS: Gateway[] = [
         description: 'Pagos en Latinoamérica. Tarjetas, transferencias y efectivo.',
         icon: Banknote,
         status: 'coming_soon',
-        color: 'bg-blue-50 text-blue-600 border-blue-200',
+        iconClass: 'bg-blue-50 text-blue-600',
     },
 ];
 
 export function PaymentGateways() {
-    const [activeGateway, setActiveGateway] = useState<string | null>(null);
-
-    if (activeGateway === 'wompi') {
-        return (
-            <div className="space-y-4">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setActiveGateway(null)}
-                    className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Volver a pasarelas
-                </Button>
-                <WompiConfigCard />
-            </div>
-        );
-    }
+    const [selected, setSelected] = useState<GatewayId | null>('wompi');
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.paymentGateways || {};
 
     return (
-        <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-                Selecciona una pasarela de pagos para configurarla.
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {GATEWAYS.map((gw) => (
-                    <Card
-                        key={gw.id}
-                        className={`transition-all ${
-                            gw.status === 'active'
-                                ? 'cursor-pointer hover:shadow-md hover:border-primary/40'
-                                : 'opacity-60'
-                        }`}
-                        onClick={() => gw.status === 'active' && setActiveGateway(gw.id)}
-                    >
-                        <CardContent className="pt-6">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className={`p-2.5 rounded-lg border ${gw.color}`}>
+        <div className="space-y-6">
+            {/* Gateway selector */}
+            <div className="bg-card rounded-xl border overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-[#F4F4F5] dark:border-[#27272A]">
+                    <p className="text-[13px] text-[#71717A]">
+                        {t.selectGateway || 'Selecciona una pasarela para configurarla.'}
+                    </p>
+                </div>
+                <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A]">
+                    {GATEWAYS.map((gw) => {
+                        const isSelected = selected === gw.id;
+                        const isActive = gw.status === 'active';
+                        return (
+                            <button
+                                key={gw.id}
+                                onClick={() => isActive && setSelected(isSelected ? null : gw.id)}
+                                disabled={!isActive}
+                                className={cn(
+                                    'w-full flex items-center gap-4 px-5 py-4 text-left transition-colors',
+                                    isActive ? 'hover:bg-muted/50 cursor-pointer' : 'opacity-50 cursor-not-allowed',
+                                    isSelected && 'bg-primary/5'
+                                )}
+                            >
+                                <div className={`p-2.5 rounded-xl shrink-0 ${gw.iconClass}`}>
                                     <gw.icon className="h-5 w-5" />
                                 </div>
-                                {gw.status === 'active' ? (
-                                    <Badge variant="default" className="text-xs">Activa</Badge>
-                                ) : (
-                                    <Badge variant="outline" className="text-xs">Próximamente</Badge>
-                                )}
-                            </div>
-                            <h3 className="font-semibold mb-1">{gw.name}</h3>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                                {gw.description}
-                            </p>
-                            {gw.status === 'active' && (
-                                <div className="mt-4 flex items-center text-sm text-primary font-medium gap-1">
-                                    Configurar
-                                    <ArrowRight className="h-3.5 w-3.5" />
+                                <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-sm font-semibold text-foreground">{gw.name}</p>
+                                    <p className="text-[13px] text-muted-foreground">{gw.description}</p>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                ))}
+                                {isActive ? (
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Badge variant="default" className="text-xs bg-[#ECFDF5] text-[#10B981] border-0 hover:bg-[#ECFDF5]">
+                                            {t.activeLabel || 'Activa'}
+                                        </Badge>
+                                        <ChevronRight className={cn(
+                                            'h-4 w-4 text-muted-foreground transition-transform',
+                                            isSelected && 'rotate-90'
+                                        )} />
+                                    </div>
+                                ) : (
+                                    <Badge variant="outline" className="text-xs shrink-0">
+                                        {t.comingSoon || 'Próximamente'}
+                                    </Badge>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
+
+            {/* Inline config */}
+            {selected === 'wompi' && (
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                        <div className="h-px flex-1 bg-[#F4F4F5] dark:bg-[#27272A]" />
+                        <span className="text-[13px] text-[#71717A] px-2">Configuración Wompi</span>
+                        <div className="h-px flex-1 bg-[#F4F4F5] dark:bg-[#27272A]" />
+                    </div>
+                    <WompiConfigCard />
+                </div>
+            )}
         </div>
     );
 }

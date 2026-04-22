@@ -36,6 +36,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { createCompany } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 const formSchema = z.object({
     name: z.string().min(1, 'El nombre es obligatorio'),
@@ -46,6 +47,9 @@ const formSchema = z.object({
 export function CreateCompanyDialog() {
     const [open, setOpen] = useState(false);
     const router = useRouter();
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.createCompanyDialog || {};
+    const ui = dict.ui || {};
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -60,15 +64,15 @@ export function CreateCompanyDialog() {
         try {
             const result = await createCompany(values);
             if (result.success) {
-                toast.success('Empresa creada correctamente');
+                toast.success(t.companyCreated || 'Empresa creada correctamente');
                 setOpen(false);
                 form.reset();
                 router.refresh();
             } else {
-                toast.error(result.error || 'Error al crear la empresa');
+                toast.error(result.error || (t.createError || 'Error al crear la empresa'));
             }
         } catch (error) {
-            toast.error('Ocurrió un error inesperado');
+            toast.error(t.unexpectedError || 'Ocurrió un error inesperado');
         }
     }
 
@@ -77,14 +81,14 @@ export function CreateCompanyDialog() {
             <DialogTrigger asChild>
                 <Button>
                     <Plus className="mr-2 h-4 w-4" />
-                    Nueva Empresa
+                    {t.newCompany || 'Nueva Empresa'}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Crear Nueva Empresa</DialogTitle>
+                    <DialogTitle>{t.createTitle || 'Crear Nueva Empresa'}</DialogTitle>
                     <DialogDescription>
-                        Ingresa los detalles de la nueva empresa. Podrás agregar usuarios más tarde.
+                        {t.createDesc || 'Ingresa los detalles de la nueva empresa. Podrás agregar usuarios más tarde.'}
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
@@ -150,7 +154,7 @@ export function CreateCompanyDialog() {
                                 {form.formState.isSubmitting && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
-                                Crear Empresa
+                                {t.createButton || 'Crear Empresa'}
                             </Button>
                         </DialogFooter>
                     </form>

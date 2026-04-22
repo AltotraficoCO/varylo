@@ -17,6 +17,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { addPaymentSourceAction, setDefaultPaymentSource, removePaymentSource } from './billing-actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 type PaymentSource = {
     id: string;
@@ -50,13 +51,17 @@ export function PaymentMethodsCard({
     const [cardExpYear, setCardExpYear] = useState('');
     const [cardHolder, setCardHolder] = useState('');
 
+    const dict = useDictionary();
+    const t = dict.settingsUI?.paymentMethodsCard || {};
+    const ui = dict.ui || {};
+
     async function handleAddCard() {
         setLoading('add');
         setError('');
 
         try {
             if (!wompiPublicKey) {
-                throw new Error('Wompi no está configurado. Contacta al administrador.');
+                throw new Error(t.wompiNotConfigured || 'Wompi no está configurado. Contacta al administrador.');
             }
 
             const wompiBaseUrl = wompiIsSandbox ? 'https://sandbox.wompi.co' : 'https://production.wompi.co';
@@ -114,7 +119,7 @@ export function PaymentMethodsCard({
     }
 
     async function handleRemove(id: string) {
-        if (!confirm('¿Eliminar esta tarjeta?')) return;
+        if (!confirm(t.deleteConfirm || '¿Eliminar esta tarjeta?')) return;
         setLoading(id);
         const result = await removePaymentSource(id);
         if (result.success) {
@@ -131,29 +136,29 @@ export function PaymentMethodsCard({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <CreditCard className="h-5 w-5" />
-                        <CardTitle>Métodos de Pago</CardTitle>
+                        <CardTitle>{t.title || 'Métodos de Pago'}</CardTitle>
                     </div>
                     <Dialog open={addOpen} onOpenChange={setAddOpen}>
                         <DialogTrigger asChild>
                             <Button size="sm" variant="outline" className="gap-1">
                                 <Plus className="h-4 w-4" />
-                                Agregar tarjeta
+                                {t.addCard || 'Agregar tarjeta'}
                             </Button>
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Agregar tarjeta</DialogTitle>
+                                <DialogTitle>{t.addCard || 'Agregar tarjeta'}</DialogTitle>
                                 <DialogDescription>
-                                    Ingresa los datos de tu tarjeta. Se procesará de forma segura con Wompi.
+                                    {t.addCardDialogDesc || 'Ingresa los datos de tu tarjeta. Se procesará de forma segura con Wompi.'}
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 <div className="space-y-2">
-                                    <Label>Nombre del titular</Label>
+                                    <Label>{t.cardHolder || 'Nombre del titular'}</Label>
                                     <Input value={cardHolder} onChange={(e) => setCardHolder(e.target.value)} placeholder="Juan Pérez" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Número de tarjeta</Label>
+                                    <Label>{t.cardNumber || 'Número de tarjeta'}</Label>
                                     <Input
                                         value={cardNumber}
                                         onChange={(e) => setCardNumber(e.target.value)}
@@ -163,11 +168,11 @@ export function PaymentMethodsCard({
                                 </div>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Mes</Label>
+                                        <Label>{t.month || 'Mes'}</Label>
                                         <Input value={cardExpMonth} onChange={(e) => setCardExpMonth(e.target.value)} placeholder="12" maxLength={2} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Año</Label>
+                                        <Label>{t.year || 'Año'}</Label>
                                         <Input value={cardExpYear} onChange={(e) => setCardExpYear(e.target.value)} placeholder="28" maxLength={2} />
                                     </div>
                                     <div className="space-y-2">
@@ -178,22 +183,22 @@ export function PaymentMethodsCard({
                                 {error && <p className="text-sm text-red-500">{error}</p>}
                             </div>
                             <DialogFooter>
-                                <Button variant="outline" onClick={() => setAddOpen(false)}>Cancelar</Button>
+                                <Button variant="outline" onClick={() => setAddOpen(false)}>{ui.cancel || 'Cancelar'}</Button>
                                 <Button onClick={handleAddCard} disabled={loading === 'add' || !cardNumber || !cardCvc}>
-                                    {loading === 'add' ? 'Guardando...' : 'Agregar tarjeta'}
+                                    {loading === 'add' ? (ui.saving || 'Guardando...') : (t.addCard || 'Agregar tarjeta')}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
                 </div>
                 <CardDescription>
-                    Tarjetas guardadas para pagos recurrentes.
+                    {t.savedCards || 'Tarjetas guardadas para pagos recurrentes.'}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 {sources.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                        No hay tarjetas guardadas. Agrega una para suscribirte.
+                        {t.noCards || 'No hay tarjetas guardadas. Agrega una para suscribirte.'}
                     </p>
                 ) : (
                     <div className="space-y-3">
@@ -203,18 +208,18 @@ export function PaymentMethodsCard({
                                     <CreditCard className="h-5 w-5 text-muted-foreground" />
                                     <div>
                                         <p className="text-sm font-medium">
-                                            {source.brand || 'Tarjeta'} •••• {source.lastFour || '????'}
+                                            {source.brand || (t.card || 'Tarjeta')} •••• {source.lastFour || '????'}
                                         </p>
                                         {source.expiresAt && (
                                             <p className="text-xs text-muted-foreground">
-                                                Vence: {new Date(source.expiresAt).toLocaleDateString('es-CO', { month: '2-digit', year: '2-digit' })}
+                                                {t.expiresLabel || 'Vence:'} {new Date(source.expiresAt).toLocaleDateString('es-CO', { month: '2-digit', year: '2-digit' })}
                                             </p>
                                         )}
                                     </div>
                                     {source.isDefault && (
                                         <Badge variant="secondary" className="gap-1">
                                             <Star className="h-3 w-3" />
-                                            Principal
+                                            {t.primary || 'Principal'}
                                         </Badge>
                                     )}
                                 </div>
@@ -226,7 +231,7 @@ export function PaymentMethodsCard({
                                             onClick={() => handleSetDefault(source.id)}
                                             disabled={loading === source.id}
                                         >
-                                            Hacer principal
+                                            {t.makePrimary || 'Hacer principal'}
                                         </Button>
                                     )}
                                     <Button

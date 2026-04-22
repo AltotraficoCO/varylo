@@ -1,6 +1,7 @@
 import { Sidebar, agentItems } from '@/components/dashboard/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
-import { Locale } from '@/lib/dictionary';
+import { getDictionary, Locale } from '@/lib/dictionary';
+import { DictionaryProvider } from '@/lib/i18n-context';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -13,6 +14,7 @@ export default async function AgentLayout({
 }) {
     const { lang } = await params;
     const session = await auth();
+    const dict = await getDictionary(lang as Locale);
 
     let userStatus: 'ONLINE' | 'BUSY' | 'OFFLINE' = 'OFFLINE';
 
@@ -38,21 +40,25 @@ export default async function AgentLayout({
     }
 
     return (
-        <div className="grid min-h-screen w-full lg:grid-cols-[240px_1fr]">
-            <Sidebar role="agent" lang={lang} className="hidden lg:block" />
-            <div className="flex flex-col min-h-screen">
-                <DashboardHeader
-                    title="Panel de Agente"
-                    lang={lang}
-                    role="agent"
-                    userStatus={userStatus}
-                    userName={session?.user?.name || undefined}
-                    userEmail={session?.user?.email || undefined}
-                />
-                <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-                    {children}
-                </main>
+        <DictionaryProvider dictionary={dict}>
+            <div className="grid min-h-screen w-full lg:grid-cols-[240px_1fr]">
+                <Sidebar role="agent" lang={lang} className="hidden lg:block" dict={dict.dashboard.sidebar} />
+                <div className="flex flex-col min-h-screen min-w-0">
+                    <DashboardHeader
+                        title={dict.dashboard.agentTitle}
+                        lang={lang}
+                        role="agent"
+                        userStatus={userStatus}
+                        userName={session?.user?.name || undefined}
+                        userEmail={session?.user?.email || undefined}
+                        dict={dict.dashboard}
+                        sidebarDict={dict.dashboard.sidebar}
+                    />
+                    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 min-w-0 overflow-x-hidden">
+                        {children}
+                    </main>
+                </div>
             </div>
-        </div>
+        </DictionaryProvider>
     );
 }

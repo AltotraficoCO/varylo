@@ -8,15 +8,18 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
     Send, Paperclip, X, FileText, Image as ImageIcon,
-    AlertTriangle, Loader2, ChevronLeft,
+    AlertTriangle, Loader2, ChevronLeft, Mic, Square,
 } from "lucide-react";
 import { sendMessage, sendMediaMessage } from './actions';
 import { useRealtimeData } from './realtime-context';
 import { getWhatsAppTemplates, sendTemplateMessage } from '@/lib/template-actions';
 import { cn } from '@/lib/utils';
+import { Mp3Encoder } from '@breezystack/lamejs';
+import { useDictionary } from '@/lib/i18n-context';
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB (WhatsApp limit)
 const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_RECORDING_MS = 120_000; // 2 minutes max
 
 const ACCEPTED_TYPES: Record<string, string[]> = {
     image: ['image/jpeg', 'image/png', 'image/webp'],
@@ -45,6 +48,87 @@ function getMediaType(mimeType: string): string {
 
 function getAllAcceptedTypes(): string {
     return Object.values(ACCEPTED_TYPES).flat().join(',');
+}
+
+function formatDuration(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Convert a Blob/File to a base64 data URL using browser-native FileReader */
+function blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+/** Convert recorded audio blob to MP3 using lamejs (WhatsApp requires mp3/ogg/aac) */
+async function convertToMp3(blob: Blob): Promise<Blob> {
+    // Decode the recording with AudioContext
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioCtx = new AudioContext();
+    let audioBuffer: AudioBuffer;
+    try {
+        audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    } finally {
+        await audioCtx.close();
+    }
+
+    const sampleRate = audioBuffer.sampleRate;
+    const channels = 1; // Mono for voice notes
+    const kbps = 128;
+
+    // Get mono audio data (mix down if stereo)
+    let samples: Float32Array;
+    if (audioBuffer.numberOfChannels > 1) {
+        const left = audioBuffer.getChannelData(0);
+        const right = audioBuffer.getChannelData(1);
+        samples = new Float32Array(left.length);
+        for (let i = 0; i < left.length; i++) {
+            samples[i] = (left[i] + right[i]) / 2;
+        }
+    } else {
+        samples = audioBuffer.getChannelData(0);
+    }
+
+    // Convert Float32 [-1,1] to Int16
+    const int16 = new Int16Array(samples.length);
+    for (let i = 0; i < samples.length; i++) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+
+    // Encode to MP3
+    const encoder = new Mp3Encoder(channels, sampleRate, kbps);
+    const mp3Parts: Uint8Array[] = [];
+    const blockSize = 1152;
+
+    for (let i = 0; i < int16.length; i += blockSize) {
+        const chunk = int16.subarray(i, i + blockSize);
+        const mp3buf = encoder.encodeBuffer(chunk);
+        if (mp3buf.length > 0) mp3Parts.push(new Uint8Array(mp3buf));
+    }
+    const end = encoder.flush();
+    if (end.length > 0) mp3Parts.push(new Uint8Array(end));
+
+    return new Blob(mp3Parts as BlobPart[], { type: 'audio/mpeg' });
+}
+
+/** Upload audio blob to server via FormData */
+async function uploadVoiceNote(blob: Blob, fileName: string): Promise<{ url: string; mimeType: string } | null> {
+    const formData = new FormData();
+    formData.append('file', blob, fileName);
+
+    const res = await fetch('/api/voice-upload', { method: 'POST', body: formData });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(err.error || 'Upload failed');
+    }
+    return res.json();
 }
 
 interface TemplateComponent {
@@ -78,6 +162,17 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
     const router = useRouter();
     const { markAsRead, conversations } = useRealtimeData();
     const markedRef = useRef(false);
+    const dict = useDictionary();
+    const t = dict.conversations || {};
+    const ui = dict.ui || {};
+
+    // Voice recording state
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingDuration, setRecordingDuration] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
 
     // Template state
     const [showTemplateSelector, setShowTemplateSelector] = useState(false);
@@ -108,14 +203,16 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         setSelectedTemplate(null);
         setParamValues({});
         setTemplateStep('list');
+        stopRecording();
     }, [conversationId]);
 
-    // Cleanup file preview URL
+    // Cleanup
     useEffect(() => {
         return () => {
             if (filePreview && filePreview.startsWith('blob:')) {
                 URL.revokeObjectURL(filePreview);
             }
+            stopRecording();
         };
     }, [filePreview]);
 
@@ -132,7 +229,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         if (!file) return;
 
         if (file.size > MAX_FILE_SIZE) {
-            alert('El archivo excede el límite de 16MB.');
+            alert(t.fileSizeExceeded);
             return;
         }
 
@@ -156,6 +253,125 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         }
     };
 
+    // --- Voice Recording ---
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+
+            // Use whatever format the browser supports - we convert to WAV before sending
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm; codecs=opus')
+                ? 'audio/webm; codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')
+                    ? 'audio/ogg; codecs=opus'
+                    : MediaRecorder.isTypeSupported('audio/mp4')
+                        ? 'audio/mp4'
+                        : '';
+
+            const recorder = mimeType
+                ? new MediaRecorder(stream, { mimeType })
+                : new MediaRecorder(stream);
+            mediaRecorderRef.current = recorder;
+            audioChunksRef.current = [];
+
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    audioChunksRef.current.push(e.data);
+                }
+            };
+
+            recorder.start(250);
+            setIsRecording(true);
+            setRecordingDuration(0);
+
+            recordingTimerRef.current = setInterval(() => {
+                setRecordingDuration(prev => {
+                    if (prev >= MAX_RECORDING_MS / 1000) {
+                        stopAndSendRecording();
+                        return prev;
+                    }
+                    return prev + 1;
+                });
+            }, 1000);
+        } catch {
+            alert(t.micPermissionError);
+        }
+    };
+
+    const stopRecording = () => {
+        if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+            recordingTimerRef.current = null;
+        }
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        setIsRecording(false);
+        setRecordingDuration(0);
+    };
+
+    const cancelRecording = () => {
+        audioChunksRef.current = [];
+        stopRecording();
+    };
+
+    const stopAndSendRecording = async () => {
+        if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
+
+        return new Promise<void>((resolve) => {
+            const recorder = mediaRecorderRef.current!;
+
+            recorder.onstop = async () => {
+                stopRecording();
+
+                const chunks = audioChunksRef.current;
+                if (chunks.length === 0) { resolve(); return; }
+
+                const rawBlob = new Blob(chunks, { type: recorder.mimeType });
+                audioChunksRef.current = [];
+
+                setIsSending(true);
+                try {
+                    // Convert to MP3 (WhatsApp requires mp3/ogg/aac, doesn't accept webm)
+                    const mp3Blob = await convertToMp3(rawBlob);
+                    const fileName = `voice-note-${Date.now()}.mp3`;
+                    const upload = await uploadVoiceNote(mp3Blob, fileName);
+
+                    if (!upload) throw new Error('Upload failed');
+
+                    const result = await sendMediaMessage(
+                        conversationId,
+                        '',
+                        upload.url,
+                        'audio',
+                        'audio/mpeg',
+                        fileName
+                    );
+
+                    if (result.success) {
+                        router.refresh();
+                    } else if (result.windowExpired) {
+                        setShowTemplateSelector(true);
+                    } else {
+                        alert(result.message || t.errorSendingVoice);
+                    }
+                } catch (error) {
+                    console.error('Error sending voice note:', error);
+                    alert(t.errorSendingVoiceRetry);
+                } finally {
+                    setIsSending(false);
+                }
+                resolve();
+            };
+
+            recorder.stop();
+        });
+    };
+
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if ((!message.trim() && !selectedFile) || isSending) return;
@@ -165,9 +381,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
             let result: any;
 
             if (selectedFile) {
-                const buffer = await selectedFile.arrayBuffer();
-                const base64 = Buffer.from(buffer).toString('base64');
-                const dataUrl = `data:${selectedFile.type};base64,${base64}`;
+                const dataUrl = await blobToDataUrl(selectedFile);
                 const mediaType = getMediaType(selectedFile.type);
 
                 result = await sendMediaMessage(conversationId, message, dataUrl, mediaType, selectedFile.type, selectedFile.name);
@@ -180,7 +394,6 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 setMessage('');
                 router.refresh();
             } else if (result.windowExpired) {
-                // Window expired — force template selector
                 setShowTemplateSelector(true);
             } else {
                 alert(result.message || 'Failed to send message');
@@ -201,10 +414,10 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         if (result.success && result.templates) {
             setTemplates(result.templates);
         } else {
-            setTemplateError(result.error || 'Error desconocido');
+            setTemplateError(result.error || ui.unknown);
         }
         setLoadingTemplates(false);
-    }, []);
+    }, [ui.unknown]);
 
     const handleOpenTemplateSelector = () => {
         setShowTemplateSelector(true);
@@ -237,10 +450,10 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         return text;
     };
 
-    const handleSelectTemplate = (t: Template) => {
-        setSelectedTemplate(t);
+    const handleSelectTemplate = (tmpl: Template) => {
+        setSelectedTemplate(tmpl);
         setParamValues({});
-        const params = getBodyParams(t);
+        const params = getBodyParams(tmpl);
         if (params.length > 0) {
             setTemplateStep('params');
         }
@@ -280,7 +493,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
             setTemplateStep('list');
             router.refresh();
         } else {
-            alert(result.error || 'Error al enviar plantilla');
+            alert(result.error || t.errorSendingTemplate);
         }
     };
 
@@ -289,30 +502,28 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         return (
             <div className="p-4 border-t bg-background">
                 {!showTemplateSelector ? (
-                    // Expired banner
                     <div className="flex flex-col items-center gap-3 py-2">
                         <div className="flex items-center gap-2 text-amber-700 bg-amber-50 px-4 py-2.5 rounded-lg w-full">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             <div className="text-sm">
-                                <p>La ventana de 24 horas ha expirado. Para volver a escribir a este contacto debes usar una <strong>plantilla aprobada</strong> de WhatsApp.</p>
+                                <p>{t.windowExpiredMsg}</p>
                                 {lastInboundAt && (
                                     <p className="text-xs text-amber-600 mt-1">
-                                        Último mensaje del cliente: {new Date(lastInboundAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })} a las {new Date(lastInboundAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                        {t.lastClientMessage} {new Date(lastInboundAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })} a las {new Date(lastInboundAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
                                     </p>
                                 )}
                             </div>
                         </div>
                         <Button onClick={handleOpenTemplateSelector} className="w-full" variant="default">
                             <Send className="h-4 w-4 mr-2" />
-                            Enviar plantilla
+                            {t.sendTemplate}
                         </Button>
                     </div>
                 ) : (
-                    // Inline template selector
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-medium">
-                                {templateStep === 'list' ? 'Seleccionar plantilla' : 'Completar parámetros'}
+                                {templateStep === 'list' ? t.selectTemplateTitle : t.completeParams}
                             </h4>
                             <Button
                                 variant="ghost"
@@ -327,9 +538,9 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                 }}
                             >
                                 {templateStep === 'params' ? (
-                                    <><ChevronLeft className="h-4 w-4 mr-1" /> Atrás</>
+                                    <><ChevronLeft className="h-4 w-4 mr-1" /> {ui.back}</>
                                 ) : (
-                                    <><X className="h-4 w-4 mr-1" /> Cerrar</>
+                                    <><X className="h-4 w-4 mr-1" /> {ui.close}</>
                                 )}
                             </Button>
                         </div>
@@ -339,34 +550,34 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                 {loadingTemplates ? (
                                     <div className="flex items-center justify-center py-6">
                                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                        <span className="ml-2 text-sm text-muted-foreground">Cargando plantillas...</span>
+                                        <span className="ml-2 text-sm text-muted-foreground">{t.loadingTemplates}</span>
                                     </div>
                                 ) : templateError ? (
                                     <div className="text-center py-4">
                                         <p className="text-sm text-destructive">{templateError}</p>
                                         <Button variant="outline" size="sm" className="mt-2" onClick={loadTemplates}>
-                                            Reintentar
+                                            {ui.retry}
                                         </Button>
                                     </div>
                                 ) : (
                                     <div className="max-h-48 overflow-y-auto border rounded-md divide-y">
-                                        {templates.map((t) => {
-                                            const body = t.components.find((c) => c.type === 'BODY');
-                                            const isSelected = selectedTemplate?.name === t.name && selectedTemplate?.language === t.language;
+                                        {templates.map((tmpl) => {
+                                            const body = tmpl.components.find((c) => c.type === 'BODY');
+                                            const isSelected = selectedTemplate?.name === tmpl.name && selectedTemplate?.language === tmpl.language;
                                             return (
                                                 <button
-                                                    key={`${t.name}-${t.language}`}
+                                                    key={`${tmpl.name}-${tmpl.language}`}
                                                     className={cn(
                                                         'w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors',
                                                         isSelected && 'bg-primary/5 border-l-2 border-primary'
                                                     )}
-                                                    onClick={() => handleSelectTemplate(t)}
+                                                    onClick={() => handleSelectTemplate(tmpl)}
                                                 >
                                                     <div className="flex items-center gap-2 mb-0.5">
                                                         <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                                        <span className="font-medium text-sm">{t.name}</span>
+                                                        <span className="font-medium text-sm">{tmpl.name}</span>
                                                         <Badge variant="outline" className="text-[10px] px-1 h-4">
-                                                            {t.language}
+                                                            {tmpl.language}
                                                         </Badge>
                                                     </div>
                                                     {body?.text && (
@@ -379,13 +590,12 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                         })}
                                         {templates.length === 0 && (
                                             <p className="text-xs text-muted-foreground p-3 text-center">
-                                                No hay plantillas aprobadas.
+                                                {t.noApprovedTemplates}
                                             </p>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Send button if template has no params */}
                                 {selectedTemplate && getBodyParams(selectedTemplate).length === 0 && (
                                     <Button onClick={handleSendTemplate} disabled={sendingTemplate} className="w-full">
                                         {sendingTemplate ? (
@@ -393,7 +603,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                         ) : (
                                             <Send className="h-4 w-4 mr-2" />
                                         )}
-                                        {sendingTemplate ? 'Enviando...' : 'Enviar plantilla'}
+                                        {sendingTemplate ? ui.sending : t.sendTemplate}
                                     </Button>
                                 )}
                             </>
@@ -406,9 +616,9 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                         const idx = p.replace(/[{}]/g, '');
                                         return (
                                             <div key={idx} className="space-y-1">
-                                                <Label className="text-xs">Parámetro {idx}</Label>
+                                                <Label className="text-xs">{t.parameter} {idx}</Label>
                                                 <Input
-                                                    placeholder={`Valor para ${p}`}
+                                                    placeholder={`${t.valueFor} ${p}`}
                                                     value={paramValues[idx] || ''}
                                                     onChange={(e) =>
                                                         setParamValues((prev) => ({ ...prev, [idx]: e.target.value }))
@@ -421,7 +631,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                 </div>
 
                                 <div className="border rounded-md p-2.5 bg-muted/50">
-                                    <p className="text-xs text-muted-foreground mb-1">Vista previa</p>
+                                    <p className="text-xs text-muted-foreground mb-1">{t.preview}</p>
                                     <p className="text-sm whitespace-pre-wrap">{getPreviewText(selectedTemplate)}</p>
                                 </div>
 
@@ -431,7 +641,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                     ) : (
                                         <Send className="h-4 w-4 mr-2" />
                                     )}
-                                    {sendingTemplate ? 'Enviando...' : 'Enviar plantilla'}
+                                    {sendingTemplate ? ui.sending : t.sendTemplate}
                                 </Button>
                             </>
                         )}
@@ -441,32 +651,61 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         );
     }
 
-    // Normal chat input (window open or non-WhatsApp channel)
+    // Normal chat input
     return (
-        <div className="p-4 border-t bg-background">
+        <div className="bg-white py-3 px-5">
             {/* File preview */}
             {selectedFile && (
-                <div className="mb-2 flex items-center gap-2 p-2 rounded-lg bg-muted text-sm">
+                <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-[#F4F4F5] text-sm">
                     {filePreview ? (
                         <img src={filePreview} alt="Preview" className="h-12 w-12 rounded object-cover" />
                     ) : selectedFile.type.startsWith('image/') ? (
-                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                        <ImageIcon className="h-8 w-8 text-[#71717A]" />
                     ) : (
-                        <FileText className="h-8 w-8 text-muted-foreground" />
+                        <FileText className="h-8 w-8 text-[#71717A]" />
                     )}
                     <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium">{selectedFile.name}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="truncate font-medium text-[#09090B]">{selectedFile.name}</p>
+                        <p className="text-xs text-[#71717A]">
                             {(selectedFile.size / 1024).toFixed(0)} KB
                         </p>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={removeFile} className="h-6 w-6">
-                        <X className="h-4 w-4" />
-                    </Button>
+                    <button type="button" onClick={removeFile} className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-[#E4E4E7] transition-colors">
+                        <X className="h-4 w-4 text-[#71717A]" />
+                    </button>
                 </div>
             )}
 
-            <form onSubmit={handleSend} className="flex gap-2">
+            {/* Recording indicator */}
+            {isRecording && (
+                <div className="mb-3 flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
+                    <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+                    <span className="text-sm font-medium text-red-700 flex-1">
+                        {t.recording} {formatDuration(recordingDuration)}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={cancelRecording}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-100"
+                    >
+                        {ui.cancel}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={stopAndSendRecording}
+                        disabled={isSending}
+                        className="h-9 w-9 rounded-full bg-[#10B981] hover:bg-[#059669] flex items-center justify-center transition-colors disabled:opacity-50"
+                    >
+                        {isSending ? (
+                            <Loader2 className="h-[18px] w-[18px] animate-spin text-white" />
+                        ) : (
+                            <Send className="h-[18px] w-[18px] text-white" />
+                        )}
+                    </button>
+                </div>
+            )}
+
+            <form onSubmit={handleSend} className="flex items-center gap-3">
                 <input
                     ref={fileInputRef}
                     type="file"
@@ -474,30 +713,50 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                     onChange={handleFileSelect}
                     className="hidden"
                 />
-                <Button
+
+                {/* Attach button - circular, bg #F4F4F5 */}
+                <button
                     type="button"
-                    variant="ghost"
-                    size="icon"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isSending}
-                    className="shrink-0"
+                    disabled={isSending || isRecording}
+                    className="h-9 w-9 shrink-0 rounded-full bg-[#F4F4F5] flex items-center justify-center hover:bg-[#E4E4E7] transition-colors disabled:opacity-50"
                 >
-                    <Paperclip className="h-4 w-4" />
-                </Button>
-                <Input
+                    <Paperclip className="h-[18px] w-[18px] text-[#71717A]" />
+                </button>
+
+                {/* Input field - bg #FAFAFA, border #E4E4E7 */}
+                <input
                     value={message}
                     onChange={(e) => handleChange(e.target.value)}
-                    placeholder={selectedFile ? "Agrega un mensaje (opcional)..." : "Escribe un mensaje..."}
-                    className="flex-1"
-                    disabled={isSending}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleSend(e); } }}
+                    placeholder={selectedFile ? t.addOptionalMessage : t.typeMessage}
+                    className="flex-1 bg-[#FAFAFA] border border-[#E4E4E7] rounded-lg py-2.5 px-3.5 text-[14px] text-[#09090B] placeholder:text-[#A1A1AA] outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]/20 transition-colors disabled:opacity-50"
+                    disabled={isSending || isRecording}
                 />
-                <Button
-                    type="submit"
-                    disabled={isSending || (!message.trim() && !selectedFile)}
-                    size="icon"
-                >
-                    <Send className="h-4 w-4" />
-                </Button>
+
+                {/* Mic button - circular, bg #F4F4F5, shows when empty */}
+                {!message.trim() && !selectedFile && !isRecording && (
+                    <button
+                        type="button"
+                        onClick={startRecording}
+                        disabled={isSending}
+                        className="h-9 w-9 shrink-0 rounded-full bg-[#F4F4F5] flex items-center justify-center hover:bg-[#E4E4E7] transition-colors disabled:opacity-50"
+                        title={t.recordVoiceNote}
+                    >
+                        <Mic className="h-[18px] w-[18px] text-[#71717A]" />
+                    </button>
+                )}
+
+                {/* Send button - circular, green #10B981, shows when there's content */}
+                {(message.trim() || selectedFile) && (
+                    <button
+                        type="submit"
+                        disabled={isSending || isRecording}
+                        className="h-9 w-9 shrink-0 rounded-full bg-[#10B981] hover:bg-[#059669] flex items-center justify-center transition-colors disabled:opacity-50"
+                    >
+                        <Send className="h-[18px] w-[18px] text-white" />
+                    </button>
+                )}
             </form>
         </div>
     );

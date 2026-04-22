@@ -10,11 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { updateUserStatus } from "@/lib/user-status";
+import { useDictionary } from '@/lib/i18n-context';
 
 const STATUS_CONFIG = {
-    ONLINE: { label: 'En línea', color: 'bg-emerald-500', textColor: 'text-emerald-600' },
-    BUSY: { label: 'Ocupado', color: 'bg-yellow-500', textColor: 'text-yellow-600' },
-    OFFLINE: { label: 'Fuera de línea', color: 'bg-gray-400', textColor: 'text-gray-500' },
+    ONLINE: { labelKey: 'online' as const, color: 'bg-emerald-500', textColor: 'text-emerald-600' },
+    BUSY: { labelKey: 'busy' as const, color: 'bg-yellow-500', textColor: 'text-yellow-600' },
+    OFFLINE: { labelKey: 'offline' as const, color: 'bg-gray-400', textColor: 'text-gray-500' },
 } as const;
 
 type StatusKey = keyof typeof STATUS_CONFIG;
@@ -22,6 +23,8 @@ type StatusKey = keyof typeof STATUS_CONFIG;
 export function StatusSelector({ initialStatus }: { initialStatus: StatusKey }) {
     const [status, setStatus] = useState<StatusKey>(initialStatus);
     const [isPending, startTransition] = useTransition();
+    const dict = useDictionary();
+    const common = dict.dashboard?.common || {};
 
     const handleStatusChange = (newStatus: StatusKey) => {
         setStatus(newStatus);
@@ -45,7 +48,7 @@ export function StatusSelector({ initialStatus }: { initialStatus: StatusKey }) 
                     disabled={isPending}
                 >
                     <span className={cn("h-2.5 w-2.5 rounded-full", current.color)} />
-                    {current.label}
+                    {common[current.labelKey]}
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
@@ -59,7 +62,7 @@ export function StatusSelector({ initialStatus }: { initialStatus: StatusKey }) 
                         )}
                     >
                         <span className={cn("h-2.5 w-2.5 rounded-full", config.color)} />
-                        {config.label}
+                        {common[config.labelKey]}
                     </DropdownMenuItem>
                 ))}
             </DropdownMenuContent>

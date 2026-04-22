@@ -1,23 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, Users, MessageSquare } from "lucide-react"
+import { Building2, Users, CheckCircle2, UserCircle2 } from "lucide-react"
 import { EditCompanyDialog } from './edit-company-dialog';
 import { CreateCompanyDialog } from './create-company-dialog';
 import { ensureTablesExist } from './actions';
-
-const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'destructive' }> = {
-    ACTIVE: { label: 'Activa', variant: 'default' },
-    SUSPENDED: { label: 'Suspendida', variant: 'destructive' },
-};
+import { getDictionary, Locale } from '@/lib/dictionary';
 
 const PLAN_COLORS: Record<string, 'default' | 'secondary' | 'outline'> = {
     STARTER: 'outline',
@@ -25,33 +12,28 @@ const PLAN_COLORS: Record<string, 'default' | 'secondary' | 'outline'> = {
     SCALE: 'secondary',
 };
 
-const SUB_STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    ACTIVE: { label: 'Activa', variant: 'default' },
-    TRIAL: { label: 'Prueba', variant: 'secondary' },
-    PAST_DUE: { label: 'Pago pendiente', variant: 'destructive' },
-    CANCELLED: { label: 'Cancelada', variant: 'outline' },
-    EXPIRED: { label: 'Vencida', variant: 'destructive' },
+const SUB_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+    ACTIVE:    { label: 'Activa',          className: 'bg-[#ECFDF5] text-[#10B981]' },
+    TRIAL:     { label: 'Prueba',          className: 'bg-amber-50 text-amber-600' },
+    PAST_DUE:  { label: 'Pago pendiente',  className: 'bg-red-50 text-red-500' },
+    CANCELLED: { label: 'Cancelada',       className: 'bg-[#F4F4F5] text-[#71717A]' },
 };
 
-function getEffectiveSubStatus(sub: any): string {
-    if (!sub) return '';
-    if ((sub.status === 'ACTIVE' || sub.status === 'TRIAL') && sub.currentPeriodEnd) {
-        const isExpired = new Date(sub.currentPeriodEnd).getTime() < Date.now();
-        if (isExpired) return 'EXPIRED';
+export default async function CompaniesPage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.dashboard.companiesAdmin;
+    const tc = dict.dashboard.common;
+    const locale = tc.locale || 'es-CO';
+
+    function formatCOP(amount: number): string {
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+        }).format(amount);
     }
-    return sub.status;
-}
 
-function formatCOP(amount: number): string {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0,
-    }).format(amount);
-}
-
-export default async function CompaniesPage() {
-    // Ensure all subscription tables/columns exist before querying
     await ensureTablesExist();
 
     let companies: any[] = [];
@@ -88,147 +70,141 @@ export default async function CompaniesPage() {
 
     return (
         <div className="space-y-6">
+            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Empresas</h2>
-                    <p className="text-muted-foreground">
-                        Gestión de todas las empresas en la plataforma.
-                    </p>
+                <div className="flex flex-col gap-1">
+                    <h1 className="text-[28px] font-bold text-foreground">{t.title}</h1>
+                    <p className="text-sm text-muted-foreground">{t.subtitle}</p>
                 </div>
                 <CreateCompanyDialog />
             </div>
 
-            {/* Summary cards */}
-            <div className="grid gap-4 sm:grid-cols-3">
-                <Card>
-                    <CardContent className="flex items-center gap-3 pt-6">
+            {/* Summary stats */}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+                <div className="bg-card rounded-xl border p-5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-[#71717A]">{t.totalCompanies}</p>
                         <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
-                            <Building2 className="h-5 w-5" />
+                            <Building2 className="h-4 w-4" />
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold">{totalCompanies}</p>
-                            <p className="text-xs text-muted-foreground">Total empresas</p>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="flex items-center gap-3 pt-6">
+                    </div>
+                    <p className="text-[32px] font-bold text-foreground leading-none">{totalCompanies}</p>
+                </div>
+                <div className="bg-card rounded-xl border p-5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-[#71717A]">{t.activeCompanies}</p>
                         <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
-                            <MessageSquare className="h-5 w-5" />
+                            <CheckCircle2 className="h-4 w-4" />
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold">{activeCompanies}</p>
-                            <p className="text-xs text-muted-foreground">Activas</p>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="flex items-center gap-3 pt-6">
+                    </div>
+                    <p className="text-[32px] font-bold text-foreground leading-none">{activeCompanies}</p>
+                </div>
+                <div className="bg-card rounded-xl border p-5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                        <p className="text-[13px] text-[#71717A]">{t.totalUsers}</p>
                         <div className="p-2 rounded-lg bg-violet-50 text-violet-600">
-                            <Users className="h-5 w-5" />
+                            <Users className="h-4 w-4" />
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold">{totalUsers}</p>
-                            <p className="text-xs text-muted-foreground">Usuarios totales</p>
-                        </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                    <p className="text-[32px] font-bold text-foreground leading-none">{totalUsers}</p>
+                </div>
             </div>
 
-            {/* Companies Table */}
-            <Card>
-                <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Empresa</TableHead>
-                                <TableHead>Plan</TableHead>
-                                <TableHead className="hidden md:table-cell">Suscripción</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead className="hidden sm:table-cell">Usuarios</TableHead>
-                                <TableHead className="hidden lg:table-cell">Créditos</TableHead>
-                                <TableHead className="hidden lg:table-cell">Registro</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {companies.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                                        <Building2 className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                                        No hay empresas registradas.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                companies.map((company) => {
-                                    const sub = company.subscriptions?.[0];
-                                    const effectiveStatus = sub ? getEffectiveSubStatus(sub) : null;
-                                    const subStatus = effectiveStatus ? SUB_STATUS_LABELS[effectiveStatus] : null;
-                                    return (
-                                        <TableRow key={company.id}>
-                                            <TableCell>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
-                                                        {company.name.charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <span className="font-medium">{company.name}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={PLAN_COLORS[company.plan] || 'outline'}>
-                                                    {company.plan}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="hidden md:table-cell">
-                                                {sub ? (
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <Badge variant={subStatus?.variant || 'outline'} className="text-xs w-fit">
-                                                            {subStatus?.label || sub.status}
-                                                        </Badge>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {sub.planPricing?.landingPlan?.name || '-'}
-                                                        </span>
-                                                        {sub.currentPeriodEnd && effectiveStatus !== 'EXPIRED' && effectiveStatus !== 'CANCELLED' && (
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {(() => {
-                                                                    const daysLeft = Math.ceil((new Date(sub.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                                                                    return daysLeft > 0 ? `${daysLeft} días restantes` : '';
-                                                                })()}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">Sin suscripción</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`h-2 w-2 rounded-full ${company.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-red-400'}`} />
-                                                    <span className="text-sm">
-                                                        {STATUS_MAP[company.status]?.label || company.status}
+            {/* Companies list */}
+            <div className="bg-card rounded-xl border overflow-x-auto">
+              <div className="min-w-[560px]">
+                {/* List header */}
+                <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_auto_auto_auto] px-5 py-3 border-b border-[#F4F4F5] dark:border-[#27272A]">
+                    <p className="text-[13px] font-medium text-[#71717A]">{t.company}</p>
+                    <p className="text-[13px] font-medium text-[#71717A] hidden sm:block w-28 text-center">{t.subscription}</p>
+                    <p className="text-[13px] font-medium text-[#71717A] w-20 text-center">{t.plan}</p>
+                    <p className="text-[13px] font-medium text-[#71717A] w-24 text-right">{t.actions}</p>
+                </div>
+
+                {companies.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                            <Building2 className="h-6 w-6 text-muted-foreground opacity-50" />
+                        </div>
+                        <p className="text-sm font-medium text-foreground mb-1">{t.noCompanies}</p>
+                        <p className="text-[13px] text-muted-foreground">Usa el botón &quot;Nueva Empresa&quot; para crear una.</p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A]">
+                        {companies.map((company) => {
+                            const sub = company.subscriptions?.[0];
+                            const subCfg = sub ? SUB_STATUS_CONFIG[sub.status] : null;
+                            const userCount = company.users?.length || 0;
+                            const daysLeft = sub?.currentPeriodEnd
+                                ? Math.ceil((new Date(sub.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                                : null;
+
+                            return (
+                                <div
+                                    key={company.id}
+                                    className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-5 py-3.5"
+                                >
+                                    {/* Company info */}
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold shrink-0">
+                                            {company.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-medium text-foreground truncate">
+                                                    {company.name}
+                                                </p>
+                                                <div
+                                                    className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                                                        company.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-red-400'
+                                                    }`}
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                                                <UserCircle2 className="h-3 w-3" />
+                                                <span>{userCount} {userCount === 1 ? 'usuario' : 'usuarios'}</span>
+                                                <span>·</span>
+                                                <span>{new Date(company.createdAt).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Subscription status */}
+                                    <div className="hidden sm:flex flex-col items-center gap-1 w-28">
+                                        {subCfg ? (
+                                            <>
+                                                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${subCfg.className}`}>
+                                                    {subCfg.label}
+                                                </span>
+                                                {daysLeft !== null && (
+                                                    <span className={`text-[11px] ${daysLeft <= 0 ? 'text-red-500' : daysLeft <= 7 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                                                        {daysLeft > 0 ? `${daysLeft}d restantes` : 'Vencida'}
                                                     </span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="hidden sm:table-cell">
-                                                {company.users?.length || 0}
-                                            </TableCell>
-                                            <TableCell className="hidden lg:table-cell font-mono text-sm">
-                                                {formatCOP(company.creditBalance)}
-                                            </TableCell>
-                                            <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                                                {new Date(company.createdAt).toLocaleDateString('es-CO')}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <EditCompanyDialog company={company} />
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">Sin suscripción</span>
+                                        )}
+                                    </div>
+
+                                    {/* Plan badge */}
+                                    <div className="flex justify-center w-20">
+                                        <Badge variant={PLAN_COLORS[company.plan] || 'outline'} className="text-xs">
+                                            {company.plan}
+                                        </Badge>
+                                    </div>
+
+                                    {/* Action */}
+                                    <div className="flex justify-end w-24">
+                                        <EditCompanyDialog company={company} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+              </div>
+            </div>
         </div>
     );
 }

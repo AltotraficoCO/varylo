@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, Building2, Users, Bell } from 'lucide-react';
 import { AssignmentForm } from './assignment-form';
+import { useDictionary } from '@/lib/i18n-context';
 
 type GeneralItem = {
     id: string;
@@ -34,35 +35,38 @@ export function GeneralSection({
     agents,
 }: GeneralSectionProps) {
     const [activeItem, setActiveItem] = useState<string | null>(null);
+    const dict = useDictionary();
+    const t = dict.settingsUI?.general || {};
+    const ui = dict.ui || {};
 
     const items: GeneralItem[] = [
         {
             id: 'profile',
-            name: 'Perfil de Empresa',
-            description: 'Información básica de tu empresa como nombre y correo.',
+            name: t.companyProfile || 'Perfil de Empresa',
+            description: t.companyProfileDesc || 'Información básica de tu empresa como nombre y correo.',
             icon: Building2,
             color: 'bg-blue-50 text-blue-600 border-blue-200',
-            badge: companyName || 'Sin nombre',
+            badge: companyName || (dict.dashboard?.common?.noName || 'Sin nombre'),
             badgeVariant: 'default',
             status: 'active',
         },
         {
             id: 'assignment',
-            name: 'Asignación de Agentes',
-            description: 'Configura cómo se asignan las conversaciones a los agentes.',
+            name: t.agentAssignment || 'Asignación de Agentes',
+            description: t.agentAssignmentDesc || 'Configura cómo se asignan las conversaciones a los agentes.',
             icon: Users,
             color: 'bg-violet-50 text-violet-600 border-violet-200',
-            badge: assignmentStrategy === 'SPECIFIC_AGENT' ? 'Agente específico' : 'Menos ocupado',
+            badge: assignmentStrategy === 'SPECIFIC_AGENT' ? (t.specificAgent || 'Agente específico') : (t.leastBusy || 'Menos ocupado'),
             badgeVariant: 'default',
             status: 'active',
         },
         {
             id: 'notifications',
-            name: 'Notificaciones',
-            description: 'Configura alertas por email y notificaciones de escritorio.',
+            name: t.notifications || 'Notificaciones',
+            description: t.notificationsDesc || 'Configura alertas por email y notificaciones de escritorio.',
             icon: Bell,
             color: 'bg-amber-50 text-amber-600 border-amber-200',
-            badge: 'Próximamente',
+            badge: t.comingSoon || 'Próximamente',
             badgeVariant: 'outline',
             status: 'coming_soon',
         },
@@ -78,13 +82,13 @@ export function GeneralSection({
                     className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Volver a general
+                    {t.backToGeneral || 'Volver a general'}
                 </Button>
                 <Card>
                     <CardContent className="pt-6 space-y-4">
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Nombre de Empresa</label>
+                                <label className="text-sm font-medium">{t.companyNameLabel || 'Nombre de Empresa'}</label>
                                 <input
                                     className="flex h-9 w-full rounded-md border border-input bg-muted/50 px-3 py-1 text-sm shadow-sm"
                                     defaultValue={companyName}
@@ -92,7 +96,7 @@ export function GeneralSection({
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Email</label>
+                                <label className="text-sm font-medium">{ui.email || 'Email'}</label>
                                 <input
                                     className="flex h-9 w-full rounded-md border border-input bg-muted/50 px-3 py-1 text-sm shadow-sm"
                                     defaultValue={userEmail}
@@ -116,7 +120,7 @@ export function GeneralSection({
                     className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Volver a general
+                    {t.backToGeneral || 'Volver a general'}
                 </Button>
                 <AssignmentForm
                     currentStrategy={assignmentStrategy as any}
@@ -130,7 +134,7 @@ export function GeneralSection({
     return (
         <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-                Configuración general de tu empresa.
+                {t.title || 'Configuración general de tu empresa.'}
             </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((item) => (
@@ -158,7 +162,7 @@ export function GeneralSection({
                             </p>
                             {item.status === 'active' && (
                                 <div className="mt-4 flex items-center text-sm text-primary font-medium gap-1">
-                                    Configurar
+                                    {ui.configure || 'Configurar'}
                                     <ArrowRight className="h-3.5 w-3.5" />
                                 </div>
                             )}

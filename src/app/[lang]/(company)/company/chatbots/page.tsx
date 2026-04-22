@@ -1,31 +1,28 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { SubscriptionGate } from '@/components/subscription-gate';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CreateChatbotDialog } from './create-chatbot-dialog';
-import { ChatbotStatusToggle } from './chatbot-status-toggle';
-import { DeleteChatbotDialog } from './delete-chatbot-dialog';
 import Link from 'next/link';
-import { Pencil } from 'lucide-react';
+import { Bot, MessageSquare, Zap } from 'lucide-react';
+import { getDictionary } from '@/lib/dictionary';
+import type { Locale } from '@/lib/dictionary';
+
+const ICON_THEMES = [
+    { bg: 'bg-[#ECFDF5]', color: 'text-[#10B981]', Icon: Bot },
+    { bg: 'bg-[#EFF6FF]', color: 'text-[#3B82F6]', Icon: MessageSquare },
+    { bg: 'bg-[#FFF7ED]', color: 'text-[#F97316]', Icon: Zap },
+    { bg: 'bg-[#F5F3FF]', color: 'text-[#8B5CF6]', Icon: Bot },
+];
 
 export default async function ChatbotsPage({ params }: { params: Promise<{ lang: string }> }) {
     const { lang } = await params;
     const session = await auth();
     if (!session?.user?.companyId) return null;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.chatbots || {} as Record<string, any>;
 
     const chatbots = await prisma.chatbot.findMany({
         where: { companyId: session.user.companyId },
-        include: { channels: true },
+        include: { channels: true, _count: { select: { channels: true } } },
         orderBy: { createdAt: 'desc' },
     });
 
@@ -34,76 +31,75 @@ export default async function ChatbotsPage({ params }: { params: Promise<{ lang:
     });
 
     return (
-        <SubscriptionGate featureName="Chatbots">
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
                 <div>
-                    <CardTitle>Chatbots</CardTitle>
-                    <CardDescription>Gestiona tus chatbots con flujos de decisión automatizados.</CardDescription>
+                    <h1 className="text-2xl font-bold text-[#09090B]">{t.title}</h1>
+                    <p className="text-sm text-[#71717A] mt-1">{t.subtitlePage}</p>
                 </div>
                 <CreateChatbotDialog channels={channels.map(c => ({ id: c.id, type: c.type }))} />
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Nombre</TableHead>
-                            <TableHead>Canales</TableHead>
-                            <TableHead>Prioridad</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {chatbots.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                                    No hay chatbots configurados. Crea uno nuevo para empezar.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            chatbots.map((chatbot) => (
-                                <TableRow key={chatbot.id}>
-                                    <TableCell className="font-medium">{chatbot.name}</TableCell>
-                                    <TableCell>
-                                        <div className="flex gap-1 flex-wrap">
-                                            {chatbot.channels.map(ch => (
-                                                <Badge key={ch.id} variant="secondary">{ch.type}</Badge>
-                                            ))}
-                                            {chatbot.channels.length === 0 && (
-                                                <span className="text-muted-foreground text-sm">Sin canales</span>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">{chatbot.priority}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <ChatbotStatusToggle id={chatbot.id} initialStatus={chatbot.active} />
-                                            <Badge variant={chatbot.active ? "default" : "secondary"}>
-                                                {chatbot.active ? "Activo" : "Inactivo"}
-                                            </Badge>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <Link href={`/${lang}/company/chatbots/${chatbot.id}`}>
-                                                <Button variant="ghost" size="sm">
-                                                    <Pencil className="mr-2 h-4 w-4" />
-                                                    Editar Flujo
-                                                </Button>
-                                            </Link>
-                                            <DeleteChatbotDialog chatbotId={chatbot.id} chatbotName={chatbot.name} />
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-        </SubscriptionGate>
+            </div>
+
+            {/* Card Grid */}
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {chatbots.map((chatbot, index) => {
+                    const theme = ICON_THEMES[index % ICON_THEMES.length];
+                    const IconComponent = theme.Icon;
+                    const nodeCount = chatbot.flowJson ? (Array.isArray(chatbot.flowJson) ? (chatbot.flowJson as any[]).length : 0) : 0;
+
+                    return (
+                        <Link
+                            key={chatbot.id}
+                            href={`/${lang}/company/chatbots/${chatbot.id}`}
+                            className="bg-white rounded-xl border border-[#E4E4E7] p-6 flex flex-col gap-4 hover:shadow-md transition-shadow cursor-pointer"
+                        >
+                            {/* Icon */}
+                            <div className={`h-12 w-12 rounded-lg ${theme.bg} flex items-center justify-center`}>
+                                <IconComponent className={`h-6 w-6 ${theme.color}`} />
+                            </div>
+
+                            {/* Title + Badge */}
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-base font-semibold text-[#09090B]">{chatbot.name}</h3>
+                                {chatbot.active && (
+                                    <span className="bg-[#ECFDF5] text-[#10B981] text-xs rounded-xl px-2.5 py-0.5">
+                                        {t.active}
+                                    </span>
+                                )}
+                                {!chatbot.active && (
+                                    <span className="bg-[#F4F4F5] text-[#71717A] text-xs rounded-xl px-2.5 py-0.5">
+                                        {t.inactive}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Description */}
+                            <p className="text-[13px] text-[#3F3F46] leading-[1.4] line-clamp-2">
+                                {t.automatedFlow}
+                            </p>
+
+                            {/* Stats */}
+                            <p className="text-xs text-[#71717A]">
+                                {nodeCount} {t.nodes} • {chatbot._count.channels} {chatbot._count.channels === 1 ? t.channel : t.channelsPlural}
+                            </p>
+                        </Link>
+                    );
+                })}
+
+                {/* Empty/Create card */}
+                <CreateChatbotDialog channels={channels.map(c => ({ id: c.id, type: c.type }))} trigger={
+                    <button type="button" className="bg-[#FAFAFA] rounded-xl border border-[#E4E4E7] p-6 flex flex-col items-center justify-center gap-3 text-center min-h-[200px] hover:shadow-md transition-shadow cursor-pointer w-full">
+                        <div className="h-12 w-12 bg-[#F4F4F5] rounded-full flex items-center justify-center">
+                            <span className="text-2xl font-light text-[#71717A]">+</span>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-semibold text-[#09090B]">{t.createNewChatbot}</h3>
+                            <p className="text-[13px] text-[#71717A] mt-1">{t.designVisualFlows}</p>
+                        </div>
+                    </button>
+                } />
+            </div>
+        </div>
     );
 }

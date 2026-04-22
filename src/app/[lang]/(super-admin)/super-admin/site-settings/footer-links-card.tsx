@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { updateFooterAction } from './actions';
 import type { FooterSection, FooterLink } from '@/lib/site-config';
 import { cn } from '@/lib/utils';
+import { useDictionary } from '@/lib/i18n-context';
 
 const DEFAULT_SECTIONS: FooterSection[] = [
     {
@@ -46,6 +47,9 @@ interface Props {
 }
 
 export function FooterLinksCard({ initialSections, initialCopyright }: Props) {
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.footerLinksCard || {};
+    const ui = dict.ui || {};
     const [sections, setSections] = useState<FooterSection[]>(
         initialSections || DEFAULT_SECTIONS
     );
@@ -142,15 +146,15 @@ export function FooterLinksCard({ initialSections, initialCopyright }: Props) {
                             <Link2 className="h-5 w-5 text-emerald-600" />
                         </div>
                         <div>
-                            <CardTitle className="text-base">Enlaces del Footer</CardTitle>
+                            <CardTitle className="text-base">{t.title || 'Enlaces del Footer'}</CardTitle>
                             <CardDescription>
-                                Secciones y enlaces del pie de página de la landing.
+                                {t.description || 'Secciones y enlaces del pie de página de la landing.'}
                             </CardDescription>
                         </div>
                     </div>
                     <Button onClick={handleSave} disabled={saving} size="sm" className="gap-1.5">
                         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Guardar
+                        {ui.save || 'Guardar'}
                     </Button>
                 </div>
             </CardHeader>
@@ -167,7 +171,7 @@ export function FooterLinksCard({ initialSections, initialCopyright }: Props) {
                                 <button className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left">
                                     <div className="flex items-center gap-2">
                                         <span className="font-medium text-sm">
-                                            {section.title || 'Sin título'}
+                                            {section.title || (t.untitled || 'Sin título')}
                                         </span>
                                         <span className="text-xs text-muted-foreground">
                                             ({section.links.length} enlace{section.links.length !== 1 ? 's' : ''})
@@ -244,7 +248,7 @@ export function FooterLinksCard({ initialSections, initialCopyright }: Props) {
 
                 <Button variant="outline" size="sm" onClick={addSection} className="gap-1.5">
                     <Plus className="h-4 w-4" />
-                    Agregar sección
+                    {t.addSection || 'Agregar sección'}
                 </Button>
 
                 {/* Copyright */}

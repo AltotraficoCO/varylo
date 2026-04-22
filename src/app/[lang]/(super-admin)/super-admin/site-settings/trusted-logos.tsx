@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { Plus, Trash2, Upload, ImageIcon, Loader2 } from 'lucide-react';
 import { uploadTrustedLogo, deleteTrustedLogo } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface TrustedLogo {
     id: string;
@@ -27,6 +28,9 @@ interface TrustedLogo {
 }
 
 export function TrustedLogosManager({ logos }: { logos: TrustedLogo[] }) {
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.trustedLogos || {};
+    const ui = dict.ui || {};
     const [showAdd, setShowAdd] = useState(false);
     const [name, setName] = useState('');
     const [file, setFile] = useState<File | null>(null);
@@ -96,14 +100,14 @@ export function TrustedLogosManager({ logos }: { logos: TrustedLogo[] }) {
         <>
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-base font-semibold">Logos de confianza</h3>
+                    <h3 className="text-base font-semibold">{t.title || 'Logos de confianza'}</h3>
                     <p className="text-sm text-muted-foreground">
-                        Se muestran en la landing page en escala de grises.
+                        {t.description || 'Se muestran en la landing page en escala de grises.'}
                     </p>
                 </div>
                 <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5">
                     <Plus className="h-4 w-4" />
-                    Agregar
+                    {ui.add || 'Agregar'}
                 </Button>
             </div>
 
@@ -114,7 +118,7 @@ export function TrustedLogosManager({ logos }: { logos: TrustedLogo[] }) {
                 >
                     <ImageIcon className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
                     <p className="text-sm text-muted-foreground">
-                        No hay logos. Haz clic para agregar el primero.
+                        {t.noLogos || 'No hay logos. Haz clic para agregar el primero.'}
                     </p>
                 </div>
             ) : (
@@ -165,8 +169,8 @@ export function TrustedLogosManager({ logos }: { logos: TrustedLogo[] }) {
             <Dialog open={showAdd} onOpenChange={(v) => { setShowAdd(v); if (!v) resetForm(); }}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Agregar logo</DialogTitle>
-                        <DialogDescription>Sube el logo de una empresa que confía en Varylo.</DialogDescription>
+                        <DialogTitle>{t.addLogo || 'Agregar logo'}</DialogTitle>
+                        <DialogDescription>{t.addLogoDesc || 'Sube el logo de una empresa que confía en Varylo.'}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">

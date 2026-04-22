@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Calendar } from "lucide-react";
+import { useDictionary } from '@/lib/i18n-context';
 
 export function GoogleCalendarForm({
     isConnected,
@@ -19,6 +20,10 @@ export function GoogleCalendarForm({
     const [isLoading, setIsLoading] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
 
+    const dict = useDictionary();
+    const t = dict.settingsUI?.googleCalendarForm || {};
+    const ui = dict.ui || {};
+
     const handleConnect = async () => {
         setIsLoading(true);
         try {
@@ -26,22 +31,22 @@ export function GoogleCalendarForm({
             if (result.url) {
                 window.location.href = result.url;
             } else {
-                alert(result.error || 'Error al iniciar conexión con Google Calendar.');
+                alert(result.error || (t.connectError || 'Error al iniciar conexión con Google Calendar.'));
                 setIsLoading(false);
             }
         } catch {
-            alert('Error al conectar con Google Calendar.');
+            alert(t.connectErrorGeneric || 'Error al conectar con Google Calendar.');
             setIsLoading(false);
         }
     };
 
     const handleDisconnect = async () => {
-        if (!confirm('¿Estás seguro de que quieres desconectar Google Calendar? Los agentes IA ya no podrán agendar reuniones.')) return;
+        if (!confirm(t.disconnectConfirm || '¿Estás seguro de que quieres desconectar Google Calendar? Los agentes IA ya no podrán agendar reuniones.')) return;
         setIsDisconnecting(true);
         try {
             await disconnectGoogleCalendar();
         } catch {
-            alert('Error al desconectar Google Calendar.');
+            alert(t.disconnectError || 'Error al desconectar Google Calendar.');
         } finally {
             setIsDisconnecting(false);
         }
@@ -53,22 +58,22 @@ export function GoogleCalendarForm({
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-6 w-6 text-green-600" />
-                        <CardTitle className="text-green-700">Google Calendar Conectado</CardTitle>
+                        <CardTitle className="text-green-700">{t.connected || 'Google Calendar Conectado'}</CardTitle>
                     </div>
                     <CardDescription>
-                        Tus agentes IA pueden consultar disponibilidad y agendar reuniones automáticamente.
+                        {t.connectedDesc || 'Tus agentes IA pueden consultar disponibilidad y agendar reuniones automáticamente.'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {email && (
                         <div className="grid gap-1">
-                            <Label className="text-xs text-muted-foreground">Cuenta conectada</Label>
+                            <Label className="text-xs text-muted-foreground">{t.connectedAccount || 'Cuenta conectada'}</Label>
                             <p className="text-sm">{email}</p>
                         </div>
                     )}
                     {connectedAt && (
                         <div className="grid gap-1">
-                            <Label className="text-xs text-muted-foreground">Conectado desde</Label>
+                            <Label className="text-xs text-muted-foreground">{t.connectedSince || 'Conectado desde'}</Label>
                             <p className="text-sm">{new Date(connectedAt).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                         </div>
                     )}
@@ -80,7 +85,7 @@ export function GoogleCalendarForm({
                         onClick={handleDisconnect}
                         disabled={isDisconnecting}
                     >
-                        {isDisconnecting ? 'Desconectando...' : 'Desconectar'}
+                        {isDisconnecting ? (t.disconnecting || 'Desconectando...') : (ui.disconnect || 'Desconectar')}
                     </Button>
                 </CardFooter>
             </Card>
@@ -95,12 +100,12 @@ export function GoogleCalendarForm({
                     <CardTitle>Google Calendar</CardTitle>
                 </div>
                 <CardDescription>
-                    Conecta tu Google Calendar para que los agentes IA puedan consultar disponibilidad y agendar reuniones con tus clientes.
+                    {t.notConnectedDesc || 'Conecta tu Google Calendar para que los agentes IA puedan consultar disponibilidad y agendar reuniones con tus clientes.'}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <Button onClick={handleConnect} disabled={isLoading} className="w-full">
-                    {isLoading ? 'Conectando...' : 'Conectar Google Calendar'}
+                    {isLoading ? (t.connecting || 'Conectando...') : (t.connectButton || 'Conectar Google Calendar')}
                 </Button>
             </CardContent>
         </Card>

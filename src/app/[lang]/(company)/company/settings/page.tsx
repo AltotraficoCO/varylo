@@ -3,48 +3,65 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Building2, Plug, Brain, Tag, FileText, BookOpen, CreditCard, Key } from "lucide-react";
+import { Building2, Plug, Coins, Tag, FileText, CreditCard, Key, Puzzle } from "lucide-react";
 import { TagsSection } from "./tags-section";
 import { TemplatesSection } from "./templates-section";
-import { GuidesSection } from "./guides-section";
 import { GeneralSection } from "./general-section";
 import { ChannelsSection } from "./channels-section";
-import { IntegrationsSection } from "./integrations-section";
+import { CreditBalanceCard } from "./credit-balance-card";
 import { BillingSection } from "./billing-section";
 import { ApiKeysSection } from "./api-keys-section";
+import { IntegrationsClient } from "../integrations/integrations-client";
 import { getActiveSubscription, getPaymentSources, getBillingHistory, getAvailablePlans } from "./billing-actions";
 import { getWompiConfig } from "@/lib/wompi-config";
 import { Role } from '@prisma/client';
-
-const TABS = [
-    { key: 'general', label: 'General', icon: Building2 },
-    { key: 'channels', label: 'Canales', icon: Plug },
-    { key: 'ai', label: 'IA y Créditos', icon: Brain },
-    { key: 'billing', label: 'Facturación', icon: CreditCard },
-    { key: 'api', label: 'API', icon: Key },
-    { key: 'tags', label: 'Etiquetas', icon: Tag },
-    { key: 'templates', label: 'Plantillas', icon: FileText },
-    { key: 'guides', label: 'Guías', icon: BookOpen },
-];
+import { getDictionary, Locale } from '@/lib/dictionary';
 
 export default async function SettingsPage(props: {
-    searchParams: Promise<{ tab?: string }>
+    params: Promise<{ lang: string }>;
+    searchParams: Promise<{ tab?: string }>;
 }) {
-    const searchParams = await props.searchParams;
+    const [{ lang }, searchParams] = await Promise.all([props.params, props.searchParams]);
     const activeTab = searchParams.tab || 'general';
+    const dict = await getDictionary(lang as Locale);
+    const ts = dict.dashboard.settings;
+
+    const TABS = [
+        { key: 'general', label: ts.tabs.general, icon: Building2 },
+        { key: 'channels', label: ts.tabs.channels, icon: Plug },
+        { key: 'integrations', label: ts.tabs.integrations, icon: Puzzle },
+        { key: 'ai', label: ts.tabs.credits, icon: Coins },
+        { key: 'billing', label: ts.tabs.billing, icon: CreditCard },
+        { key: 'api', label: ts.tabs.api, icon: Key },
+        { key: 'tags', label: ts.tabs.tags, icon: Tag },
+        { key: 'templates', label: ts.tabs.templates, icon: FileText },
+    ];
 
     const session = await auth();
     const companyId = session?.user?.companyId;
     if (!companyId) return null;
 
     // Fetch all data in parallel
-    const [company, whatsappChannel, webchatChannel, tags, companyAgents, ecommerceIntegration, activeSubscription] = await Promise.all([
+    let n8nWebhooks: any[] = [];
+    try {
+        const result = await prisma.webhookIntegration.findMany({ where: { companyId, platform: 'n8n' }, select: { id: true, name: true, platform: true, webhookUrl: true, events: true, active: true, lastUsedAt: true, createdAt: true }, orderBy: { createdAt: 'desc' } });
+        n8nWebhooks = result || [];
+    } catch (e) {
+        console.error('[Settings] WebhookIntegration query failed:', e);
+        n8nWebhooks = [];
+    }
+
+    const [company, whatsappChannel, webchatChannel, instagramChannel, messengerChannel, tags, companyAgents, ecommerceStoresRaw, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
                 name: true,
                 openaiApiKey: true,
                 openaiApiKeyUpdatedAt: true,
+                anthropicApiKey: true,
+                anthropicApiKeyUpdatedAt: true,
+                geminiApiKey: true,
+                geminiApiKeyUpdatedAt: true,
                 creditBalance: true,
                 googleCalendarEmail: true,
                 googleCalendarConnectedAt: true,
@@ -55,6 +72,8 @@ export default async function SettingsPage(props: {
         }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WHATSAPP } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WEB_CHAT } }),
+        prisma.channel.findFirst({ where: { companyId, type: ChannelType.INSTAGRAM } }),
+        prisma.channel.findFirst({ where: { companyId, type: ChannelType.MESSENGER } }),
         prisma.tag.findMany({
             where: { companyId },
             orderBy: { createdAt: 'desc' },
@@ -65,9 +84,10 @@ export default async function SettingsPage(props: {
             select: { id: true, name: true, email: true },
             orderBy: { name: 'asc' },
         }),
-        prisma.ecommerceIntegration.findUnique({
+        prisma.ecommerceIntegration.findMany({
             where: { companyId },
-            select: { platform: true, storeUrl: true, active: true },
+            select: { id: true, name: true, platform: true, storeUrl: true, active: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
         }),
         prisma.subscription.findFirst({
             where: { companyId, status: { in: ['ACTIVE', 'TRIAL'] } },
@@ -75,9 +95,15 @@ export default async function SettingsPage(props: {
         }).catch(() => null),
     ]);
 
+    const ecommerceStores = Array.isArray(ecommerceStoresRaw) ? ecommerceStoresRaw : [];
+
     const companyName = company?.name || '';
     const hasOpenAIKey = !!company?.openaiApiKey;
     const openaiKeyUpdatedAt = company?.openaiApiKeyUpdatedAt?.toISOString() || null;
+    const hasAnthropicKey = !!company?.anthropicApiKey;
+    const anthropicKeyUpdatedAt = company?.anthropicApiKeyUpdatedAt?.toISOString() || null;
+    const hasGeminiKey = !!company?.geminiApiKey;
+    const geminiKeyUpdatedAt = company?.geminiApiKeyUpdatedAt?.toISOString() || null;
     const creditBalance = company?.creditBalance || 0;
     const userEmail = session?.user?.email || '';
     const hasGoogleCalendar = !!company?.googleCalendarRefreshToken;
@@ -85,23 +111,31 @@ export default async function SettingsPage(props: {
     const googleCalendarConnectedAt = company?.googleCalendarConnectedAt?.toISOString() || null;
 
     // WhatsApp config
-    const whatsappConfig = whatsappChannel?.configJson as { phoneNumberId?: string; verifyToken?: string; accessToken?: string; appSecret?: string; wabaId?: string } | null;
+    const whatsappConfig = whatsappChannel?.configJson as { phoneNumberId?: string; verifyToken?: string; accessToken?: string; appSecret?: string; wabaId?: string; phoneDisplay?: string } | null;
 
     // WebChat config
     const webchatActive = webchatChannel?.status === 'CONNECTED';
     const webchatConfig = webchatChannel?.configJson as { apiKey?: string } | null;
 
+    // Instagram config
+    const instagramConnected = instagramChannel?.status === 'CONNECTED';
+    const instagramConfigJson = instagramChannel?.configJson as { pageId?: string; accessToken?: string; verifyToken?: string; pageName?: string } | null;
+
+    // Messenger config
+    const messengerConnected = messengerChannel?.status === 'CONNECTED';
+    const messengerConfigJson = messengerChannel?.configJson as { pageId?: string; accessToken?: string; pageName?: string } | null;
+
     return (
         <div className="w-full">
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
-                <p className="text-muted-foreground text-sm mt-1">
-                    Administra tu empresa, canales de comunicación y preferencias.
+                <h1 className="text-2xl font-semibold text-foreground">{ts.title}</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                    {ts.subtitle}
                 </p>
             </div>
 
-            <div className="flex gap-8">
+            <div className="flex flex-col md:flex-row md:gap-8">
                 {/* Sidebar Navigation — sticky */}
                 <nav className="hidden md:flex flex-col gap-1 w-48 shrink-0 sticky top-20 self-start">
                     {TABS.map((tab) => {
@@ -171,6 +205,7 @@ export default async function SettingsPage(props: {
                                 hasAccessToken: !!whatsappConfig?.accessToken,
                                 channelId: whatsappChannel?.id || null,
                                 automationPriority: whatsappChannel?.automationPriority || 'CHATBOT_FIRST',
+                                phoneDisplay: whatsappConfig?.phoneDisplay,
                             }}
                             webchatConfig={{
                                 isActive: webchatActive,
@@ -178,32 +213,61 @@ export default async function SettingsPage(props: {
                                 channelId: webchatChannel?.id || null,
                                 automationPriority: webchatChannel?.automationPriority || 'CHATBOT_FIRST',
                             }}
+                            instagramConfig={{
+                                pageId: instagramConfigJson?.pageId,
+                                verifyToken: instagramConfigJson?.verifyToken,
+                                hasAccessToken: instagramConnected && !!instagramConfigJson?.accessToken,
+                                channelId: instagramConnected ? instagramChannel?.id || null : null,
+                                automationPriority: instagramChannel?.automationPriority || 'CHATBOT_FIRST',
+                                pageName: instagramConfigJson?.pageName,
+                            }}
+                            messengerConfig={{
+                                hasAccessToken: messengerConnected && !!messengerConfigJson?.accessToken,
+                                channelId: messengerConnected ? messengerChannel?.id || null : null,
+                                automationPriority: messengerChannel?.automationPriority || 'CHATBOT_FIRST',
+                                pageName: messengerConfigJson?.pageName,
+                            }}
                             hasActiveSubscription={!!activeSubscription}
                         />
                     )}
 
-                    {activeTab === 'ai' && (
-                        <IntegrationsSection
+                    {activeTab === 'integrations' && (
+                        <IntegrationsClient
                             openai={{
                                 hasApiKey: hasOpenAIKey,
                                 updatedAt: openaiKeyUpdatedAt,
                             }}
-                            credits={{
-                                balance: creditBalance,
-                                hasOwnKey: hasOpenAIKey,
-                                companyId,
-                                companyEmail: userEmail,
+                            anthropic={{
+                                hasApiKey: hasAnthropicKey,
+                                updatedAt: anthropicKeyUpdatedAt,
+                            }}
+                            gemini={{
+                                hasApiKey: hasGeminiKey,
+                                updatedAt: geminiKeyUpdatedAt,
                             }}
                             googleCalendar={{
                                 isConnected: hasGoogleCalendar,
                                 email: googleCalendarEmail,
                                 connectedAt: googleCalendarConnectedAt,
                             }}
-                            ecommerce={{
-                                isConnected: !!ecommerceIntegration?.active,
-                                platform: ecommerceIntegration?.platform || null,
-                                storeUrl: ecommerceIntegration?.storeUrl || null,
-                            }}
+                            ecommerceStores={(Array.isArray(ecommerceStores) ? ecommerceStores : []).map(s => ({
+                                ...s,
+                                createdAt: s.createdAt.toISOString(),
+                            }))}
+                            n8nIntegrations={(Array.isArray(n8nWebhooks) ? n8nWebhooks : []).map(w => ({
+                                ...w,
+                                lastUsedAt: w.lastUsedAt?.toISOString() || null,
+                                createdAt: w.createdAt.toISOString(),
+                            }))}
+                        />
+                    )}
+
+                    {activeTab === 'ai' && (
+                        <CreditBalanceCard
+                            balance={creditBalance}
+                            hasOwnKey={hasOpenAIKey}
+                            companyId={companyId}
+                            companyEmail={userEmail}
                         />
                     )}
 
@@ -223,9 +287,6 @@ export default async function SettingsPage(props: {
                         <TemplatesSection />
                     )}
 
-                    {activeTab === 'guides' && (
-                        <GuidesSection />
-                    )}
                 </div>
             </div>
         </div>

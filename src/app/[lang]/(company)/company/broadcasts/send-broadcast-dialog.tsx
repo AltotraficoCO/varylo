@@ -27,6 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 import { getWhatsAppTemplates } from '@/lib/template-actions';
 import { createBroadcast } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface ContactList {
   id: string;
@@ -65,6 +66,9 @@ export function SendBroadcastDialog({
   lang: string;
   preselectedListId?: string | null;
 }) {
+  const dict = useDictionary();
+  const t = dict.broadcasts || {};
+  const ui = dict.ui || {};
   const router = useRouter();
   const [step, setStep] = useState<Step>('list');
 
@@ -102,7 +106,7 @@ export function SendBroadcastDialog({
     if (result.success && result.templates) {
       setTemplates(result.templates);
     } else {
-      setTemplateError(result.error || 'Error desconocido');
+      setTemplateError(result.error || ui.unknown || 'Error desconocido');
     }
     setLoadingTemplates(false);
   }, []);
@@ -204,16 +208,16 @@ export function SendBroadcastDialog({
       <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {step === 'list' && 'Seleccionar lista'}
-            {step === 'template' && 'Seleccionar plantilla'}
-            {step === 'params' && 'Completar parámetros'}
-            {step === 'confirm' && 'Confirmar difusión'}
+            {step === 'list' && (t.selectContacts || 'Seleccionar lista')}
+            {step === 'template' && (dict.contacts?.selectTemplate || 'Seleccionar plantilla')}
+            {step === 'params' && (ui.configure || 'Completar parámetros')}
+            {step === 'confirm' && (ui.confirm || 'Confirmar difusión')}
           </DialogTitle>
           <DialogDescription>
-            {step === 'list' && 'Elige la lista de contactos a la que enviar.'}
-            {step === 'template' && 'Elige una plantilla aprobada de WhatsApp.'}
-            {step === 'params' && 'Completa los valores de los parámetros.'}
-            {step === 'confirm' && 'Revisa los detalles antes de enviar.'}
+            {step === 'list' && (t.selectContacts || 'Elige la lista de contactos a la que enviar.')}
+            {step === 'template' && (dict.contacts?.selectTemplate || 'Elige una plantilla aprobada de WhatsApp.')}
+            {step === 'params' && (ui.configure || 'Completa los valores de los parámetros.')}
+            {step === 'confirm' && (ui.confirm || 'Revisa los detalles antes de enviar.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -240,7 +244,7 @@ export function SendBroadcastDialog({
             ))}
             {contactLists.length === 0 && (
               <p className="text-xs text-muted-foreground p-3 text-center">
-                No hay listas. Crea una primero.
+                {t.noLists || 'No hay listas. Crea una primero.'}
               </p>
             )}
           </div>
@@ -252,13 +256,13 @@ export function SendBroadcastDialog({
             {loadingTemplates ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-sm text-muted-foreground">Cargando plantillas...</span>
+                <span className="ml-2 text-sm text-muted-foreground">{ui.loading || 'Cargando...'}</span>
               </div>
             ) : templateError ? (
               <div className="text-center py-8">
                 <p className="text-sm text-destructive">{templateError}</p>
                 <Button variant="outline" size="sm" className="mt-3" onClick={loadTemplates}>
-                  Reintentar
+                  {ui.retry || 'Reintentar'}
                 </Button>
               </div>
             ) : (
@@ -315,7 +319,7 @@ export function SendBroadcastDialog({
               })}
             </div>
             <div className="border rounded-md p-3 bg-gray-50">
-              <Label className="text-xs text-muted-foreground mb-1 block">Vista previa</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">{ui.description || 'Vista previa'}</Label>
               <p className="text-sm whitespace-pre-wrap">{getPreviewText(selectedTemplate)}</p>
             </div>
           </div>
@@ -326,25 +330,25 @@ export function SendBroadcastDialog({
           <div className="flex-1 flex flex-col gap-4">
             <div className="border rounded-lg p-4 space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Lista</span>
+                <span className="text-sm text-muted-foreground">{t.listName || 'Lista'}</span>
                 <span className="text-sm font-medium">{selectedList.name}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Contactos</span>
+                <span className="text-sm text-muted-foreground">{dict.contacts?.title || 'Contactos'}</span>
                 <Badge variant="secondary">{selectedList._count.contacts}</Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Plantilla</span>
+                <span className="text-sm text-muted-foreground">{t.messageTemplate || 'Plantilla'}</span>
                 <span className="text-sm font-medium">{selectedTemplate.name}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Idioma</span>
+                <span className="text-sm text-muted-foreground">{ui.type || 'Idioma'}</span>
                 <Badge variant="outline">{selectedTemplate.language}</Badge>
               </div>
             </div>
 
             <div className="border rounded-md p-3 bg-gray-50">
-              <Label className="text-xs text-muted-foreground mb-1 block">Mensaje</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">{ui.message || 'Mensaje'}</Label>
               <p className="text-sm whitespace-pre-wrap">{getPreviewText(selectedTemplate)}</p>
             </div>
 
@@ -373,13 +377,13 @@ export function SendBroadcastDialog({
               className="mr-auto"
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
-              Atrás
+              {ui.back || 'Atrás'}
             </Button>
           )}
 
           {step === 'params' && (
             <Button onClick={() => setStep('confirm')}>
-              Siguiente
+              {ui.next || 'Siguiente'}
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           )}
@@ -391,7 +395,7 @@ export function SendBroadcastDialog({
               ) : (
                 <Megaphone className="h-4 w-4 mr-1" />
               )}
-              {sending ? 'Iniciando...' : 'Enviar difusión'}
+              {sending ? (ui.sending || 'Iniciando...') : (t.sendBroadcast || 'Enviar difusión')}
             </Button>
           )}
         </DialogFooter>

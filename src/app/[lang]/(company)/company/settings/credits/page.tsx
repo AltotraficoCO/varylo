@@ -19,16 +19,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { getDictionary, Locale } from '@/lib/dictionary';
 
-const TYPE_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    RECHARGE: { label: 'Recarga', variant: 'default' },
-    AI_USAGE: { label: 'Consumo IA', variant: 'secondary' },
-    MANUAL_ADJUST: { label: 'Ajuste manual', variant: 'outline' },
-    REFUND: { label: 'Reembolso', variant: 'default' },
-};
-
-function formatCOP(amount: number): string {
-    return new Intl.NumberFormat('es-CO', {
+function formatCOP(amount: number, locale: string): string {
+    return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: 'COP',
         minimumFractionDigits: 0,
@@ -36,13 +30,26 @@ function formatCOP(amount: number): string {
     }).format(amount);
 }
 
-export default async function CreditsHistoryPage() {
+export default async function CreditsHistoryPage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.dashboard.credits;
+    const tc = dict.dashboard.common;
+    const locale = tc.locale || 'es-CO';
+
     const session = await auth();
     const companyId = session?.user?.companyId;
 
     if (!companyId) {
-        return <p>No autorizado</p>;
+        return <p>{tc.notAuthorized}</p>;
     }
+
+    const TYPE_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+        RECHARGE: { label: t.typeLabels.RECHARGE, variant: 'default' },
+        AI_USAGE: { label: t.typeLabels.AI_USAGE, variant: 'secondary' },
+        MANUAL_ADJUST: { label: t.typeLabels.MANUAL_ADJUSTMENT, variant: 'outline' },
+        REFUND: { label: t.typeLabels.REFUND, variant: 'default' },
+    };
 
     const [transactions, company] = await Promise.all([
         prisma.creditTransaction.findMany({
@@ -65,34 +72,34 @@ export default async function CreditsHistoryPage() {
                     </Button>
                 </Link>
                 <div>
-                    <h3 className="text-2xl font-semibold tracking-tight text-foreground">Historial de Créditos</h3>
+                    <h3 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h3>
                     <p className="text-sm text-muted-foreground">
-                        Saldo actual: <span className="font-semibold">{formatCOP(company?.creditBalance || 0)}</span>
+                        {t.currentBalance} <span className="font-semibold">{formatCOP(company?.creditBalance || 0, locale)}</span>
                     </p>
                 </div>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Transacciones</CardTitle>
-                    <CardDescription>Historial de recargas, consumos y ajustes de créditos.</CardDescription>
+                    <CardTitle>{t.transactions}</CardTitle>
+                    <CardDescription>{t.transactionsDesc}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <Table>
+                <CardContent className="overflow-x-auto">
+                    <Table className="min-w-[640px]">
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead>Descripción</TableHead>
-                                <TableHead className="text-right">Monto</TableHead>
-                                <TableHead className="text-right">Saldo después</TableHead>
+                                <TableHead>{t.date}</TableHead>
+                                <TableHead>{t.type}</TableHead>
+                                <TableHead>{t.description}</TableHead>
+                                <TableHead className="text-right">{t.amount}</TableHead>
+                                <TableHead className="text-right">{t.balanceAfter}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {transactions.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                        No hay transacciones aún.
+                                        {t.noTransactions}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -101,7 +108,7 @@ export default async function CreditsHistoryPage() {
                                     return (
                                         <TableRow key={tx.id}>
                                             <TableCell className="text-sm text-muted-foreground">
-                                                {new Date(tx.createdAt).toLocaleDateString('es-CO', {
+                                                {new Date(tx.createdAt).toLocaleDateString(locale, {
                                                     year: 'numeric',
                                                     month: 'short',
                                                     day: 'numeric',
@@ -116,10 +123,10 @@ export default async function CreditsHistoryPage() {
                                                 {tx.description || '-'}
                                             </TableCell>
                                             <TableCell className={`text-right font-medium ${tx.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                {tx.amount >= 0 ? '+' : ''}{formatCOP(tx.amount)}
+                                                {tx.amount >= 0 ? '+' : ''}{formatCOP(tx.amount, locale)}
                                             </TableCell>
                                             <TableCell className="text-right text-sm text-muted-foreground">
-                                                {formatCOP(tx.balanceAfter)}
+                                                {formatCOP(tx.balanceAfter, locale)}
                                             </TableCell>
                                         </TableRow>
                                     );

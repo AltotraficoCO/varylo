@@ -6,10 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ContactAvatar } from '@/components/contact-avatar';
-import { Badge } from '@/components/ui/badge';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -20,11 +17,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Mail, MapPin, Send } from 'lucide-react';
+import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Download, Plus, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { deleteContacts } from './actions';
 import { toast } from 'sonner';
 import { SendTemplateDialog } from './send-template-dialog';
+import { useDictionary } from '@/lib/i18n-context';
 
 const CHANNEL_OPTIONS = [
     { value: '', label: 'Todos', icon: null },
@@ -54,7 +52,28 @@ interface ContactsClientProps {
     lang: string;
 }
 
+const channelBadge: Record<string, { bg: string; dot: string; text: string; label: string }> = {
+    WHATSAPP: { bg: 'bg-[#ECFDF5]', dot: 'bg-[#10B981]', text: 'text-[#10B981]', label: 'WhatsApp' },
+    INSTAGRAM: { bg: 'bg-[#FDF2F8]', dot: 'bg-[#EC4899]', text: 'text-[#EC4899]', label: 'Instagram' },
+    WEB_CHAT: { bg: 'bg-[#EFF6FF]', dot: 'bg-[#3B82F6]', text: 'text-[#3B82F6]', label: 'Web Chat' },
+};
+
+function timeAgo(date: Date | string) {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (seconds < 60) return 'hace un momento';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `hace ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `hace ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `hace ${days}d`;
+}
+
 export function ContactsClient({ contacts, search, filter, channel, lang }: ContactsClientProps) {
+    const dict = useDictionary();
+    const t = dict.contacts || {};
+    const ui = dict.ui || {};
     const [searchValue, setSearchValue] = useState(search);
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -75,11 +94,8 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
     };
 
     const toggleAll = () => {
-        if (selected.size === contactIds.length) {
-            setSelected(new Set());
-        } else {
-            setSelected(new Set(contactIds));
-        }
+        if (selected.size === contactIds.length) setSelected(new Set());
+        else setSelected(new Set(contactIds));
     };
 
     const toggleOne = (id: string) => {
@@ -96,13 +112,13 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
         const result = await deleteContacts(Array.from(selected));
         setIsDeleting(false);
         if (result.success) {
-            toast.success(`${result.count} contactos eliminados`);
+            toast.success(ui.deletedSuccessfully || `${result.count} contactos eliminados`);
             setSelected(new Set());
             setSelectMode(false);
             setShowDeleteDialog(false);
             router.refresh();
         } else {
-            toast.error(result.message || 'Error al eliminar');
+            toast.error(result.message || ui.errorOccurred || 'Error al eliminar');
         }
     };
 
@@ -118,69 +134,69 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-white">
-            {/* Toolbar */}
-            <header className="border-b bg-white sticky top-0 z-10">
-                <div className="h-14 flex items-center justify-between px-6">
-                    <h1 className="text-xl font-semibold tracking-tight text-foreground">Contactos</h1>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowTemplateDialog(true)}
-                            className="h-8 px-3 text-xs"
-                        >
-                            <Send className="h-3.5 w-3.5 mr-1.5" />
-                            Enviar plantilla
-                        </Button>
-                        <form onSubmit={handleSearch} className="relative w-56">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar..."
-                                className="pl-9 h-8 bg-gray-50/50 border-gray-200 text-sm"
-                                value={searchValue}
-                                onChange={(e) => setSearchValue(e.target.value)}
-                            />
-                        </form>
-                        {!selectMode ? (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setSelectMode(true)}
-                                className="h-8 px-3 text-xs"
-                            >
-                                <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
-                                Seleccionar
-                            </Button>
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <Checkbox
-                                    checked={selected.size === contactIds.length && contactIds.length > 0}
-                                    onCheckedChange={toggleAll}
-                                    className="h-4 w-4"
-                                />
-                                <span className="text-xs text-muted-foreground font-medium">{selected.size} de {contacts.length}</span>
-                                {selected.size > 0 && (
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={() => setShowDeleteDialog(true)}
-                                        className="h-8 px-3 text-xs"
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                                        Eliminar ({selected.size})
-                                    </Button>
-                                )}
-                                <Button variant="ghost" size="sm" onClick={() => { setSelectMode(false); setSelected(new Set()); }} className="h-8 px-2">
-                                    <X className="h-3.5 w-3.5" />
-                                </Button>
-                            </div>
-                        )}
-                    </div>
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="min-w-0">
+                    <h1 className="text-[22px] sm:text-[28px] font-bold text-[#09090B]">{t.title || 'Contactos'}</h1>
+                    <p className="text-[13px] sm:text-[14px] text-[#71717A] mt-1">{t.subtitle || 'Gestiona tus contactos y listas'}</p>
                 </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                        variant="outline"
+                        className="rounded-lg px-4 py-2 text-[14px] font-medium text-[#3F3F46]"
+                        onClick={() => {
+                            const header = 'Nombre,Telefono,Email,Canal,Empresa';
+                            const rows = contacts.map(c => {
+                                const ch = c.originChannel || c.conversations?.[0]?.channel?.type || '';
+                                return [
+                                    (c.name || '').replace(/,/g, ' '),
+                                    c.phone || '',
+                                    c.email || '',
+                                    ch,
+                                    (c.companyName || '').replace(/,/g, ' '),
+                                ].join(',');
+                            });
+                            const csv = [header, ...rows].join('\n');
+                            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `contactos-${new Date().toISOString().slice(0, 10)}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                        }}
+                    >
+                        <Download className="h-4 w-4 mr-1.5" />
+                        {t.exportContacts || 'Exportar'}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="rounded-lg px-4 py-2 text-[14px] font-medium text-[#3F3F46]"
+                        onClick={() => setShowTemplateDialog(true)}
+                    >
+                        <Send className="h-4 w-4 mr-1.5" />
+                        {t.sendTemplate || 'Enviar mensaje'}
+                    </Button>
+                    <Button className="rounded-lg px-4 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-[14px] font-medium">
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        {t.addContact || 'Nuevo contacto'}
+                    </Button>
+                </div>
+            </div>
 
-                {/* Channel filters */}
-                <div className="flex px-6 pb-2 gap-2">
+            {/* Search & Filters */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <form onSubmit={handleSearch} className="relative w-full sm:w-72">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder={t.search || 'Buscar contactos...'}
+                        className="pl-9 h-9 text-sm"
+                        value={searchValue}
+                        onChange={(e) => setSearchValue(e.target.value)}
+                    />
+                </form>
+                <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0">
                     {CHANNEL_OPTIONS.map(opt => {
                         const Icon = opt.icon;
                         const isActive = channel === opt.value || (!channel && !opt.value);
@@ -192,7 +208,7 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                                     "text-xs px-3 py-1.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1.5",
                                     isActive
                                         ? "bg-primary text-primary-foreground"
-                                        : "bg-gray-100 text-muted-foreground hover:bg-gray-200"
+                                        : "bg-muted text-muted-foreground hover:bg-muted/80"
                                 )}
                             >
                                 {Icon && <Icon className="h-3 w-3" />}
@@ -201,40 +217,142 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                         );
                     })}
                 </div>
-            </header>
+                {/* Bulk selection bar */}
+                {selected.size > 0 && (
+                    <div className="ml-auto flex items-center gap-2">
+                        <Checkbox checked={selected.size === contactIds.length && contactIds.length > 0} onCheckedChange={toggleAll} />
+                        <span className="text-xs text-[#71717A]">{selected.size} {ui.selected || 'seleccionados'}</span>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setShowDeleteDialog(true)}
+                            className="text-xs"
+                        >
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                            {ui.delete || 'Eliminar'} ({selected.size})
+                        </Button>
+                        <button
+                            onClick={() => setSelected(new Set())}
+                            className="text-xs text-[#71717A] hover:text-[#09090B] px-2 py-1"
+                        >
+                            {ui.cancel || 'Cancelar'}
+                        </button>
+                    </div>
+                )}
+            </div>
 
-            {/* Contact List */}
-            <main className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+            {/* Table */}
+            <div className="rounded-xl border border-[#E4E4E7] overflow-x-auto">
+              <div className="min-w-[760px]">
+                {/* Table Header */}
+                <div className="flex items-center bg-[#F4F4F5] py-3 px-4 text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">
+                    <div className="w-[36px] shrink-0" />
+                    <div className="w-[200px] shrink-0">{t.name || ui.name || 'Nombre'}</div>
+                    <div className="w-[170px] shrink-0">{t.phone || ui.phone || 'Teléfono'}</div>
+                    <div className="w-[130px] shrink-0">{t.channel || 'Canal'}</div>
+                    <div className="w-[130px] shrink-0">{dict.dashboard?.companyHome?.company || 'Empresa'}</div>
+                    <div className="flex-1">{t.lastSeen || 'Última actividad'}</div>
+                    <div className="w-[40px] shrink-0" />
+                </div>
+
                 {contacts.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto pt-20">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                            <Users className="h-8 w-8 text-gray-400" />
+                    <div className="py-16 flex flex-col items-center justify-center gap-3 text-center">
+                        <div className="p-3 rounded-full bg-muted">
+                            <Users className="h-6 w-6 text-muted-foreground" />
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900">No se encontraron contactos</h2>
-                        <p className="text-muted-foreground">
-                            {search ? 'No hay resultados para tu búsqueda.' :
-                             channel ? 'No hay contactos en este canal.' :
-                             'Empieza a añadir nuevos contactos o sincroniza tus canales.'}
+                        <h3 className="font-semibold text-foreground">{t.noContacts || 'No se encontraron contactos'}</h3>
+                        <p className="text-sm text-muted-foreground max-w-sm">
+                            {search ? (ui.noResults || 'No hay resultados para tu búsqueda.') :
+                             channel ? (ui.noResults || 'No hay contactos en este canal.') :
+                             (t.noContactsDesc || 'Los contactos aparecerán aquí cuando recibas mensajes.')}
                         </p>
                     </div>
                 ) : (
-                    <div className="max-w-5xl mx-auto space-y-3">
+                    <div>
                         {contacts.map((contact) => {
+                            const channelType = contact.originChannel || contact.conversations?.[0]?.channel?.type;
+                            const badge = channelBadge[channelType || ''];
                             const isSelected = selected.has(contact.id);
                             return (
-                                <ContactCard
+                                <div
                                     key={contact.id}
-                                    contact={contact}
-                                    lang={lang}
-                                    selectMode={selectMode}
-                                    isSelected={isSelected}
-                                    onToggle={() => toggleOne(contact.id)}
-                                />
+                                    className={cn(
+                                        "group flex items-center py-3 px-4 border-t border-[#E4E4E7] hover:bg-[#FAFAFA] transition-colors",
+                                        isSelected && "bg-[#ECFDF5]"
+                                    )}
+                                >
+                                    {/* Checkbox */}
+                                    <div className="w-[36px] shrink-0">
+                                        <Checkbox
+                                            checked={isSelected}
+                                            onCheckedChange={() => toggleOne(contact.id)}
+                                            className={cn(
+                                                "transition-opacity",
+                                                !isSelected && selected.size === 0 && "opacity-0 group-hover:opacity-100"
+                                            )}
+                                        />
+                                    </div>
+                                    <Link
+                                        href={`/${lang}/company/contacts/${contact.id}`}
+                                        className="flex items-center flex-1 min-w-0"
+                                    >
+                                        <div className="w-[200px] shrink-0 flex items-center gap-3">
+                                            <ContactAvatar name={contact.name} phone={contact.phone} className="h-8 w-8 shrink-0" />
+                                            <span className="text-[14px] font-medium text-[#09090B] truncate">{contact.name || contact.phone}</span>
+                                        </div>
+                                        <div className="w-[170px] shrink-0 text-[14px] text-[#3F3F46] truncate">
+                                            {!contact.phone?.startsWith('web_') ? contact.phone : '-'}
+                                        </div>
+                                        <div className="w-[130px] shrink-0">
+                                            {badge ? (
+                                                <span className={`inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-xl font-medium ${badge.bg} ${badge.text}`}>
+                                                    <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
+                                                    {badge.label}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[14px] text-[#71717A]">-</span>
+                                            )}
+                                        </div>
+                                        <div className="w-[130px] shrink-0 text-[14px] text-[#3F3F46] truncate">
+                                            {contact.companyName || '-'}
+                                        </div>
+                                        <div className="flex-1 text-[14px] text-[#71717A]">
+                                            -
+                                        </div>
+                                    </Link>
+                                    {/* Action buttons - always visible */}
+                                    <div className="w-[70px] shrink-0 flex justify-center gap-1">
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setShowTemplateDialog(true);
+                                            }}
+                                            className="h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#10B981] hover:bg-[#ECFDF5] transition-all"
+                                            title={t.sendTemplate || 'Enviar mensaje'}
+                                        >
+                                            <Send className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setSelected(new Set([contact.id]));
+                                                setShowDeleteDialog(true);
+                                            }}
+                                            className="h-7 w-7 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#EF4444] hover:bg-[#FEF2F2] transition-all"
+                                            title={t.deleteContact || 'Eliminar contacto'}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
                             );
                         })}
                     </div>
                 )}
-            </main>
+              </div>
+            </div>
 
             {/* Template dialog */}
             <SendTemplateDialog
@@ -248,131 +366,23 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar {selected.size} contactos?</AlertDialogTitle>
+                        <AlertDialogTitle>{ui.areYouSure || '¿Eliminar'} {selected.size} {t.title?.toLowerCase() || 'contactos'}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminarán los contactos seleccionados y todas sus conversaciones asociadas.
+                            {ui.confirmDeleteDesc || 'Esta acción no se puede deshacer.'}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isDeleting}>{ui.cancel || 'Cancelar'}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             disabled={isDeleting}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {isDeleting ? 'Eliminando...' : `Eliminar ${selected.size}`}
+                            {isDeleting ? (ui.deleting || 'Eliminando...') : `${ui.delete || 'Eliminar'} ${selected.size}`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </div>
-    );
-}
-
-function ContactCard({ contact, lang, selectMode, isSelected, onToggle }: {
-    contact: Contact;
-    lang: string;
-    selectMode: boolean;
-    isSelected: boolean;
-    onToggle: () => void;
-}) {
-    const channelType = contact.originChannel || contact.conversations?.[0]?.channel?.type;
-
-    return (
-        <Card
-            className={cn(
-                "p-4 transition-all border-gray-200 bg-white group",
-                selectMode ? "cursor-pointer" : "hover:shadow-md",
-                isSelected && "ring-2 ring-primary border-primary bg-primary/5"
-            )}
-            onClick={selectMode ? onToggle : undefined}
-        >
-            <div className="flex items-center gap-4">
-                {selectMode && (
-                    <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={onToggle}
-                        className="h-4.5 w-4.5 shrink-0"
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                )}
-
-                <ContactAvatar
-                    name={contact.name}
-                    phone={contact.phone}
-                    className="h-10 w-10 shrink-0"
-                />
-
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className="font-semibold text-gray-900 truncate">{contact.name || contact.phone}</h3>
-                        {contact.companyName && (
-                            <span className="text-sm text-gray-400 flex items-center gap-1 shrink-0">
-                                <span className="opacity-50">|</span>
-                                {contact.companyName}
-                            </span>
-                        )}
-                        {channelType === 'WHATSAPP' && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-green-200 text-green-600 bg-green-50 font-normal flex items-center gap-1">
-                                <Phone className="h-3 w-3" /> WhatsApp
-                            </Badge>
-                        )}
-                        {channelType === 'INSTAGRAM' && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-pink-200 text-pink-600 bg-pink-50 font-normal flex items-center gap-1">
-                                <Instagram className="h-3 w-3" /> Instagram
-                            </Badge>
-                        )}
-                        {channelType === 'WEB_CHAT' && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-blue-200 text-blue-600 bg-blue-50 font-normal flex items-center gap-1">
-                                <Globe className="h-3 w-3" /> Web
-                            </Badge>
-                        )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        {contact.email && (
-                            <div className="flex items-center gap-1.5 min-w-[140px]">
-                                <Mail className="h-3 w-3 opacity-50" />
-                                <span className="truncate">{contact.email}</span>
-                            </div>
-                        )}
-                        {!contact.phone?.startsWith('web_') && contact.phone !== contact.name?.replace('Visitante ', '') && (
-                            <div className="flex items-center gap-1.5">
-                                <Phone className="h-3 w-3 opacity-50" />
-                                <span>{contact.phone}</span>
-                            </div>
-                        )}
-                        {(contact.city || contact.country) && (
-                            <div className="flex items-center gap-1.5">
-                                <MapPin className="h-3 w-3 opacity-50" />
-                                <span>{[contact.city, contact.country].filter(Boolean).join(', ')}</span>
-                            </div>
-                        )}
-                        {contact.tags?.length > 0 && (
-                            <div className="flex items-center gap-1 ml-auto">
-                                {contact.tags.map((tag) => (
-                                    <Badge
-                                        key={tag.id}
-                                        variant="outline"
-                                        className="text-[10px] px-1.5 py-0 h-4 border-gray-200 bg-gray-50"
-                                        style={{ borderLeft: `2px solid ${tag.color}` }}
-                                    >
-                                        {tag.name}
-                                    </Badge>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {!selectMode && (
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
-                        <Link href={`/${lang}/company/contacts/${contact.id}`} className="text-xs text-primary hover:underline font-medium px-2 py-1">
-                            Ver detalles
-                        </Link>
-                    </div>
-                )}
-            </div>
-        </Card>
     );
 }

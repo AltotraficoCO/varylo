@@ -22,6 +22,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useDictionary } from '@/lib/i18n-context';
 
 interface ConversationRightSidebarProps {
     conversation: any;
@@ -41,6 +42,9 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
     const params = useParams();
     const lang = params.lang as string;
     const [analyzing, setAnalyzing] = React.useState(false);
+    const dict = useDictionary();
+    const t = dict.conversations || {};
+    const ui = dict.ui || {};
 
     const handleReanalyze = async () => {
         setAnalyzing(true);
@@ -64,10 +68,10 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                 router.push(`/${lang}/company/conversations?filter=mine&conversationId=${conversation.id}`);
                 router.refresh();
             } else {
-                alert(result.message || "Error al reabrir la conversación");
+                alert(result.message || t.errorReopening);
             }
         } catch (e) {
-            alert("Error inesperado al reabrir");
+            alert(t.unexpectedErrorReopen);
         } finally {
             setReopening(false);
         }
@@ -83,10 +87,10 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                 router.push(`/${lang}/company/conversations`);
                 router.refresh();
             } else {
-                alert(result.message || "Error al cerrar la conversación");
+                alert(result.message || t.errorClosing);
             }
         } catch (e) {
-            alert("Error inesperado al cerrar");
+            alert(t.unexpectedErrorClose);
         } finally {
             setClosing(false);
         }
@@ -99,10 +103,10 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                 router.push(`/${lang}/company/conversations`);
                 router.refresh();
             } else {
-                alert("Error al eliminar la conversación");
+                alert(t.errorDeleting);
             }
         } catch (e) {
-            alert("Error inesperado al eliminar");
+            alert(t.unexpectedErrorDelete);
         }
     };
 
@@ -125,13 +129,13 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                         value="contact"
                         className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent h-full"
                     >
-                        Contacto
+                        {t.contact}
                     </TabsTrigger>
                     <TabsTrigger
                         value="copilot"
                         className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent h-full"
                     >
-                        ValerIA
+                        {t.valeria}
                     </TabsTrigger>
                 </TabsList>
 
@@ -145,8 +149,8 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                             className="h-20 w-20 mb-3 border"
                             fallbackClassName="text-xl"
                         />
-                        <h2 className="font-semibold text-lg text-foreground text-center leading-tight mb-1">{contact.name || 'Desconocido'}</h2>
-                        <p className="text-sm text-muted-foreground text-center">Cliente</p>
+                        <h2 className="font-semibold text-lg text-foreground text-center leading-tight mb-1">{contact.name || t.unknown}</h2>
+                        <p className="text-sm text-muted-foreground text-center">{t.client}</p>
 
                         {/* Info Rows */}
                         <div className="w-full mt-6 space-y-3 text-sm">
@@ -158,7 +162,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                             )}
                             <div className="flex items-center gap-3 text-gray-600">
                                 <Building className="h-4 w-4 shrink-0 opacity-70" />
-                                <span>{contact.companyName || 'Empresa (N/A)'}</span>
+                                <span>{contact.companyName || t.companyNA}</span>
                             </div>
                         </div>
 
@@ -177,15 +181,15 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Reabrir conversación?</AlertDialogTitle>
+                                            <AlertDialogTitle>{t.reopenConfirm}</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Reabrir esta conversación puede generar un costo en Meta si la ventana de 24 horas ha expirado. Se requerirá enviar una plantilla para iniciar contacto.
+                                                {t.reopenConfirmDesc}
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogCancel>{ui.cancel}</AlertDialogCancel>
                                             <AlertDialogAction onClick={handleReopen}>
-                                                {reopening ? 'Reabriendo...' : 'Reabrir'}
+                                                {reopening ? t.reopening : t.reopen}
                                             </AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
@@ -199,15 +203,15 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Finalizar conversación?</AlertDialogTitle>
+                                            <AlertDialogTitle>{t.closeConfirm}</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Se enviará un mensaje de despedida al cliente y la conversación se marcará como resuelta.
+                                                {t.closeConfirmDesc}
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogCancel>{ui.cancel}</AlertDialogCancel>
                                             <AlertDialogAction onClick={handleClose} className="bg-green-600 text-white hover:bg-green-700">
-                                                Finalizar
+                                                {t.finalize}
                                             </AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
@@ -221,15 +225,15 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
+                                            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Esta acción no se puede deshacer. Se eliminarán permanentemente todos los mensajes y notas asociadas.
+                                                {t.deleteConfirmDescPermanent}
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogCancel>{ui.cancel}</AlertDialogCancel>
                                             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-white hover:bg-destructive/90">
-                                                Eliminar
+                                                {ui.delete}
                                             </AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
@@ -242,12 +246,12 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                     <Accordion type="multiple" defaultValue={['actions', 'participants']} className="w-full bg-card">
                         <AccordionItem value="actions" className="border-b px-0">
                             <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted text-sm font-semibold text-gray-800">
-                                Acciones
+                                {t.actionsLabel}
                             </AccordionTrigger>
                             <AccordionContent className="px-4 pb-4 pt-1">
                                 <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Etiquetas</label>
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.tagsLabel}</label>
                                         <TagSelector
                                             conversationId={conversation.id}
                                             availableTags={companyTags}
@@ -255,7 +259,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Agentes Asignados</label>
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.assignedAgentsLabel}</label>
                                         <AgentSelector
                                             conversationId={conversation.id}
                                             availableAgents={companyAgents}
@@ -263,28 +267,28 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Prioridad</label>
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.priorityLabel}</label>
                                         <div className="flex gap-2">
                                             <Badge
                                                 variant={currentPriority === 'LOW' ? 'default' : 'outline'}
                                                 className={cn("cursor-pointer hover:bg-gray-100 font-normal", currentPriority === 'LOW' && "bg-green-100 text-green-700 hover:bg-green-200 border-green-200")}
                                                 onClick={() => handlePriorityChange('LOW')}
                                             >
-                                                Baja
+                                                {t.priorityLow}
                                             </Badge>
                                             <Badge
                                                 variant={currentPriority === 'MEDIUM' ? 'default' : 'outline'}
                                                 className={cn("cursor-pointer hover:bg-gray-100 font-normal", currentPriority === 'MEDIUM' && "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-yellow-200")}
                                                 onClick={() => handlePriorityChange('MEDIUM')}
                                             >
-                                                Media
+                                                {t.priorityMedium}
                                             </Badge>
                                             <Badge
                                                 variant={currentPriority === 'HIGH' ? 'default' : 'outline'}
                                                 className={cn("cursor-pointer hover:bg-gray-100 font-normal", currentPriority === 'HIGH' && "bg-red-100 text-red-700 hover:bg-red-200 border-red-200")}
                                                 onClick={() => handlePriorityChange('HIGH')}
                                             >
-                                                Alta
+                                                {t.priorityHigh}
                                             </Badge>
                                         </div>
                                     </div>
@@ -294,21 +298,21 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
 
                         <AccordionItem value="participants" className="border-b px-0">
                             <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted text-sm font-semibold text-gray-800">
-                                Participantes
+                                {t.participants}
                             </AccordionTrigger>
                             <AccordionContent className="px-4 pb-4 pt-1">
                                 <div className="flex flex-col gap-4">
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cliente</label>
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.client}</label>
                                         <div className="flex items-center gap-2 text-sm p-2 bg-muted rounded-md border">
                                             <Avatar className="h-6 w-6"><AvatarFallback>C</AvatarFallback></Avatar>
-                                            <span className="truncate">{contact.name || contact.phone || 'Cliente'}</span>
+                                            <span className="truncate">{contact.name || contact.phone || t.client}</span>
                                         </div>
                                     </div>
 
                                     {conversation.handledByAiAgent && (
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Agente IA</label>
+                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.aiAgentLabel}</label>
                                             <div className="flex items-center gap-2 text-sm p-2 bg-purple-50 rounded-md border border-purple-200">
                                                 <div className="h-6 w-6 rounded-full bg-purple-100 flex items-center justify-center">
                                                     <Bot className="h-3.5 w-3.5 text-purple-600" />
@@ -320,7 +324,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
 
                                     {conversation.assignedAgents && conversation.assignedAgents.length > 0 && (
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Agentes</label>
+                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.agentsLabel}</label>
                                             <div className="flex flex-col gap-2">
                                                 {conversation.assignedAgents.map((agent: any) => (
                                                     <div key={agent.id} className="flex items-center gap-2 text-sm p-2 bg-primary/5 rounded-md border border-blue-100">
@@ -344,7 +348,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                 <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted text-sm font-semibold text-gray-800">
                                     <span className="flex items-center gap-1.5">
                                         <FileInput className="h-3.5 w-3.5" />
-                                        Datos capturados
+                                        {t.capturedData}
                                     </span>
                                 </AccordionTrigger>
                                 <AccordionContent className="px-4 pb-4 pt-1">
@@ -362,16 +366,16 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
 
                         <AccordionItem value="info" className="border-b px-0">
                             <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted text-sm font-semibold text-gray-800">
-                                Información
+                                {t.information}
                             </AccordionTrigger>
                             <AccordionContent className="px-4 pb-4 pt-1">
                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                     <span className="text-muted-foreground">ID:</span>
                                     <span className="truncate font-mono">{conversation.id.substring(0, 8)}</span>
-                                    <span className="text-muted-foreground">Creado:</span>
+                                    <span className="text-muted-foreground">{t.created}</span>
                                     <span>{new Date(conversation.createdAt).toLocaleDateString()}</span>
-                                    <span className="text-muted-foreground">Canal:</span>
-                                    <span>{conversation.channel?.type || 'Desconocido'}</span>
+                                    <span className="text-muted-foreground">{t.channelLabel}</span>
+                                    <span>{conversation.channel?.type || t.unknownChannel}</span>
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
@@ -384,7 +388,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Sparkles className="h-4 w-4 text-purple-500" />
-                                <h3 className="font-semibold text-sm text-foreground">Análisis IA</h3>
+                                <h3 className="font-semibold text-sm text-foreground">{t.aiAnalysis}</h3>
                             </div>
                             <Button
                                 variant="outline"
@@ -398,7 +402,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                 ) : (
                                     <RefreshCw className="h-3 w-3" />
                                 )}
-                                {analyzing ? 'Analizando...' : 'Re-analizar'}
+                                {analyzing ? t.analyzing : t.reanalyze}
                             </Button>
                         </div>
 
@@ -409,15 +413,15 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                             const urgency = flags?.urgency || 'medium';
 
                             const sentimentConfig: Record<string, { label: string; color: string }> = {
-                                positive: { label: 'Positivo', color: 'bg-green-100 text-green-700 border-green-200' },
-                                neutral: { label: 'Neutral', color: 'bg-gray-100 text-gray-700 border-gray-200' },
-                                negative: { label: 'Negativo', color: 'bg-red-100 text-red-700 border-red-200' },
+                                positive: { label: t.positive, color: 'bg-green-100 text-green-700 border-green-200' },
+                                neutral: { label: t.neutral, color: 'bg-gray-100 text-gray-700 border-gray-200' },
+                                negative: { label: t.negative, color: 'bg-red-100 text-red-700 border-red-200' },
                             };
 
                             const urgencyConfig: Record<string, { label: string; color: string }> = {
-                                low: { label: 'Baja', color: 'bg-green-100 text-green-700 border-green-200' },
-                                medium: { label: 'Media', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-                                high: { label: 'Alta', color: 'bg-red-100 text-red-700 border-red-200' },
+                                low: { label: t.urgencyLow, color: 'bg-green-100 text-green-700 border-green-200' },
+                                medium: { label: t.urgencyMedium, color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+                                high: { label: t.urgencyHigh, color: 'bg-red-100 text-red-700 border-red-200' },
                             };
 
                             const getScoreColor = (score: number) => {
@@ -430,17 +434,17 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                 <div className="space-y-4">
                                     {/* Summary */}
                                     <div className="bg-card rounded-lg border p-3 space-y-1">
-                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Resumen</label>
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.summary}</label>
                                         <p className="text-sm text-gray-700 leading-relaxed">{insight.summary}</p>
                                     </div>
 
                                     {/* Scores */}
                                     <div className="bg-card rounded-lg border p-3 space-y-3">
-                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Puntuaciones</label>
+                                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.scores}</label>
                                         <div className="space-y-2">
                                             <div>
                                                 <div className="flex justify-between text-xs mb-1">
-                                                    <span className="text-gray-600">Tono</span>
+                                                    <span className="text-gray-600">{t.tone}</span>
                                                     <span className="font-medium">{insight.toneScore}/100</span>
                                                 </div>
                                                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -452,7 +456,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                             </div>
                                             <div>
                                                 <div className="flex justify-between text-xs mb-1">
-                                                    <span className="text-gray-600">Claridad</span>
+                                                    <span className="text-gray-600">{t.clarity}</span>
                                                     <span className="font-medium">{insight.clarityScore}/100</span>
                                                 </div>
                                                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -468,7 +472,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                     {/* Sentiment & Urgency */}
                                     <div className="flex gap-2">
                                         <div className="flex-1 bg-card rounded-lg border p-3 space-y-1.5">
-                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sentimiento</label>
+                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.sentiment}</label>
                                             <div>
                                                 <Badge variant="outline" className={cn("text-xs font-normal", sentimentConfig[sentiment]?.color)}>
                                                     {sentimentConfig[sentiment]?.label || sentiment}
@@ -476,7 +480,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                             </div>
                                         </div>
                                         <div className="flex-1 bg-card rounded-lg border p-3 space-y-1.5">
-                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Urgencia</label>
+                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.urgency}</label>
                                             <div>
                                                 <Badge variant="outline" className={cn("text-xs font-normal", urgencyConfig[urgency]?.color)}>
                                                     {urgency === 'high' && <TriangleAlert className="h-3 w-3 mr-1" />}
@@ -489,7 +493,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                     {/* Topics */}
                                     {topics.length > 0 && (
                                         <div className="bg-card rounded-lg border p-3 space-y-2">
-                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Temas</label>
+                                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.topics}</label>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {topics.map((topic: string, i: number) => (
                                                     <Badge key={i} variant="secondary" className="text-xs font-normal bg-purple-50 text-purple-700 border border-purple-200">
@@ -502,7 +506,7 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
 
                                     {/* Timestamp */}
                                     <p className="text-[10px] text-muted-foreground text-center">
-                                        Analizado: {new Date(insight.createdAt).toLocaleString()}
+                                        {t.analyzedAt} {new Date(insight.createdAt).toLocaleString()}
                                     </p>
                                 </div>
                             );
@@ -512,9 +516,9 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                     <Sparkles className="h-6 w-6 text-purple-400" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-gray-700">Sin análisis disponible</p>
+                                    <p className="text-sm font-medium text-gray-700">{t.noAnalysis}</p>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        Haz clic en &quot;Re-analizar&quot; para generar un análisis con IA
+                                        {t.noAnalysisDesc}
                                     </p>
                                 </div>
                             </div>

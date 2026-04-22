@@ -7,19 +7,18 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, MessageSquareOff, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2 } from "lucide-react";
+import { Search, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2, MessageSquare, ArrowLeft } from "lucide-react";
 import Link from 'next/link';
 import { cn } from "@/lib/utils";
 import ChatInput from './chat-input';
 import { MessageList } from './message-list';
-import { AgentSelector } from './agent-selector';
 import { Role, ChannelType } from '@prisma/client';
+import { getDictionary } from '@/lib/dictionary';
+import type { Locale } from '@/lib/dictionary';
 
 import { ConversationRightSidebar } from './conversation-right-sidebar';
 import { ConversationsRealtimeWrapper } from './conversations-realtime-wrapper';
-import { UnreadDot } from './unread-dot';
 import { WindowTimer } from './window-timer';
-import { ConversationListActions } from './conversation-list-actions';
 import { ConversationList } from './conversation-list';
 import { NewConversationButton } from './new-conversation-button';
 import { ReopenBanner } from './reopen-banner';
@@ -50,6 +49,8 @@ export default async function ConversationsPage({
     }
 
     const { lang } = await routeParams;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.conversations || {};
 
     // Fetch Tags for Selector
     const companyTags = await prisma.tag.findMany({
@@ -185,19 +186,31 @@ export default async function ConversationsPage({
         }
     }
 
+    const hasSelection = !!selectedConversation;
+    const backToListHref = (() => {
+        const qs = new URLSearchParams();
+        if (filter) qs.set('filter', filter);
+        if (tag) qs.set('tag', tag);
+        const query = qs.toString();
+        return `/${lang}/company/conversations${query ? `?${query}` : ''}`;
+    })();
+
     return (
         <SubscriptionGate featureName="Conversaciones">
         <ConversationsRealtimeWrapper>
-        <div className="flex h-[calc(100vh-10rem)] flex-col md:flex-row border rounded-lg overflow-hidden bg-background">
-            {/* Sidebar List */}
-            <div className="w-full md:w-[320px] lg:w-[380px] border-r flex flex-col bg-card">
+        <div className="flex h-[calc(100vh-5rem)] flex-col md:flex-row border rounded-xl overflow-hidden bg-background">
+            {/* Sidebar List — hidden on mobile when a conversation is selected */}
+            <div className={cn(
+                "w-full md:w-[320px] lg:w-[380px] border-r flex-col bg-card",
+                hasSelection ? "hidden md:flex" : "flex"
+            )}>
                 {/* Header & Tabs */}
                 <div className="border-b">
                     <div className="px-4 py-3 flex items-center justify-between">
                         <h2 className="font-semibold flex items-center gap-2">
-                            Conversaciones
+                            {t.title}
                             <Badge variant="secondary" className="bg-muted text-muted-foreground font-normal border-none text-[10px] h-5 px-1.5">
-                                {filter === 'resolved' ? 'Finalizadas' : 'Abiertas'}
+                                {filter === 'resolved' ? t.finished : t.opened}
                             </Badge>
                         </h2>
                         <NewConversationButton contacts={contactsForTemplate} lang={lang} />
@@ -211,7 +224,7 @@ export default async function ConversationsPage({
                                 filter === 'mine' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
                             )}
                         >
-                            Mías <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{mineCount}</Badge>
+                            {t.mine} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{mineCount}</Badge>
                         </Link>
                         {!isAgent && (
                             <>
@@ -222,7 +235,7 @@ export default async function ConversationsPage({
                                         filter === 'unassigned' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
                                     )}
                                 >
-                                    Sin asignar <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{unassignedCount}</Badge>
+                                    {t.unassigned} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{unassignedCount}</Badge>
                                 </Link>
                                 <Link
                                     href={`?filter=all`}
@@ -231,7 +244,7 @@ export default async function ConversationsPage({
                                         filter === 'all' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
                                     )}
                                 >
-                                    Todos <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{allCount}</Badge>
+                                    {t.all} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{allCount}</Badge>
                                 </Link>
                             </>
                         )}
@@ -243,7 +256,7 @@ export default async function ConversationsPage({
                             )}
                         >
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            Finalizadas <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{resolvedCount}</Badge>
+                            {t.finished} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{resolvedCount}</Badge>
                         </Link>
                     </ScrollableTabs>
                 </div>
@@ -254,7 +267,7 @@ export default async function ConversationsPage({
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             type="search"
-                            placeholder="Buscar..."
+                            placeholder={t.searchPlaceholder}
                             className="pl-8 h-9 bg-background"
                         />
                     </div>
@@ -268,25 +281,39 @@ export default async function ConversationsPage({
                 />
             </div>
 
-            {/* Main Area (Chat or Welcome) */}
-            <div className="flex-1 flex flex-col bg-card min-w-0">
+            {/* Main Area (Chat or Welcome) — hidden on mobile when no conversation is selected */}
+            <div className={cn(
+                "flex-1 flex-col bg-card min-w-0",
+                hasSelection ? "flex" : "hidden md:flex"
+            )}>
                 {selectedConversation ? (
                     <>
                         {/* Chat Header */}
-                        <div className="h-16 border-b flex items-center px-6 bg-card justify-between sticky top-0 z-10">
-                            <div className="flex items-center gap-3">
+                        <div className="h-16 border-b flex items-center px-3 sm:px-6 bg-card justify-between sticky top-0 z-10 gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <Link
+                                    href={backToListHref}
+                                    className="md:hidden shrink-0 -ml-1 p-2 rounded-md hover:bg-muted text-foreground"
+                                    aria-label="Volver a la lista"
+                                >
+                                    <ArrowLeft className="h-5 w-5" />
+                                </Link>
                                 <ContactAvatar
                                     name={selectedConversation.contact?.name}
                                     phone={selectedConversation.contact?.phone}
                                     imageUrl={selectedConversation.contact?.imageUrl}
-                                    className="h-9 w-9"
+                                    className="h-9 w-9 shrink-0"
                                 />
-                                <div>
-                                    <h3 className="font-medium text-sm text-foreground">{selectedConversation.contact?.name}</h3>
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="font-medium text-sm text-foreground truncate">{selectedConversation.contact?.name}</h3>
                                     <div className="flex items-center gap-2">
                                         {selectedConversation.channel?.type === ChannelType.INSTAGRAM ? (
                                             <Badge variant="outline" className="text-[10px] h-4 px-1 border-pink-200 text-pink-600 bg-pink-50 flex items-center gap-1">
                                                 <Instagram className="h-3 w-3" /> Instagram
+                                            </Badge>
+                                        ) : selectedConversation.channel?.type === ChannelType.MESSENGER ? (
+                                            <Badge variant="outline" className="text-[10px] h-4 px-1 border-blue-200 text-blue-600 bg-blue-50 flex items-center gap-1">
+                                                <MessageSquare className="h-3 w-3" /> Messenger
                                             </Badge>
                                         ) : selectedConversation.channel?.type === ChannelType.WHATSAPP ? (
                                             <Badge variant="outline" className="text-[10px] h-4 px-1 border-green-200 text-green-600 bg-green-50 flex items-center gap-1">
@@ -306,7 +333,9 @@ export default async function ConversationsPage({
                                 </div>
                             </div>
                             {selectedConversation.channel?.type !== ChannelType.WEB_CHAT && (
-                                <WindowTimer conversationId={selectedConversation.id} />
+                                <div className="shrink-0">
+                                    <WindowTimer conversationId={selectedConversation.id} />
+                                </div>
                             )}
                         </div>
 
@@ -318,7 +347,7 @@ export default async function ConversationsPage({
                         {selectedConversation.status === 'RESOLVED' ? (
                             <ReopenBanner conversationId={selectedConversation.id} />
                         ) : (
-                            <div className="p-4 bg-card border-t">
+                            <div className="p-3 sm:p-4 bg-card border-t sticky bottom-0 z-10" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
                                 <ChatInput
                                 conversationId={selectedConversation.id}
                                 channelType={selectedConversation.channel?.type}
@@ -339,11 +368,10 @@ export default async function ConversationsPage({
                                         </div>
                                     </div>
                                     <h1 className="text-2xl font-semibold text-foreground">
-                                        👋 ¡Hola, {session.user.name || 'Agente'}!
+                                        👋 {t.welcomeAgent.replace('{name}', session.user.name || 'Agente')}
                                     </h1>
                                     <p className="text-muted-foreground text-sm max-w-lg mx-auto leading-relaxed">
-                                        Bienvenido al panel. Selecciona una conversación de la izquierda para comenzar a responder a tus clientes.
-                                        Las conversaciones asignadas a ti aparecerán aquí automáticamente.
+                                        {t.welcomeAgentDesc}
                                     </p>
                                 </div>
                             </div>
@@ -351,11 +379,10 @@ export default async function ConversationsPage({
                             <div className="max-w-4xl w-full space-y-8">
                                 <div className="space-y-4">
                                     <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-                                        👋 Buenas tardes, {session.user.name || 'Usuario'}. Bienvenido a Varylo.
+                                        👋 {t.welcomeAdmin.replace('{name}', session.user.name || 'Usuario')}
                                     </h1>
                                     <p className="text-muted-foreground text-sm max-w-2xl leading-relaxed">
-                                        Gracias por registrarse. Queremos que saque el máximo provecho de Varylo.
-                                        Aquí hay algunas cosas que puede hacer para hacer que la experiencia sea agradable.
+                                        {t.welcomeAdminDesc}
                                     </p>
                                 </div>
 
@@ -371,13 +398,13 @@ export default async function ConversationsPage({
                                                 </div>
                                             </div>
                                             <div className="space-y-2 text-center">
-                                                <h3 className="font-semibold text-foreground">Todas sus conversaciones en un solo lugar</h3>
+                                                <h3 className="font-semibold text-foreground">{t.cardInboxTitle}</h3>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Ver todas las conversaciones de sus clientes en un solo panel de control. Filtre por canal, etiqueta o estado.
+                                                    {t.cardInboxDesc}
                                                 </p>
                                             </div>
                                             <Link href="?filter=all" className="text-primary text-xs font-medium hover:underline text-center flex items-center justify-center gap-1 group-hover:gap-2 transition-all">
-                                                Haga clic aquí para ir a la bandeja de entrada <Search className="h-3 w-3" />
+                                                {t.cardInboxCta} <Search className="h-3 w-3" />
                                             </Link>
                                         </div>
                                     </Card>
@@ -393,13 +420,13 @@ export default async function ConversationsPage({
                                                 </div>
                                             </div>
                                             <div className="space-y-2 text-center">
-                                                <h3 className="font-semibold text-foreground">Invite a los miembros de su equipo</h3>
+                                                <h3 className="font-semibold text-foreground">{t.cardTeamTitle}</h3>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Ya que se está preparando para hablar con su cliente, invite a sus compañeros.
+                                                    {t.cardTeamDesc}
                                                 </p>
                                             </div>
                                             <Link href="/company/agents" className="text-primary text-xs font-medium hover:underline text-center flex items-center justify-center gap-1 group-hover:gap-2 transition-all">
-                                                Haga clic aquí para invitar a un miembro <Users className="h-3 w-3" />
+                                                {t.cardTeamCta} <Users className="h-3 w-3" />
                                             </Link>
                                         </div>
                                     </Card>
@@ -409,17 +436,17 @@ export default async function ConversationsPage({
                                         <div className="flex flex-col gap-4 h-full justify-between">
                                             <div className="flex justify-center py-4">
                                                 <div className="bg-muted p-3 rounded-lg">
-                                                    <code className="text-xs text-muted-foreground">/saludo Hola, ¿cómo estás?</code>
+                                                    <code className="text-xs text-muted-foreground">{t.cannedReplyExample}</code>
                                                 </div>
                                             </div>
                                             <div className="space-y-2 text-center">
-                                                <h3 className="font-semibold text-foreground">Crea respuestas predefinidas</h3>
+                                                <h3 className="font-semibold text-foreground">{t.cardRepliesTitle}</h3>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Las respuestas predefinidas son plantillas que le ayudan a responder rápidamente.
+                                                    {t.cardRepliesDesc}
                                                 </p>
                                             </div>
                                             <Link href="/company/settings" className="text-primary text-xs font-medium hover:underline text-center flex items-center justify-center gap-1 group-hover:gap-2 transition-all">
-                                                Haga clic aquí para crear una respuesta <Settings className="h-3 w-3" />
+                                                {t.cardRepliesCta} <Settings className="h-3 w-3" />
                                             </Link>
                                         </div>
                                     </Card>
@@ -428,17 +455,17 @@ export default async function ConversationsPage({
                                     <Card className="p-6 hover:shadow-md transition-all border shadow-sm group">
                                         <div className="flex flex-col gap-4 h-full justify-between">
                                             <div className="flex justify-center py-4 gap-2">
-                                                <Badge className="bg-green-100 text-green-700 hover:bg-green-200">#ventas</Badge>
-                                                <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-200">#soporte</Badge>
+                                                <Badge className="bg-green-100 text-green-700 hover:bg-green-200">{t.tagSales}</Badge>
+                                                <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-200">{t.tagSupport}</Badge>
                                             </div>
                                             <div className="space-y-2 text-center">
-                                                <h3 className="font-semibold text-foreground">Organice las conversaciones con etiquetas</h3>
+                                                <h3 className="font-semibold text-foreground">{t.cardTagsTitle}</h3>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Las etiquetas proporcionan una forma fácil de clasificar su conversación.
+                                                    {t.cardTagsDesc}
                                                 </p>
                                             </div>
                                             <Link href="/company/settings/tags" className="text-primary text-xs font-medium hover:underline text-center flex items-center justify-center gap-1 group-hover:gap-2 transition-all">
-                                                Haga clic aquí para crear etiquetas <Tag className="h-3 w-3" />
+                                                {t.cardTagsCta} <Tag className="h-3 w-3" />
                                             </Link>
                                         </div>
                                     </Card>

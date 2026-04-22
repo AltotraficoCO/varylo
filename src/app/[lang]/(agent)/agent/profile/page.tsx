@@ -1,8 +1,12 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ProfileForm } from './profile-form';
+import { getDictionary, Locale } from '@/lib/dictionary';
 
-export default async function AgentProfilePage() {
+export default async function AgentProfilePage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.dashboard.agentProfile;
     const session = await auth();
     if (!session?.user?.id) return null;
 
@@ -16,9 +20,9 @@ export default async function AgentProfilePage() {
     return (
         <div className="max-w-2xl mx-auto w-full">
             <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Mi Perfil</h1>
+                <h1 className="text-2xl font-bold tracking-tight">{t.title}</h1>
                 <p className="text-muted-foreground text-sm mt-1">
-                    Administra tu información personal y contraseña.
+                    {t.subtitle}
                 </p>
             </div>
 

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType, MessageDirection } from '@prisma/client';
 import { sendInstagramMessageWithToken } from '@/lib/instagram';
 import { uploadDataUrlToStorage, buildMediaPath } from '@/lib/storage';
+import { readChannelSecret } from '@/lib/channel-config';
 
 interface SendMessageOptions {
     conversationId: string;
@@ -73,6 +74,9 @@ export async function sendWhatsAppTypingIndicator(
  * Upload a media file (from a data URL) to WhatsApp Media API.
  * Returns the media ID for use in messages.
  */
+/**
+ * Upload media to WhatsApp from a data URL.
+ */
 async function uploadMediaToWhatsApp(
     phoneNumberId: string,
     accessToken: string,
@@ -81,12 +85,60 @@ async function uploadMediaToWhatsApp(
     fileName: string,
 ): Promise<string | null> {
     try {
-        // Convert data URL to Buffer
         const base64Data = dataUrl.split(',')[1];
         if (!base64Data) return null;
 
         const buffer = Buffer.from(base64Data, 'base64');
-        const blob = new Blob([buffer], { type: mimeType });
+        return uploadBufferToWhatsApp(phoneNumberId, accessToken, buffer, mimeType, fileName);
+    } catch (error) {
+        console.error('[WhatsApp] Media upload failed:', error instanceof Error ? error.message : 'Unknown');
+        return null;
+    }
+}
+
+/**
+ * Download a file from URL and upload to WhatsApp media API.
+ * Adds Supabase auth if the URL is from Supabase Storage.
+ */
+async function uploadUrlToWhatsApp(
+    phoneNumberId: string,
+    accessToken: string,
+    fileUrl: string,
+    mimeType: string,
+    fileName: string,
+): Promise<string | null> {
+    try {
+        // Add Supabase auth for Supabase Storage URLs (bucket may not be public)
+        const headers: Record<string, string> = {};
+        if (fileUrl.includes('supabase') && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            headers['Authorization'] = `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
+        }
+
+        const res = await fetch(fileUrl, { headers });
+        if (!res.ok) {
+            console.error(`[WhatsApp] Failed to download file: ${res.status} ${fileUrl}`);
+            return null;
+        }
+        const buffer = Buffer.from(await res.arrayBuffer());
+        return uploadBufferToWhatsApp(phoneNumberId, accessToken, buffer, mimeType, fileName);
+    } catch (error) {
+        console.error('[WhatsApp] URL upload failed:', error instanceof Error ? error.message : 'Unknown');
+        return null;
+    }
+}
+
+/**
+ * Upload a Buffer to WhatsApp media API.
+ */
+async function uploadBufferToWhatsApp(
+    phoneNumberId: string,
+    accessToken: string,
+    buffer: Buffer,
+    mimeType: string,
+    fileName: string,
+): Promise<string | null> {
+    try {
+        const blob = new Blob([new Uint8Array(buffer)], { type: mimeType });
 
         const formData = new FormData();
         formData.append('messaging_product', 'whatsapp');
@@ -99,19 +151,23 @@ async function uploadMediaToWhatsApp(
             body: formData,
         });
 
-        if (!res.ok) return null;
+        if (!res.ok) {
+            const errBody = await res.text().catch(() => '');
+            console.error(`[WhatsApp] Media upload failed: HTTP ${res.status} - ${errBody}`);
+            return null;
+        }
         const data = await res.json();
         return data.id || null;
     } catch (error) {
-        console.error('[WhatsApp] Media upload failed:', error instanceof Error ? error.message : 'Unknown');
+        console.error('[WhatsApp] Buffer upload failed:', error instanceof Error ? error.message : 'Unknown');
         return null;
     }
 }
 
 /**
- * Build WhatsApp API payload for text or media messages.
+ * Build WhatsApp API payload for media messages using a media ID (uploaded via media API).
  */
-function buildWhatsAppMediaPayload(
+function buildWhatsAppMediaPayloadById(
     recipientPhone: string,
     content: string,
     waMediaId: string,
@@ -126,12 +182,42 @@ function buildWhatsAppMediaPayload(
         case 'video':
             return { ...base, type: 'video', video: { id: waMediaId, caption: content || undefined } };
         case 'audio':
-            return { ...base, type: 'audio', audio: { id: waMediaId } };
+            return { ...base, type: 'audio', audio: { id: waMediaId, voice: true } };
         case 'document':
             return {
                 ...base,
                 type: 'document',
                 document: { id: waMediaId, caption: content || undefined, filename: fileName || 'document' },
+            };
+        default:
+            return { ...base, type: 'text', text: { body: content } };
+    }
+}
+
+/**
+ * Build WhatsApp API payload for media messages using a public URL.
+ */
+function buildWhatsAppMediaPayloadByUrl(
+    recipientPhone: string,
+    content: string,
+    publicUrl: string,
+    mediaType: string,
+    fileName?: string,
+) {
+    const base = { messaging_product: 'whatsapp' as const, to: recipientPhone };
+
+    switch (mediaType) {
+        case 'image':
+            return { ...base, type: 'image', image: { link: publicUrl, caption: content || undefined } };
+        case 'video':
+            return { ...base, type: 'video', video: { link: publicUrl, caption: content || undefined } };
+        case 'audio':
+            return { ...base, type: 'audio', audio: { link: publicUrl } };
+        case 'document':
+            return {
+                ...base,
+                type: 'document',
+                document: { link: publicUrl, caption: content || undefined, filename: fileName || 'document' },
             };
         default:
             return { ...base, type: 'text', text: { body: content } };
@@ -162,6 +248,19 @@ export async function sendChannelMessage({
 
     const { channel, contact } = conversation;
 
+    // --- Step 1: Upload media to Supabase if it's a data URL ---
+    let storedMediaUrl = mediaUrl;
+    if (mediaUrl?.startsWith('data:') && mimeType) {
+        const cleanMime = mimeType.split(';')[0];
+        const ext = cleanMime.split('/')[1] || 'bin';
+        const name = fileName || `outbound.${ext}`;
+        const path = buildMediaPath(companyId, name);
+        const uploaded = await uploadDataUrlToStorage(mediaUrl, path, cleanMime);
+        if (uploaded) storedMediaUrl = uploaded;
+    }
+    // If mediaUrl is already an HTTP URL (e.g., from voice-upload API), use it directly
+
+    // --- Step 2: Send to external channel ---
     if (channel.type === ChannelType.WHATSAPP) {
         // Block free-form messages when the 24-hour conversation window has expired
         if (conversation.lastInboundAt) {
@@ -171,29 +270,54 @@ export async function sendChannelMessage({
                 throw new Error('WINDOW_EXPIRED: La ventana de 24 horas ha expirado. Debes usar una plantilla para reiniciar la conversación.');
             }
         } else {
-            // No inbound message ever — can only send templates
             throw new Error('WINDOW_EXPIRED: No hay mensajes entrantes del cliente. Debes usar una plantilla para iniciar la conversación.');
         }
 
         const config = channel.configJson as { phoneNumberId?: string; accessToken?: string } | null;
-        if (config?.accessToken && config?.phoneNumberId) {
+        const accessToken = readChannelSecret(config?.accessToken);
+        if (accessToken && config?.phoneNumberId) {
             let payload: Record<string, any>;
 
-            // If sending media, upload to WhatsApp first then send with media ID
             if (mediaUrl && mediaType && mimeType) {
-                const waMediaId = await uploadMediaToWhatsApp(
-                    config.phoneNumberId,
-                    config.accessToken,
-                    mediaUrl,
-                    mimeType,
-                    fileName || 'file',
-                );
+                const cleanMime = mimeType.split(';')[0];
+                const fileUrl = storedMediaUrl?.startsWith('http') ? storedMediaUrl : null;
 
-                if (waMediaId) {
-                    payload = buildWhatsAppMediaPayload(contact.phone, content, waMediaId, mediaType, fileName);
+                if (mediaType === 'audio' && fileUrl) {
+                    // Download MP3 from Supabase and upload to WhatsApp media API
+                    const waMediaId = await uploadUrlToWhatsApp(
+                        config.phoneNumberId,
+                        accessToken,
+                        fileUrl,
+                        cleanMime, // audio/mpeg (MP3)
+                        fileName || 'voice-note.mp3',
+                    );
+
+                    if (waMediaId) {
+                        payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, 'audio');
+                    } else {
+                        payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: '🎤 Te envié una nota de voz.' } };
+                    }
+                }
+                // Non-audio with URL: send URL directly (images, docs, etc.)
+                else if (fileUrl) {
+                    payload = buildWhatsAppMediaPayloadByUrl(contact.phone, content, fileUrl, mediaType, fileName);
+                }
+                // Data URL fallback: upload to WhatsApp media API
+                else if (mediaUrl.startsWith('data:')) {
+                    const waMediaId = await uploadMediaToWhatsApp(
+                        config.phoneNumberId,
+                        accessToken,
+                        mediaUrl,
+                        cleanMime,
+                        fileName || 'file',
+                    );
+                    if (waMediaId) {
+                        payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, mediaType, fileName);
+                    } else {
+                        throw new Error('No se pudo enviar el archivo a WhatsApp.');
+                    }
                 } else {
-                    // Fallback to text if upload fails
-                    payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content || '[Archivo no disponible]' } };
+                    payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content } };
                 }
             } else {
                 payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content } };
@@ -202,7 +326,7 @@ export async function sendChannelMessage({
             const res = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${config.accessToken}`,
+                    Authorization: `Bearer ${accessToken}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload),
@@ -215,35 +339,36 @@ export async function sendChannelMessage({
                 throw new Error(`WhatsApp API error: ${errorMsg}`);
             }
         } else {
-            console.error('[WhatsApp] Channel missing accessToken or phoneNumberId');
             throw new Error('WhatsApp channel not configured');
         }
     } else if (channel.type === ChannelType.WEB_CHAT) {
         // Web chat: no external API to call, message is stored in DB below
+    } else if (channel.type === ChannelType.MESSENGER) {
+        const config = channel.configJson as { accessToken?: string; pageId?: string } | null;
+        const msgToken = readChannelSecret(config?.accessToken);
+        if (msgToken) {
+            // Messenger uses same API as Instagram DMs (Graph /PAGE_ID/messages)
+            const result = await sendInstagramMessageWithToken(contact.phone, content, msgToken, config?.pageId);
+            if (!result.success) {
+                throw new Error(`Messenger API error: ${result.message}`);
+            }
+        } else {
+            throw new Error('Messenger channel not configured');
+        }
     } else if (channel.type === ChannelType.INSTAGRAM) {
         const config = channel.configJson as { accessToken?: string; pageId?: string } | null;
-        if (config?.accessToken) {
-            const result = await sendInstagramMessageWithToken(contact.phone, content, config.accessToken, config.pageId);
+        const igToken = readChannelSecret(config?.accessToken);
+        if (igToken) {
+            const result = await sendInstagramMessageWithToken(contact.phone, content, igToken, config?.pageId);
             if (!result.success) {
                 throw new Error(`Instagram API error: ${result.message}`);
             }
         } else {
-            console.error('[Instagram] Channel missing accessToken');
             throw new Error('Instagram channel not configured');
         }
     }
 
-    // Upload data URL to Supabase Storage before saving
-    let storedMediaUrl = mediaUrl;
-    if (mediaUrl?.startsWith('data:') && mimeType) {
-        const ext = mimeType.split('/')[1]?.split(';')[0] || 'bin';
-        const name = fileName || `outbound.${ext}`;
-        const path = buildMediaPath(companyId, name);
-        const uploaded = await uploadDataUrlToStorage(mediaUrl, path, mimeType);
-        if (uploaded) storedMediaUrl = uploaded;
-    }
-
-    // Save the message in DB
+    // --- Step 3: Save to DB ---
     await prisma.message.create({
         data: {
             companyId,
@@ -254,7 +379,7 @@ export async function sendChannelMessage({
             content,
             mediaUrl: storedMediaUrl,
             mediaType,
-            mimeType,
+            mimeType: mimeType?.split(';')[0], // Store clean mime without codec params
             fileName,
         },
     });

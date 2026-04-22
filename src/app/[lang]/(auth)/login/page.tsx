@@ -1,78 +1,140 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import LoginForm from './login-form';
 import { getDictionary, Locale } from '@/lib/dictionary';
-import { CheckCircle2 } from 'lucide-react';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { LoginPreview } from './login-preview';
 
 export default async function LoginPage({ params }: { params: Promise<{ lang: Locale }> }) {
     const { lang } = await params;
     const dict = await getDictionary(lang);
     const d = dict.auth.login;
-    const panel = d.panel;
 
     return (
         <div className="flex min-h-screen">
-            {/* Left panel — emerald gradient (hidden on mobile) */}
-            <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 p-12 text-white overflow-hidden">
-                {/* Subtle grid overlay */}
-                <div
-                    className="pointer-events-none absolute inset-0 opacity-[0.04]"
-                    style={{
-                        backgroundImage:
-                            'linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px)',
-                        backgroundSize: '48px 48px',
-                    }}
-                />
-                {/* Glow */}
-                <div className="pointer-events-none absolute -top-32 -left-32 h-[500px] w-[500px] rounded-full bg-emerald-400/20 blur-[120px]" />
+            {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+            <link
+                href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=swap"
+                rel="stylesheet"
+            />
 
-                {/* Top — logo */}
-                <div className="relative z-10">
-                    <Image src="/logo.png" alt="Varylo" width={160} height={90} className="brightness-0 invert" priority />
-                </div>
+            {/* ── Left panel: interactive chat preview ── */}
+            <div className="hidden lg:flex lg:w-[46%] relative flex-col p-12 overflow-hidden bg-[#0C0F0E]">
+                {/* Emerald glows */}
+                <div className="pointer-events-none absolute bottom-0 left-0 h-[450px] w-[450px] rounded-full bg-emerald-500/10 blur-[130px]" />
+                <div className="pointer-events-none absolute top-0 right-0 h-[250px] w-[250px] rounded-full bg-emerald-500/5 blur-[80px]" />
 
-                {/* Center — headline + features */}
-                <div className="relative z-10 space-y-8">
+                {/* Logo */}
+                <Link href={`/${lang}`} className="relative z-10 shrink-0">
+                    <span
+                        className="text-xl font-black text-white tracking-tight"
+                        style={{ fontFamily: 'Outfit, sans-serif' }}
+                    >
+                        Varylo
+                    </span>
+                </Link>
+
+                {/* Middle content */}
+                <div className="relative z-10 flex-1 flex flex-col py-8 gap-5 min-h-0">
+
+                    {/* Headline */}
                     <div>
-                        <h1 className="text-3xl xl:text-4xl font-bold leading-tight">{panel.headline}</h1>
-                        <p className="mt-3 text-emerald-200/80 text-lg">{panel.subheadline}</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-[.18em] text-white/25 mb-2"
+                            style={{ fontFamily: 'Inter, sans-serif' }}>
+                            Plataforma omnicanal
+                        </p>
+                        <h2 className="text-[22px] font-black text-white/85 leading-snug"
+                            style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            Automatiza tu atención al cliente con IA
+                        </h2>
                     </div>
 
-                    {/* Glassmorphism card */}
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-sm p-6 space-y-4">
-                        {panel.features.map((feature: string, i: number) => (
-                            <div key={i} className="flex items-start gap-3">
-                                <CheckCircle2 className="h-5 w-5 text-emerald-400 mt-0.5 shrink-0" />
-                                <span className="text-sm text-emerald-100">{feature}</span>
+                    {/* Channel badges */}
+                    <div className="flex gap-2 flex-wrap">
+                        {[
+                            { label: 'WhatsApp',  color: '#25D366', bg: '#25D36618' },
+                            { label: 'Instagram', color: '#E1306C', bg: '#E1306C18' },
+                            { label: 'Web Chat',  color: '#3B82F6', bg: '#3B82F618' },
+                        ].map(ch => (
+                            <span
+                                key={ch.label}
+                                className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                                style={{ color: ch.color, background: ch.bg }}
+                            >
+                                {ch.label}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Chat widget */}
+                    <div className="flex-1 min-h-0 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 overflow-hidden">
+                        <LoginPreview />
+                    </div>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/[0.06]">
+                        {[
+                            { value: '1.2K', label: 'Conversaciones' },
+                            { value: '8',   label: 'Agentes activos' },
+                            { value: '98%', label: 'Satisfacción'    },
+                        ].map((s) => (
+                            <div key={s.label} className="text-center">
+                                <p className="text-[18px] font-bold text-white/70"
+                                    style={{ fontFamily: 'Outfit, sans-serif' }}>
+                                    {s.value}
+                                </p>
+                                <p className="text-[11px] text-white/25 mt-0.5"
+                                    style={{ fontFamily: 'Inter, sans-serif' }}>
+                                    {s.label}
+                                </p>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                {/* Bottom — copyright */}
-                <p className="relative z-10 text-xs text-emerald-300/50">
-                    &copy; {new Date().getFullYear()} Varylo. Todos los derechos reservados.
+                {/* Footer */}
+                <p className="relative z-10 shrink-0 text-[11px] text-white/15" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    © {new Date().getFullYear()} Varylo
                 </p>
             </div>
 
-            {/* Right panel — white form */}
-            <div className="flex flex-1 items-center justify-center bg-white px-6 py-12">
-                <div className="w-full max-w-md space-y-8">
+            {/* ── Right panel: form ── */}
+            <div className="relative flex flex-1 items-center justify-center bg-[#FAFAFA] px-6 py-12 border-l border-[#E4E4E7]">
+                <div className="absolute top-5 right-5">
+                    <LanguageSwitcher />
+                </div>
+
+                <div className="w-full max-w-[380px]" style={{ fontFamily: 'Inter, sans-serif' }}>
                     {/* Mobile logo */}
-                    <div className="lg:hidden flex justify-center mb-4">
-                        <Image src="/logo.png" alt="Varylo" width={140} height={79} priority />
+                    <div className="lg:hidden flex justify-center mb-8">
+                        <span className="text-2xl font-black text-[#09090B]" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                            Varylo
+                        </span>
                     </div>
 
-                    <div className="text-center">
-                        <h2 className="text-2xl font-semibold tracking-tight text-gray-900">{d.title}</h2>
-                        <p className="mt-2 text-sm text-gray-500">{d.subtitle}</p>
+                    <div className="mb-8">
+                        <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[#10B981] mb-5">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M4 6h6v6H4V6z" fill="white" fillOpacity=".9" />
+                                <path d="M10 6h10v2H10V6z" fill="white" fillOpacity=".5" />
+                                <path d="M10 10h6v2h-6v-2z" fill="white" fillOpacity=".5" />
+                                <path d="M4 14h16v2H4v-2z" fill="white" fillOpacity=".7" />
+                                <path d="M4 18h10v2H4v-2z" fill="white" fillOpacity=".4" />
+                            </svg>
+                        </div>
+                        <h1 className="text-[22px] font-bold text-[#09090B]">{d.title}</h1>
+                        <p className="mt-1 text-sm text-[#71717A]">{d.subtitle}</p>
                     </div>
 
-                    <LoginForm dict={d} lang={lang} />
+                    <div className="bg-white rounded-2xl border border-[#E4E4E7] shadow-sm px-6 py-6">
+                        <LoginForm dict={d} lang={lang} />
+                    </div>
 
-                    <p className="text-center text-sm text-gray-500">
+                    <p className="mt-5 text-center text-[13px] text-[#71717A]">
                         {d.noAccount}{' '}
-                        <Link href={`/${lang}/register`} className="font-medium text-emerald-600 hover:text-emerald-500 transition-colors">
+                        <Link
+                            href={`/${lang}/register`}
+                            className="text-[#10B981] hover:text-[#059669] font-medium transition-colors"
+                        >
                             {d.register}
                         </Link>
                     </p>

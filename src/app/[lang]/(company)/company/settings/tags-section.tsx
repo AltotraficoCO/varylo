@@ -17,6 +17,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface TagWithCount {
     id: string;
@@ -31,19 +32,23 @@ export function TagsSection({ tags }: { tags: TagWithCount[] }) {
     const [deleteTarget, setDeleteTarget] = useState<TagWithCount | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    const dict = useDictionary();
+    const t = dict.settingsUI?.tagsSection || {};
+    const ui = dict.ui || {};
+
     const handleDelete = async () => {
         if (!deleteTarget) return;
         setIsDeleting(true);
         try {
             const result = await deleteTag(deleteTarget.id);
             if (result.success) {
-                toast.success('Etiqueta eliminada');
+                toast.success(t.tagDeleted || 'Etiqueta eliminada');
                 setDeleteTarget(null);
             } else {
-                toast.error(result.error || 'Error al eliminar');
+                toast.error(result.error || (t.deleteError || 'Error al eliminar'));
             }
         } catch {
-            toast.error('Error al eliminar');
+            toast.error(t.deleteError || 'Error al eliminar');
         } finally {
             setIsDeleting(false);
         }
@@ -53,14 +58,14 @@ export function TagsSection({ tags }: { tags: TagWithCount[] }) {
         <>
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-semibold">Etiquetas</h2>
+                    <h2 className="text-lg font-semibold">{t.title || 'Etiquetas'}</h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Clasifica y organiza tus conversaciones con etiquetas de colores.
+                        {t.description || 'Clasifica y organiza tus conversaciones con etiquetas de colores.'}
                     </p>
                 </div>
                 <AddTagDialog>
                     <Button size="sm" className="gap-1.5">
-                        <Plus className="h-4 w-4" /> Nueva etiqueta
+                        <Plus className="h-4 w-4" /> {t.newTag || 'Nueva etiqueta'}
                     </Button>
                 </AddTagDialog>
             </div>
@@ -68,8 +73,8 @@ export function TagsSection({ tags }: { tags: TagWithCount[] }) {
             {tags.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-muted/20">
                     <TagIcon className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                    <p className="text-muted-foreground font-medium">No hay etiquetas</p>
-                    <p className="text-xs text-muted-foreground mt-1">Crea una etiqueta para organizar tus conversaciones.</p>
+                    <p className="text-muted-foreground font-medium">{t.noTags || 'No hay etiquetas'}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t.noTagsDesc || 'Crea una etiqueta para organizar tus conversaciones.'}</p>
                 </div>
             ) : (
                 <div className="rounded-lg border divide-y">
@@ -89,7 +94,7 @@ export function TagsSection({ tags }: { tags: TagWithCount[] }) {
                             </div>
                             <div className="flex items-center gap-3">
                                 {tag.showInSidebar && (
-                                    <Badge variant="secondary" className="text-[10px] h-5">Barra lateral</Badge>
+                                    <Badge variant="secondary" className="text-[10px] h-5">{t.sidebar || 'Barra lateral'}</Badge>
                                 )}
                                 {tag._count.conversations > 0 && (
                                     <Badge variant="outline" className="text-[10px] h-5">
@@ -115,24 +120,24 @@ export function TagsSection({ tags }: { tags: TagWithCount[] }) {
                     <AlertDialogHeader>
                         <AlertDialogTitle>
                             {deleteTarget && deleteTarget._count.conversations > 0
-                                ? 'No se puede eliminar'
-                                : `¿Eliminar "${deleteTarget?.name}"?`
+                                ? (t.cannotDelete || 'No se puede eliminar')
+                                : `${(t.deleteConfirmTitle || '¿Eliminar "{name}"?').replace('{name}', deleteTarget?.name || '')}`
                             }
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             {deleteTarget && deleteTarget._count.conversations > 0 ? (
                                 <span className="flex items-center gap-2">
                                     <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-                                    Esta etiqueta tiene {deleteTarget._count.conversations} conversación(es) asignada(s). Debes removerla de todas las conversaciones antes de poder eliminarla.
+                                    {(t.hasConversations || 'Esta etiqueta tiene {n} conversación(es) asignada(s). Debes removerla de todas las conversaciones antes de poder eliminarla.').replace('{n}', String(deleteTarget._count.conversations))}
                                 </span>
                             ) : (
-                                'Esta acción no se puede deshacer. La etiqueta se eliminará permanentemente.'
+                                t.deleteDesc || 'Esta acción no se puede deshacer. La etiqueta se eliminará permanentemente.'
                             )}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeleting}>
-                            {deleteTarget && deleteTarget._count.conversations > 0 ? 'Entendido' : 'Cancelar'}
+                            {deleteTarget && deleteTarget._count.conversations > 0 ? (t.understood || 'Entendido') : (ui.cancel || 'Cancelar')}
                         </AlertDialogCancel>
                         {deleteTarget && deleteTarget._count.conversations === 0 && (
                             <AlertDialogAction
@@ -140,7 +145,7 @@ export function TagsSection({ tags }: { tags: TagWithCount[] }) {
                                 disabled={isDeleting}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                                {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                                {isDeleting ? (ui.deleting || 'Eliminando...') : (ui.delete || 'Eliminar')}
                             </AlertDialogAction>
                         )}
                     </AlertDialogFooter>

@@ -4,7 +4,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { Role, MessageDirection } from '@prisma/client';
 
-export async function getAnalyticsData() {
+export async function getAnalyticsData(heatmapDays: number = 7) {
     const session = await auth();
     if (!session?.user?.companyId) return null;
     const companyId = session.user.companyId;
@@ -86,7 +86,7 @@ export async function getAnalyticsData() {
     // JS approach for MVP consistency/safety.
 
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - heatmapDays);
 
     const recentMessages = await prisma.message.findMany({
         where: {

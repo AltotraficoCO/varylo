@@ -9,6 +9,7 @@ import { rateLimitResponse } from '@/lib/rate-limit';
 import { extractMediaFromMessage, getWhatsAppMediaUrl, downloadWhatsAppMedia } from '@/lib/whatsapp-media';
 import { uploadToStorage, buildMediaPath } from '@/lib/storage';
 import { dispatchWebhookEvent } from '@/lib/api-webhooks';
+import { readChannelSecret } from '@/lib/channel-config';
 
 const MAX_MESSAGE_LENGTH = 4096;
 
@@ -34,7 +35,8 @@ async function verifyWebhookSignature(rawBody: Buffer, signature: string | null)
 
     for (const ch of channels) {
         const config = ch.configJson as { appSecret?: string } | null;
-        if (config?.appSecret && verifySignatureWithSecret(rawBody, signature, config.appSecret)) {
+        const channelAppSecret = readChannelSecret(config?.appSecret);
+        if (channelAppSecret && verifySignatureWithSecret(rawBody, signature, channelAppSecret)) {
             return true;
         }
     }
@@ -97,11 +99,6 @@ export async function POST(req: NextRequest) {
         // Verify webhook signature from Meta
         const signature = req.headers.get('x-hub-signature-256');
         const sigValid = await verifyWebhookSignature(rawBuffer, signature);
-        console.log('[WhatsApp Webhook] Incoming:', {
-            sigValid,
-            hasSignature: !!signature,
-            bodyPreview: rawBuffer.toString('utf-8').substring(0, 500),
-        });
         if (!sigValid) {
             return new NextResponse('Forbidden', { status: 403 });
         }
@@ -170,10 +167,11 @@ export async function POST(req: NextRequest) {
             if (channel) {
                 const companyId = channel.companyId;
                 const config = channel.configJson as { phoneNumberId?: string; accessToken?: string } | null;
+                const waToken = readChannelSecret(config?.accessToken);
 
                 // Mark message as read immediately (blue checkmarks)
-                if (config?.accessToken && config?.phoneNumberId && messageId) {
-                    markWhatsAppMessageAsRead(config.phoneNumberId, config.accessToken, messageId);
+                if (waToken && config?.phoneNumberId && messageId) {
+                    markWhatsAppMessageAsRead(config.phoneNumberId, waToken, messageId);
                 }
 
                 // Download media from Meta and upload to Supabase Storage
@@ -182,12 +180,12 @@ export async function POST(req: NextRequest) {
                 let mimeType: string | undefined;
                 let fileName: string | undefined;
 
-                if (mediaInfo && config?.accessToken) {
+                if (mediaInfo && waToken) {
                     mediaType = mediaInfo.mediaType;
                     mimeType = mediaInfo.mimeType;
                     fileName = mediaInfo.fileName;
 
-                    const metaMedia = await getWhatsAppMediaUrl(mediaInfo.mediaId, config.accessToken);
+                    const metaMedia = await getWhatsAppMediaUrl(mediaInfo.mediaId, waToken);
                     if (metaMedia) {
                         const mime = metaMedia.mimeType || mediaInfo.mimeType || 'application/octet-stream';
                         const ext = mime.split('/')[1]?.split(';')[0] || 'bin';
@@ -196,7 +194,7 @@ export async function POST(req: NextRequest) {
 
                         // Download binary from Meta CDN
                         const mediaRes = await fetch(metaMedia.url, {
-                            headers: { Authorization: `Bearer ${config.accessToken}` },
+                            headers: { Authorization: `Bearer ${waToken}` },
                         });
 
                         if (mediaRes.ok) {

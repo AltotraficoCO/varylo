@@ -49,20 +49,20 @@ export function EditAgentDialog({ agent }: { agent: Agent }) {
                 </DialogHeader>
                 <form action={action} className="grid gap-4 py-4">
                     <input type="hidden" name="id" value={agent.id} />
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="edit-name" className="text-right">
+                    <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+                        <Label htmlFor="edit-name" className="sm:text-right">
                             Nombre
                         </Label>
                         <Input
                             id="edit-name"
                             name="name"
                             defaultValue={agent.name || ''}
-                            className="col-span-3"
+                            className="sm:col-span-3"
                             required
                         />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="edit-email" className="text-right">
+                    <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+                        <Label htmlFor="edit-email" className="sm:text-right">
                             Email
                         </Label>
                         <Input
@@ -70,7 +70,7 @@ export function EditAgentDialog({ agent }: { agent: Agent }) {
                             name="email"
                             type="email"
                             defaultValue={agent.email}
-                            className="col-span-3"
+                            className="sm:col-span-3"
                             required
                         />
                     </div>

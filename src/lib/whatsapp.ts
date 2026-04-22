@@ -22,6 +22,5 @@ export async function sendWhatsAppMessage(to: string, text: string) {
         })
     });
     */
-    console.log(`[STUB] Sending message to ${to}: ${text}`);
     return { success: true };
 }

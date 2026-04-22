@@ -14,10 +14,17 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Sidebar, TagData } from './sidebar';
+import { Sidebar, TagData, SidebarDict } from './sidebar';
 import { StatusSelector } from './status-selector';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { useState } from 'react';
 import { updateUserStatus } from '@/lib/user-status';
+
+export interface HeaderDict {
+    myAccount: string;
+    profile: string;
+    signOut: string;
+}
 
 interface DashboardHeaderProps {
     title: string;
@@ -27,14 +34,23 @@ interface DashboardHeaderProps {
     userStatus?: 'ONLINE' | 'BUSY' | 'OFFLINE';
     userName?: string;
     userEmail?: string;
+    dict?: HeaderDict;
+    sidebarDict?: SidebarDict;
 }
 
-export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OFFLINE', userName, userEmail }: DashboardHeaderProps) {
+const defaultDict: HeaderDict = {
+    myAccount: 'Mi Cuenta',
+    profile: 'Perfil',
+    signOut: 'Cerrar sesión',
+};
+
+export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OFFLINE', userName, userEmail, dict, sidebarDict }: DashboardHeaderProps) {
     const [open, setOpen] = useState(false);
     const initial = userName ? userName.charAt(0).toUpperCase() : null;
+    const t = dict || defaultDict;
 
     return (
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-6 lg:h-[60px] justify-between lg:justify-end">
+        <header className="flex h-14 items-center gap-2 sm:gap-4 border-b bg-background px-3 sm:px-6 lg:h-[60px] justify-between lg:justify-end">
             <Sheet open={open} onOpenChange={setOpen}>
                 <SheetTrigger asChild>
                     <Button
@@ -53,19 +69,22 @@ export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OF
                         tags={tags}
                         className="border-none w-full"
                         onLinkClick={() => setOpen(false)}
+                        dict={sidebarDict}
                     />
                 </SheetContent>
             </Sheet>
 
-            <div className="w-full flex-1 lg:hidden">
-                <div className="flex items-center ml-2">
-                    <Image src="/logo.png" alt="Varylo" width={120} height={67} />
+            <div className="flex-1 min-w-0 lg:hidden">
+                <div className="flex items-center">
+                    <Image src="/logo.png" alt="Varylo" width={96} height={54} className="h-8 w-auto" priority />
                 </div>
             </div>
 
             <div className="hidden lg:flex w-full flex-1">
                 <h1 className="text-lg font-semibold">{title}</h1>
             </div>
+
+            <LanguageSwitcher />
 
             {role !== 'super-admin' && (
                 <StatusSelector initialStatus={userStatus} />
@@ -85,14 +104,14 @@ export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OF
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>
                         <div>
-                            <p>Mi Cuenta</p>
+                            <p>{t.myAccount}</p>
                             {userEmail && <p className="text-xs font-normal text-muted-foreground">{userEmail}</p>}
                         </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>
                         <Link href={role === 'agent' ? `/${lang}/agent/profile` : `/${lang}/company/settings`} className="w-full">
-                            Perfil
+                            {t.profile}
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -100,7 +119,7 @@ export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OF
                         await updateUserStatus('OFFLINE');
                         signOut();
                     }}>
-                        Cerrar sesión
+                        {t.signOut}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>

@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { X, Trash2, Plus, MessageCircle, User, Bot, XCircle, Link2, Unlink, FileInput, Send, Paperclip } from 'lucide-react';
 import type { ChatbotFlowNode, ChatbotFlowOption, ChatbotDataCapture, WebhookConfig } from '@/types/chatbot';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface NodeEditPanelProps {
     nodeId: string;
@@ -37,6 +38,8 @@ export function NodeEditPanel({
     onDelete,
     onClose,
 }: NodeEditPanelProps) {
+    const dict = useDictionary();
+    const t = dict.chatbots || {};
     const addOption = () => {
         const optionNumber = (node.options?.length || 0) + 1;
         const newOption: ChatbotFlowOption = {
@@ -99,8 +102,8 @@ export function NodeEditPanel({
             <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-background z-10">
                 <div className="flex items-center gap-2 min-w-0">
                     {getNodeIcon()}
-                    <span className="font-semibold text-sm truncate">Editar paso</span>
-                    {isStart && <Badge variant="default" className="text-[10px] h-4 px-1.5">INICIO</Badge>}
+                    <span className="font-semibold text-sm truncate">{t.editStep}</span>
+                    {isStart && <Badge variant="default" className="text-[10px] h-4 px-1.5">{t.start}</Badge>}
                 </div>
                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onClose}>
                     <X className="h-4 w-4" />
@@ -110,23 +113,23 @@ export function NodeEditPanel({
             <div className="p-4 space-y-5">
                 {/* Node name */}
                 <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Nombre del paso</Label>
+                    <Label className="text-xs text-muted-foreground">{t.stepName}</Label>
                     <Input
                         value={label}
                         onChange={(e) => onUpdateLabel(e.target.value)}
-                        placeholder="Nombre del paso..."
+                        placeholder={t.stepNamePlaceholder}
                         className="h-9"
                     />
                 </div>
 
                 {/* Message */}
                 <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Mensaje del chatbot</Label>
+                    <Label className="text-xs text-muted-foreground">{t.chatbotMessage}</Label>
                     <Textarea
                         value={node.message}
                         onChange={(e) => onUpdateNode(nodeId, { message: e.target.value })}
                         rows={4}
-                        placeholder="Escribe el mensaje que vera el cliente..."
+                        placeholder={t.chatbotMessagePlaceholder}
                         className="resize-none"
                     />
                 </div>
@@ -134,34 +137,34 @@ export function NodeEditPanel({
                 {/* Data capture config */}
                 {isDataCapture && node.dataCapture && (
                     <div className="space-y-4 p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                        <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Configuracion de captura</p>
+                        <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{t.captureConfig}</p>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">Nombre del campo (interno)</Label>
+                            <Label className="text-xs text-muted-foreground">{t.fieldNameInternal}</Label>
                             <Input
                                 value={node.dataCapture.fieldName}
                                 onChange={(e) => onUpdateNode(nodeId, {
                                     dataCapture: { ...node.dataCapture!, fieldName: e.target.value.toLowerCase().replace(/\s+/g, '_') },
                                 })}
-                                placeholder="ej: nombre, cedula, email"
+                                placeholder={t.fieldNamePlaceholder}
                                 className="h-8 text-sm"
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">Etiqueta visible</Label>
+                            <Label className="text-xs text-muted-foreground">{t.visibleLabel}</Label>
                             <Input
                                 value={node.dataCapture.fieldLabel}
                                 onChange={(e) => onUpdateNode(nodeId, {
                                     dataCapture: { ...node.dataCapture!, fieldLabel: e.target.value },
                                 })}
-                                placeholder="ej: Nombre completo, Numero de cedula"
+                                placeholder={t.visibleLabelPlaceholder}
                                 className="h-8 text-sm"
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">Tipo de validacion</Label>
+                            <Label className="text-xs text-muted-foreground">{t.validationType}</Label>
                             <select
                                 value={node.dataCapture.validation || 'text'}
                                 onChange={(e) => onUpdateNode(nodeId, {
@@ -169,17 +172,17 @@ export function NodeEditPanel({
                                 })}
                                 className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
-                                <option value="text">Texto libre</option>
-                                <option value="email">Correo electronico</option>
-                                <option value="phone">Telefono</option>
-                                <option value="number">Numero</option>
-                                <option value="document">Documento / Archivo (PDF, imagen)</option>
+                                <option value="text">{t.validationText}</option>
+                                <option value="email">{t.validationEmail}</option>
+                                <option value="phone">{t.validationPhone}</option>
+                                <option value="number">{t.validationNumber}</option>
+                                <option value="document">{t.validationDocument}</option>
                             </select>
                         </div>
 
                         {node.dataCapture.validation === 'document' && (
                             <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                                El usuario debera enviar un archivo (PDF, imagen, documento). Se reenviara al webhook configurado.
+                                {t.documentUploadHint}
                             </p>
                         )}
 
@@ -187,12 +190,12 @@ export function NodeEditPanel({
                             {node.dataCapture.nextNodeId && getConnectedLabel(node.dataCapture.nextNodeId) ? (
                                 <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
                                     <Link2 className="h-3 w-3" />
-                                    <span>Siguiente paso: <strong>{getConnectedLabel(node.dataCapture.nextNodeId)}</strong></span>
+                                    <span>{t.nextStep}: <strong>{getConnectedLabel(node.dataCapture.nextNodeId)}</strong></span>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <Unlink className="h-3 w-3" />
-                                    <span>Arrastra la linea en el canvas para conectar al siguiente paso</span>
+                                    <span>{t.dragToConnect}</span>
                                 </div>
                             )}
                         </div>
@@ -202,7 +205,7 @@ export function NodeEditPanel({
                 {/* Action type (only for non-data-capture nodes) */}
                 {!isDataCapture && (
                     <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Que hace este paso?</Label>
+                        <Label className="text-xs text-muted-foreground">{t.whatDoesThisStep}</Label>
                         <select
                             value={node.action?.type || 'show_options'}
                             onChange={(e) => {
@@ -218,11 +221,11 @@ export function NodeEditPanel({
                             }}
                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
-                            <option value="show_options">Mostrar opciones al cliente</option>
-                            <option value="transfer_to_human">Transferir a agente humano</option>
-                            <option value="transfer_to_ai_agent">Transferir a agente IA</option>
-                            <option value="send_to_webhook">Enviar datos a webhook (ERP)</option>
-                            <option value="end_conversation">Finalizar conversacion</option>
+                            <option value="show_options">{t.showOptions}</option>
+                            <option value="transfer_to_human">{t.transferToHuman}</option>
+                            <option value="transfer_to_ai_agent">{t.transferToAiAgent}</option>
+                            <option value="send_to_webhook">{t.sendToWebhook}</option>
+                            <option value="end_conversation">{t.endConversation}</option>
                         </select>
                     </div>
                 )}
@@ -230,26 +233,26 @@ export function NodeEditPanel({
                 {/* Webhook config (shown when send_to_webhook action selected) */}
                 {isWebhookAction && (
                     <div className="space-y-4 p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <p className="text-xs font-medium text-blue-700 dark:text-blue-300">Configuracion de webhook</p>
+                        <p className="text-xs font-medium text-blue-700 dark:text-blue-300">{t.webhookConfig}</p>
                         <p className="text-[10px] text-muted-foreground">
-                            Al llegar a este paso, se enviaran todos los datos capturados (incluyendo documentos) al URL configurado via POST.
+                            {t.webhookConfigHint}
                         </p>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">URL del webhook</Label>
+                            <Label className="text-xs text-muted-foreground">{t.webhookUrl}</Label>
                             <Input
                                 value={webhookConfig?.url || ''}
                                 onChange={(e) => onUpdateWebhookConfig?.({
                                     ...webhookConfig,
                                     url: e.target.value,
                                 })}
-                                placeholder="https://tu-erp.com/api/webhook"
+                                placeholder={t.webhookUrlPlaceholder}
                                 className="h-8 text-sm"
                             />
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">Secret HMAC (opcional)</Label>
+                            <Label className="text-xs text-muted-foreground">{t.webhookSecret}</Label>
                             <Input
                                 type="password"
                                 value={webhookConfig?.secret || ''}
@@ -258,11 +261,11 @@ export function NodeEditPanel({
                                     url: webhookConfig?.url || '',
                                     secret: e.target.value || undefined,
                                 })}
-                                placeholder="clave-secreta-para-firmar"
+                                placeholder={t.webhookSecretPlaceholder}
                                 className="h-8 text-sm"
                             />
                             <p className="text-[10px] text-muted-foreground">
-                                Se envia como header X-Varylo-Signature para que tu sistema verifique la autenticidad.
+                                {t.webhookSecretHint}
                             </p>
                         </div>
 
@@ -303,12 +306,12 @@ export function NodeEditPanel({
 
                             return (
                                 <div className="space-y-1.5 mt-2">
-                                    <Label className="text-xs text-muted-foreground">Ejemplo del payload (POST JSON)</Label>
+                                    <Label className="text-xs text-muted-foreground">{t.payloadExample}</Label>
                                     <pre className="text-[10px] bg-zinc-900 text-green-400 p-3 rounded-md overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">
                                         {JSON.stringify(examplePayload, null, 2)}
                                     </pre>
                                     <p className="text-[10px] text-muted-foreground">
-                                        Usa este ejemplo para mapear los campos en tu sistema externo.
+                                        {t.payloadExampleHint}
                                     </p>
                                 </div>
                             );
@@ -320,8 +323,8 @@ export function NodeEditPanel({
                 {!node.action && !isDataCapture && (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <Label className="text-xs text-muted-foreground">Opciones para el cliente</Label>
-                            <span className="text-[10px] text-muted-foreground">{node.options?.length || 0} opciones</span>
+                            <Label className="text-xs text-muted-foreground">{t.clientOptions}</Label>
+                            <span className="text-[10px] text-muted-foreground">{node.options?.length || 0} {t.optionsCount}</span>
                         </div>
 
                         {(node.options || []).map((option, optIndex) => (
@@ -352,18 +355,18 @@ export function NodeEditPanel({
                                             match: Array.from(matchSet),
                                         });
                                     }}
-                                    placeholder="Texto de la opcion"
+                                    placeholder={t.optionTextPlaceholder}
                                     className="h-8 text-sm"
                                 />
                                 {option.nextNodeId && getConnectedLabel(option.nextNodeId) ? (
                                     <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
                                         <Link2 className="h-3 w-3" />
-                                        <span>Conectado a: <strong>{getConnectedLabel(option.nextNodeId)}</strong></span>
+                                        <span>{t.connectedTo} <strong>{getConnectedLabel(option.nextNodeId)}</strong></span>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <Unlink className="h-3 w-3" />
-                                        <span>Arrastra la linea en el canvas para conectar</span>
+                                        <span>{t.dragToConnectShort}</span>
                                     </div>
                                 )}
                             </div>
@@ -376,7 +379,7 @@ export function NodeEditPanel({
                             className="w-full border-dashed"
                         >
                             <Plus className="mr-1.5 h-3.5 w-3.5" />
-                            Agregar opcion
+                            {t.addOptionBtn}
                         </Button>
                     </div>
                 )}
@@ -384,7 +387,7 @@ export function NodeEditPanel({
                 {/* Preview */}
                 {node.message && !node.action && !isDataCapture && (node.options?.length || 0) > 0 && (
                     <div className="border rounded-lg p-3 bg-muted/20">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Vista previa</p>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">{t.preview}</p>
                         <div className="bg-background rounded-lg p-3 shadow-sm border text-sm space-y-2">
                             <p className="whitespace-pre-wrap">{node.message}</p>
                             <div className="border-t pt-2 space-y-1">
@@ -408,7 +411,7 @@ export function NodeEditPanel({
                             onClick={onDelete}
                         >
                             <Trash2 className="mr-2 h-3.5 w-3.5" />
-                            Eliminar paso
+                            {t.deleteStep}
                         </Button>
                     </div>
                 )}

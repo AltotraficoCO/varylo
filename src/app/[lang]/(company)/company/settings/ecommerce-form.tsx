@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingBag, Check, Loader2, Unplug, TestTube } from 'lucide-react';
 import { saveEcommerceIntegration, disconnectEcommerce, testEcommerceIntegration } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 type EcommerceFormProps = {
     isConnected: boolean;
@@ -23,6 +24,10 @@ export function EcommerceForm({ isConnected, platform, storeUrl }: EcommerceForm
     const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
     const [state, formAction, isPending] = useActionState(saveEcommerceIntegration, undefined);
+
+    const dict = useDictionary();
+    const t = dict.settingsUI?.ecommerceForm || {};
+    const ui = dict.ui || {};
 
     const isSuccess = state?.startsWith('Success');
     const isError = state?.startsWith('Error');
@@ -57,18 +62,18 @@ export function EcommerceForm({ isConnected, platform, storeUrl }: EcommerceForm
                                 <ShoppingBag className="h-5 w-5" />
                             </div>
                             <div>
-                                <CardTitle className="text-lg">Tienda Online</CardTitle>
+                                <CardTitle className="text-lg">{t.storeTitle || 'Tienda Online'}</CardTitle>
                                 <CardDescription>
                                     {platform === 'shopify' ? 'Shopify' : 'WooCommerce'} - {storeUrl}
                                 </CardDescription>
                             </div>
                         </div>
-                        <Badge variant="default">Conectada</Badge>
+                        <Badge variant="default">{t.connected || 'Conectada'}</Badge>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                        Tu agente de IA puede consultar productos, precios e inventario de tu tienda. Los clientes pueden preguntar por productos durante la conversacion.
+                        {t.storeDesc || 'Tu agente de IA puede consultar productos, precios e inventario de tu tienda. Los clientes pueden preguntar por productos durante la conversacion.'}
                     </p>
 
                     {testResult && (
@@ -85,7 +90,7 @@ export function EcommerceForm({ isConnected, platform, storeUrl }: EcommerceForm
                             disabled={testing}
                         >
                             {testing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <TestTube className="h-4 w-4 mr-2" />}
-                            Probar conexion
+                            {t.testConnection || 'Probar conexion'}
                         </Button>
                         <Button
                             variant="destructive"
@@ -94,7 +99,7 @@ export function EcommerceForm({ isConnected, platform, storeUrl }: EcommerceForm
                             disabled={disconnecting}
                         >
                             {disconnecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Unplug className="h-4 w-4 mr-2" />}
-                            Desconectar
+                            {ui.disconnect || 'Desconectar'}
                         </Button>
                     </div>
                 </CardContent>
@@ -110,85 +115,93 @@ export function EcommerceForm({ isConnected, platform, storeUrl }: EcommerceForm
                         <ShoppingBag className="h-5 w-5" />
                     </div>
                     <div>
-                        <CardTitle className="text-lg">Conectar Tienda Online</CardTitle>
+                        <CardTitle className="text-lg">
+                            {platform === 'shopify' ? (t.connectShopify || 'Conectar Shopify') : platform === 'woocommerce' ? (t.connectWordpress || 'Conectar WordPress') : (t.connectStore || 'Conectar Tienda Online')}
+                        </CardTitle>
                         <CardDescription>
-                            Conecta tu tienda de Shopify o WooCommerce para que el agente de IA pueda consultar productos, precios e inventario.
+                            {platform === 'shopify'
+                                ? (t.shopifyDesc || 'Conecta tu tienda Shopify para que el agente IA consulte productos, precios e inventario.')
+                                : platform === 'woocommerce'
+                                ? (t.woocommerceDesc || 'Conecta tu WooCommerce para que el agente IA consulte productos, precios e inventario.')
+                                : (t.storeGenericDesc || 'Conecta tu tienda para que el agente IA consulte productos, precios e inventario.')}
                         </CardDescription>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
                 <form action={formAction} className="space-y-5">
-                    {/* Platform selection */}
-                    <div className="space-y-2">
-                        <Label>Plataforma</Label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setSelectedPlatform('shopify')}
-                                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                                    selectedPlatform === 'shopify'
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-muted hover:border-muted-foreground/30'
-                                }`}
-                            >
-                                <div className="font-semibold text-sm">Shopify</div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                    Admin API Access Token
-                                </div>
-                                {selectedPlatform === 'shopify' && (
-                                    <Check className="h-4 w-4 text-primary mt-2" />
-                                )}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedPlatform('woocommerce')}
-                                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                                    selectedPlatform === 'woocommerce'
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-muted hover:border-muted-foreground/30'
-                                }`}
-                            >
-                                <div className="font-semibold text-sm">WooCommerce</div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                    WordPress + WooCommerce
-                                </div>
-                                {selectedPlatform === 'woocommerce' && (
-                                    <Check className="h-4 w-4 text-primary mt-2" />
-                                )}
-                            </button>
+                    {/* Platform selection - only show if not pre-selected */}
+                    {!platform && (
+                        <div className="space-y-2">
+                            <Label>{t.platformLabel || 'Plataforma'}</Label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedPlatform('shopify')}
+                                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                                        selectedPlatform === 'shopify'
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-muted hover:border-muted-foreground/30'
+                                    }`}
+                                >
+                                    <div className="font-semibold text-sm">Shopify</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                        Admin API Access Token
+                                    </div>
+                                    {selectedPlatform === 'shopify' && (
+                                        <Check className="h-4 w-4 text-primary mt-2" />
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedPlatform('woocommerce')}
+                                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                                        selectedPlatform === 'woocommerce'
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-muted hover:border-muted-foreground/30'
+                                    }`}
+                                >
+                                    <div className="font-semibold text-sm">WooCommerce</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                        WordPress + WooCommerce
+                                    </div>
+                                    {selectedPlatform === 'woocommerce' && (
+                                        <Check className="h-4 w-4 text-primary mt-2" />
+                                    )}
+                                </button>
+                            </div>
                         </div>
-                        <input type="hidden" name="platform" value={selectedPlatform} />
-                    </div>
+                    )}
+                    <input type="hidden" name="platform" value={selectedPlatform} />
 
                     {selectedPlatform && (
                         <>
                             {/* Store URL */}
                             <div className="space-y-2">
                                 <Label htmlFor="storeUrl">
-                                    {selectedPlatform === 'shopify' ? 'URL de la tienda Shopify' : 'URL de tu sitio WordPress'}
+                                    {selectedPlatform === 'shopify' ? (t.shopifyUrlLabel || 'URL de la tienda Shopify') : (t.wooUrlLabel || 'URL de tu sitio WordPress')}
                                 </Label>
                                 <Input
                                     id="storeUrl"
                                     name="storeUrl"
                                     placeholder={
                                         selectedPlatform === 'shopify'
-                                            ? 'mitienda.myshopify.com'
-                                            : 'https://mitienda.com'
+                                            ? (t.shopifyUrlPlaceholder || 'mitienda.myshopify.com')
+                                            : (t.wooUrlPlaceholder || 'https://mitienda.com')
                                     }
                                     required
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     {selectedPlatform === 'shopify'
-                                        ? 'El subdominio de tu tienda Shopify (sin https://)'
-                                        : 'La URL completa de tu sitio WordPress con WooCommerce'}
+                                        ? (t.shopifyUrlHint || 'El subdominio de tu tienda Shopify (sin https://)')
+                                        : (t.wooUrlHint || 'La URL completa de tu sitio WordPress con WooCommerce')}
                                 </p>
                             </div>
 
                             {/* API Key */}
                             <div className="space-y-2">
                                 <Label htmlFor="apiKey">
-                                    {selectedPlatform === 'shopify' ? 'Admin API Access Token' : 'Consumer Key'}
+                                    {selectedPlatform === 'shopify' ? (t.shopifyApiKeyLabel || 'Admin API Access Token') : (t.wooApiKeyLabel || 'Consumer Key')}
                                 </Label>
                                 <Input
                                     id="apiKey"
@@ -203,8 +216,8 @@ export function EcommerceForm({ isConnected, platform, storeUrl }: EcommerceForm
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     {selectedPlatform === 'shopify'
-                                        ? 'Ve a Settings > Apps > Develop apps > tu app > Admin API access token'
-                                        : 'Ve a WooCommerce > Settings > Advanced > REST API > Add key'}
+                                        ? (t.shopifyApiKeyHint || 'Ve a Settings > Apps > Develop apps > tu app > Admin API access token')
+                                        : (t.wooApiKeyHint || 'Ve a WooCommerce > Settings > Advanced > REST API > Add key')}
                                 </p>
                             </div>
 
@@ -233,10 +246,10 @@ export function EcommerceForm({ isConnected, platform, storeUrl }: EcommerceForm
                                 {isPending ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        Conectando...
+                                        {t.connecting || 'Conectando...'}
                                     </>
                                 ) : (
-                                    'Conectar tienda'
+                                    t.connectButton || 'Conectar tienda'
                                 )}
                             </Button>
                         </>

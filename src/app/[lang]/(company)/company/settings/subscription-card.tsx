@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Crown, AlertTriangle, Check } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { cancelMySubscription, subscribeToPlan } from './billing-actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 type ActiveSubscription = {
     id: string;
@@ -19,6 +20,14 @@ type ActiveSubscription = {
     };
     paymentSource: { brand: string | null; lastFour: string | null };
 } | null;
+
+function getEffectiveStatus(sub: ActiveSubscription): string {
+    if (!sub) return '';
+    if ((sub.status === 'ACTIVE' || sub.status === 'TRIAL') && sub.currentPeriodEnd) {
+        if (new Date(sub.currentPeriodEnd).getTime() < Date.now()) return 'EXPIRED';
+    }
+    return sub.status;
+}
 
 type AvailablePlan = {
     id: string;
@@ -41,22 +50,6 @@ function formatCOP(cents: number): string {
     }).format(cents / 100);
 }
 
-const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    ACTIVE: { label: 'Activa', variant: 'default' },
-    TRIAL: { label: 'Prueba', variant: 'secondary' },
-    PAST_DUE: { label: 'Pago pendiente', variant: 'destructive' },
-    CANCELLED: { label: 'Cancelada', variant: 'outline' },
-    EXPIRED: { label: 'Vencida', variant: 'destructive' },
-};
-
-function getEffectiveStatus(sub: ActiveSubscription): string {
-    if (!sub) return '';
-    if ((sub.status === 'ACTIVE' || sub.status === 'TRIAL') && sub.currentPeriodEnd) {
-        if (new Date(sub.currentPeriodEnd).getTime() < Date.now()) return 'EXPIRED';
-    }
-    return sub.status;
-}
-
 export function SubscriptionCard({
     subscription,
     availablePlans,
@@ -70,6 +63,17 @@ export function SubscriptionCard({
     const [error, setError] = useState('');
     const [warning, setWarning] = useState('');
     const [installments, setInstallments] = useState<Record<string, number>>({});
+
+    const dict = useDictionary();
+    const t = dict.settingsUI?.subscriptionCard || {};
+    const ui = dict.ui || {};
+
+    const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+        ACTIVE: { label: t.statusActive || 'Activa', variant: 'default' },
+        TRIAL: { label: t.statusTrial || 'Prueba', variant: 'secondary' },
+        PAST_DUE: { label: t.statusPastDue || 'Pago pendiente', variant: 'destructive' },
+        CANCELLED: { label: t.statusCancelled || 'Cancelada', variant: 'outline' },
+    };
 
     async function handleSubscribe(planPricingId: string, planInstallments: number) {
         setLoading(planPricingId);
@@ -85,7 +89,7 @@ export function SubscriptionCard({
     }
 
     async function handleCancel() {
-        if (!confirm('¿Estás seguro de cancelar tu suscripción?')) return;
+        if (!confirm(t.cancelConfirm || '¿Estás seguro de cancelar tu suscripción?')) return;
         setLoading('cancel');
         setError('');
         const result = await cancelMySubscription();
@@ -103,25 +107,25 @@ export function SubscriptionCard({
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Crown className="h-5 w-5" />
-                            <CardTitle>Tu Suscripción</CardTitle>
+                            <CardTitle>{t.yourSubscription || 'Tu Suscripción'}</CardTitle>
                         </div>
                         <Badge variant={status.variant}>{status.label}</Badge>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <div>
-                        <p className="text-sm text-muted-foreground">Plan actual</p>
+                        <p className="text-sm text-muted-foreground">{t.currentPlan || 'Plan actual'}</p>
                         <p className="text-xl font-bold">{subscription.planPricing.landingPlan.name}</p>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2 text-sm">
                         <div>
-                            <span className="text-muted-foreground">Período:</span>{' '}
+                            <span className="text-muted-foreground">{t.currentPeriod || 'Período actual:'}</span>{' '}
                             {new Date(subscription.currentPeriodStart).toLocaleDateString('es-CO')} —{' '}
                             {new Date(subscription.currentPeriodEnd).toLocaleDateString('es-CO')}
                         </div>
                         {subscription.paymentSource.lastFour && subscription.paymentSource.brand !== 'CORTESIA' && (
                             <div>
-                                <span className="text-muted-foreground">Tarjeta:</span>{' '}
+                                <span className="text-muted-foreground">{t.cardLabel || 'Tarjeta:'}</span>{' '}
                                 {subscription.paymentSource.brand} •••• {subscription.paymentSource.lastFour}
                             </div>
                         )}
@@ -139,16 +143,16 @@ export function SubscriptionCard({
                     {subscription.status === 'PAST_DUE' && (
                         <div className="flex items-center gap-2 text-amber-700 text-sm">
                             <AlertTriangle className="h-4 w-4" />
-                            <span>Hay un problema con tu pago. Actualiza tu tarjeta.</span>
+                            <span>{t.paymentIssue || 'Hay un problema con tu pago. Actualiza tu tarjeta.'}</span>
                         </div>
                     )}
                     {subscription.cancelledAt && subscription.status !== 'CANCELLED' && !isExpired && (
                         <div className="flex items-center gap-2 text-amber-700 text-sm bg-amber-50 p-3 rounded-lg">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             <span>
-                                Tu suscripción fue cancelada. El plan seguirá activo hasta el{' '}
+                                {t.cancelledNotice || 'Tu suscripción fue cancelada. El plan seguirá activo hasta el'}{' '}
                                 <strong>{new Date(subscription.currentPeriodEnd).toLocaleDateString('es-CO')}</strong>.
-                                No se realizarán más cobros.
+                                {' '}{t.noMoreCharges || 'No se realizarán más cobros.'}
                             </span>
                         </div>
                     )}
@@ -162,7 +166,7 @@ export function SubscriptionCard({
                             onClick={handleCancel}
                             disabled={loading === 'cancel'}
                         >
-                            {loading === 'cancel' ? 'Cancelando...' : 'Cancelar suscripción'}
+                            {loading === 'cancel' ? (t.cancelling || 'Cancelando...') : (t.cancelButton || 'Cancelar suscripción')}
                         </Button>
                     )}
                 </CardFooter>
@@ -176,21 +180,21 @@ export function SubscriptionCard({
             <CardHeader>
                 <div className="flex items-center gap-2">
                     <Crown className="h-5 w-5" />
-                    <CardTitle>Planes de Suscripción</CardTitle>
+                    <CardTitle>{t.plansTitle || 'Planes de Suscripción'}</CardTitle>
                 </div>
                 <CardDescription>
-                    Elige un plan para activar tu suscripción recurrente.
+                    {t.plansDesc || 'Elige un plan para activar tu suscripción recurrente.'}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {!hasPaymentSource && (
                     <div className="flex items-center gap-2 text-amber-700 text-sm bg-amber-50 dark:bg-amber-950/10 p-3 rounded-lg">
                         <AlertTriangle className="h-4 w-4" />
-                        <span>Primero agrega una tarjeta de pago abajo.</span>
+                        <span>{t.addCardFirst || 'Primero agrega una tarjeta de pago abajo.'}</span>
                     </div>
                 )}
                 {availablePlans.length === 0 && (
-                    <p className="text-sm text-muted-foreground">No hay planes disponibles.</p>
+                    <p className="text-sm text-muted-foreground">{t.noPlansAvailable || 'No hay planes disponibles.'}</p>
                 )}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {availablePlans.map((plan) => (
@@ -202,11 +206,11 @@ export function SubscriptionCard({
                             <p className="text-2xl font-bold">
                                 {formatCOP(plan.priceInCents)}
                                 <span className="text-sm font-normal text-muted-foreground">
-                                    /{plan.billingPeriodDays} días
+                                    /{plan.billingPeriodDays} {ui.date === 'Date' ? 'days' : 'días'}
                                 </span>
                             </p>
                             {plan.trialDays > 0 && (
-                                <Badge variant="secondary">{plan.trialDays} días gratis</Badge>
+                                <Badge variant="secondary">{plan.trialDays} {t.freeTrialDays || 'días gratis'}</Badge>
                             )}
                             <ul className="space-y-1">
                                 {plan.landingPlan.features.slice(0, 4).map((f, i) => (
@@ -217,17 +221,17 @@ export function SubscriptionCard({
                                 ))}
                             </ul>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Cuotas</Label>
+                                <Label className="text-xs text-muted-foreground">{t.installments || 'Cuotas'}</Label>
                                 <select
                                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                                     value={installments[plan.id] || 1}
                                     onChange={(e) => setInstallments(prev => ({ ...prev, [plan.id]: Number(e.target.value) }))}
                                 >
-                                    <option value={1}>1 cuota</option>
-                                    <option value={2}>2 cuotas</option>
-                                    <option value={3}>3 cuotas</option>
-                                    <option value={6}>6 cuotas</option>
-                                    <option value={12}>12 cuotas</option>
+                                    <option value={1}>1 {t.installment || 'cuota'}</option>
+                                    <option value={2}>2 {t.installmentsPlural || 'cuotas'}</option>
+                                    <option value={3}>3 {t.installmentsPlural || 'cuotas'}</option>
+                                    <option value={6}>6 {t.installmentsPlural || 'cuotas'}</option>
+                                    <option value={12}>12 {t.installmentsPlural || 'cuotas'}</option>
                                 </select>
                             </div>
                             <Button
@@ -236,7 +240,7 @@ export function SubscriptionCard({
                                 disabled={!hasPaymentSource || loading === plan.id}
                                 onClick={() => handleSubscribe(plan.id, installments[plan.id] || 1)}
                             >
-                                {loading === plan.id ? 'Suscribiendo...' : 'Suscribirse'}
+                                {loading === plan.id ? (t.subscribing || 'Suscribiendo...') : (t.subscribe || 'Suscribirse')}
                             </Button>
                         </div>
                     ))}

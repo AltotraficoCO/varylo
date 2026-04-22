@@ -1,12 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Globe, Image as ImageIcon, Link2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Globe, Image as ImageIcon, Link2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrustedLogosManager } from './trusted-logos';
 import { FooterLinksCard } from './footer-links-card';
 import type { FooterSection } from '@/lib/site-config';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface TrustedLogo {
     id: string;
@@ -15,8 +14,6 @@ interface TrustedLogo {
     sortOrder: number;
     active: boolean;
 }
-
-type View = 'menu' | 'logos' | 'footer';
 
 export function SiteSettingsClient({
     logos,
@@ -27,124 +24,74 @@ export function SiteSettingsClient({
     footerSections: FooterSection[] | null;
     copyrightText: string | null;
 }) {
-    const [view, setView] = useState<View>('menu');
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.siteSettingsClient || {};
 
-    if (view === 'logos') {
-        return (
-            <div className="space-y-6">
-                <div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setView('menu')}
-                        className="gap-2 -ml-2 text-muted-foreground hover:text-foreground mb-2"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Volver
-                    </Button>
-                    <h2 className="text-2xl font-bold tracking-tight">Logos de confianza</h2>
-                    <p className="text-muted-foreground text-sm mt-1">
-                        Empresas que confían en Varylo. Se muestran en la landing page en escala de grises.
-                    </p>
-                </div>
-                <TrustedLogosManager logos={logos} />
-            </div>
-        );
-    }
-
-    if (view === 'footer') {
-        return (
-            <div className="space-y-6">
-                <div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setView('menu')}
-                        className="gap-2 -ml-2 text-muted-foreground hover:text-foreground mb-2"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Volver
-                    </Button>
-                    <h2 className="text-2xl font-bold tracking-tight">Enlaces del Footer</h2>
-                    <p className="text-muted-foreground text-sm mt-1">
-                        Configura las secciones y enlaces del pie de página de la landing.
-                    </p>
-                </div>
-                <FooterLinksCard
-                    initialSections={footerSections}
-                    initialCopyright={copyrightText}
-                />
-            </div>
-        );
-    }
-
-    // Menu view
-    const menuItems = [
-        {
-            id: 'logos' as View,
-            icon: ImageIcon,
-            title: 'Logos de confianza',
-            description: 'Empresas que confían en Varylo, mostrados en la landing.',
-            count: logos.length,
-            countLabel: logos.length === 1 ? 'logo' : 'logos',
-            color: 'bg-violet-50 text-violet-600 border-violet-100',
-            iconBg: 'bg-violet-100',
-        },
-        {
-            id: 'footer' as View,
-            icon: Link2,
-            title: 'Enlaces del Footer',
-            description: 'Secciones y enlaces del pie de página de la landing.',
-            count: (footerSections as any[])?.length || 0,
-            countLabel: 'secciones',
-            color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-            iconBg: 'bg-emerald-100',
-        },
-    ];
+    const logosCount = logos.length;
+    const footerCount = (footerSections as any[])?.length || 0;
 
     return (
         <div className="space-y-6">
-            <div>
-                <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                    <Globe className="h-6 w-6 text-primary" />
-                    Sitio Web
-                </h2>
-                <p className="text-muted-foreground mt-1">
-                    Personaliza la landing page de Varylo.
+            {/* Header */}
+            <div className="flex flex-col gap-1">
+                <h1 className="text-[28px] font-bold text-foreground flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                        <Globe className="h-5 w-5 text-primary" />
+                    </div>
+                    {t.siteTitle || 'Sitio Web'}
+                </h1>
+                <p className="text-sm text-muted-foreground ml-11">
+                    {t.siteDesc || 'Personaliza la landing page de Varylo.'}
                 </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-                {menuItems.map((item) => (
-                    <Card
-                        key={item.id}
-                        className="cursor-pointer hover:shadow-md hover:border-primary/30 transition-all group"
-                        onClick={() => setView(item.id)}
-                    >
-                        <CardContent className="pt-6 pb-5">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className={`p-3 rounded-xl ${item.iconBg}`}>
-                                    <item.icon className={`h-6 w-6 ${item.color.split(' ')[1]}`} />
-                                </div>
-                                <span className="text-2xl font-bold text-foreground">
-                                    {item.count}
-                                    <span className="text-xs font-normal text-muted-foreground ml-1">
-                                        {item.countLabel}
-                                    </span>
-                                </span>
+            {/* Tabs */}
+            <Tabs defaultValue="logos" className="space-y-6">
+                <TabsList className="h-auto p-1">
+                    <TabsTrigger value="logos" className="flex items-center gap-2 px-4 py-2">
+                        <ImageIcon className="h-4 w-4" />
+                        <span>{t.logosTitle || 'Logos de confianza'}</span>
+                        {logosCount > 0 && (
+                            <span className="ml-1 text-xs bg-primary/10 text-primary font-semibold rounded-full px-1.5 py-0.5">
+                                {logosCount}
+                            </span>
+                        )}
+                    </TabsTrigger>
+                    <TabsTrigger value="footer" className="flex items-center gap-2 px-4 py-2">
+                        <Link2 className="h-4 w-4" />
+                        <span>{t.footerTitle || 'Footer'}</span>
+                        {footerCount > 0 && (
+                            <span className="ml-1 text-xs bg-primary/10 text-primary font-semibold rounded-full px-1.5 py-0.5">
+                                {footerCount}
+                            </span>
+                        )}
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="logos" className="space-y-4 mt-0">
+                    <div className="bg-card rounded-xl border p-5">
+                        <div className="flex items-start gap-3 mb-5 pb-5 border-b border-[#F4F4F5] dark:border-[#27272A]">
+                            <div className="p-2 rounded-lg bg-violet-50 text-violet-600">
+                                <ImageIcon className="h-4 w-4" />
                             </div>
-                            <h3 className="font-semibold text-foreground mb-1">{item.title}</h3>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                                {item.description}
-                            </p>
-                            <div className="mt-4 flex items-center text-sm text-primary font-medium gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                Configurar
-                                <ArrowRight className="h-3.5 w-3.5" />
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">{t.logosTitle || 'Logos de confianza'}</p>
+                                <p className="text-[13px] text-muted-foreground mt-0.5">
+                                    {t.logosFullDesc || 'Empresas que confían en Varylo. Se muestran en la landing page en escala de grises.'}
+                                </p>
                             </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
+                        </div>
+                        <TrustedLogosManager logos={logos} />
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="footer" className="space-y-4 mt-0">
+                    <FooterLinksCard
+                        initialSections={footerSections}
+                        initialCopyright={copyrightText}
+                    />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Search, Loader2, Save, Phone, UserPlus, UserMinus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDictionary } from '@/lib/i18n-context';
 import {
   getContactListWithContacts,
   updateContactList,
@@ -42,6 +43,9 @@ export function EditListDialog({
   onClose: () => void;
   allContacts: Contact[];
 }) {
+  const dict = useDictionary();
+  const t = dict.broadcasts || {};
+  const ui = dict.ui || {};
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -110,7 +114,7 @@ export function EditListDialog({
     }
 
     setSaving(false);
-    toast.success('Lista actualizada');
+    toast.success(ui.updatedSuccessfully || 'Lista actualizada');
     router.refresh();
     onClose();
   };
@@ -122,9 +126,9 @@ export function EditListDialog({
     <Dialog open={!!listId} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Editar lista</DialogTitle>
+          <DialogTitle>{t.editList || 'Editar lista'}</DialogTitle>
           <DialogDescription>
-            Modifica el nombre y los contactos de esta lista.
+            {t.noListsDesc || 'Modifica el nombre y los contactos de esta lista.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -137,7 +141,7 @@ export function EditListDialog({
             {/* Name & Description */}
             <div className="space-y-3">
               <div>
-                <Label className="text-sm">Nombre *</Label>
+                <Label className="text-sm">{ui.name || 'Nombre'} *</Label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -145,12 +149,12 @@ export function EditListDialog({
                 />
               </div>
               <div>
-                <Label className="text-sm">Descripción</Label>
+                <Label className="text-sm">{ui.description || 'Descripción'}</Label>
                 <Input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="mt-1"
-                  placeholder="Opcional"
+                  placeholder={ui.optional || 'Opcional'}
                 />
               </div>
             </div>
@@ -159,7 +163,7 @@ export function EditListDialog({
             <div className="flex-1 flex flex-col min-h-0">
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-sm flex items-center gap-2">
-                  Contactos
+                  {dict.contacts?.title || 'Contactos'}
                   <Badge variant="secondary" className="text-[10px] px-1.5 h-5">
                     {currentContactIds.size} en la lista
                   </Badge>
@@ -179,7 +183,7 @@ export function EditListDialog({
               <div className="relative mb-2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar contacto..."
+                  placeholder={dict.contacts?.search || 'Buscar contacto...'}
                   className="pl-9 h-8"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -231,18 +235,18 @@ export function EditListDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancelar
+            {ui.cancel || 'Cancelar'}
           </Button>
           <Button onClick={handleSave} disabled={saving || !name.trim()}>
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                Guardando...
+                {ui.saving || 'Guardando...'}
               </>
             ) : (
               <>
                 <Save className="h-4 w-4 mr-1" />
-                Guardar cambios
+                {ui.save || 'Guardar cambios'}
               </>
             )}
           </Button>

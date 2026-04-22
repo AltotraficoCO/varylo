@@ -48,3 +48,20 @@ next-env.d.ts
 .agents/
 .claude/
 skills-lock.json
+
+# debug/test scripts
+check_db.ts
+debug-users.js
+fix-prisma.sh
+manual-db-sync*.js
+simulate-conversation.js
+test-db.js
+test_*.sh
+
+# backups and generated HTML
+*.dump
+varylo-landing.html
+varylo-platform.html
+
+# design files
+*.pen

@@ -149,7 +149,7 @@ export async function sendMediaMessage(
         await sendChannelMessage({
             conversationId,
             companyId: session.user.companyId,
-            content: content || `[${mediaType}]`,
+            content: content || (mediaType === 'audio' ? '' : `[${mediaType}]`),
             fromName: session.user.name || 'Agent',
             mediaUrl,
             mediaType,

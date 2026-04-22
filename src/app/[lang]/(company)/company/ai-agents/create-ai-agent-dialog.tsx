@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Loader2 } from "lucide-react";
 import { AGENT_TYPE_CONFIGS, AI_AGENT_TYPES } from '@/lib/ai-agent-types';
 import type { AiAgentType } from '@/lib/ai-agent-types';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface Channel {
     id: string;
@@ -34,6 +35,9 @@ interface Channel {
 }
 
 export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce }: { channels: Channel[]; hasGoogleCalendar: boolean; hasEcommerce: boolean }) {
+    const dict = useDictionary();
+    const t = dict.aiAgents || {};
+    const ui = dict.ui || {};
     const [state, action, isPending] = useActionState(createAiAgent, undefined);
     const [open, setOpen] = useState(false);
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
@@ -82,16 +86,23 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
+                <Button
+                    className="text-white font-semibold text-sm"
+                    style={{
+                        backgroundColor: '#10B981',
+                        borderRadius: '8px',
+                        padding: '10px 20px',
+                    }}
+                >
                     <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Agente IA
+                    {t.newAgent}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Nuevo Agente IA</DialogTitle>
+                    <DialogTitle>{t.newAgentTitle}</DialogTitle>
                     <DialogDescription>
-                        Crea un agente de inteligencia artificial que responderá automáticamente a tus clientes.
+                        {t.newAgentDesc}
                     </DialogDescription>
                 </DialogHeader>
                 <form action={action} className="grid gap-4 py-4">
@@ -99,7 +110,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
 
                     {/* Agent Type Selector */}
                     <div className="space-y-2">
-                        <Label>Tipo de Agente</Label>
+                        <Label>{t.agentTypeLabel}</Label>
                         <Select value={agentType} onValueChange={(v) => handleTypeChange(v as AiAgentType)}>
                             <SelectTrigger className="w-full">
                                 <SelectValue />
@@ -120,61 +131,66 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="name">Nombre</Label>
+                        <Label htmlFor="name">{ui.name}</Label>
                         <Input
                             id="name"
                             name="name"
-                            placeholder="Ej. Asistente de Ventas"
+                            placeholder={t.agentNamePlaceholder}
                             required
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="systemPrompt">Prompt del Sistema</Label>
+                        <Label htmlFor="systemPrompt">{t.systemPrompt}</Label>
                         <Textarea
                             id="systemPrompt"
                             name="systemPrompt"
                             ref={promptRef}
                             value={systemPrompt}
                             onChange={(e) => setSystemPrompt(e.target.value)}
-                            placeholder="Eres un asistente de atención al cliente amable y profesional..."
+                            placeholder={t.systemPromptPlaceholder}
                             rows={5}
                             required
                         />
                         <p className="text-xs text-muted-foreground">
-                            Define la personalidad y comportamiento del agente IA.
+                            {t.agentTypeDesc}
                         </p>
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="contextInfo">Información de Contexto (opcional)</Label>
+                        <Label htmlFor="contextInfo">{t.contextInfoOptional}</Label>
                         <Textarea
                             id="contextInfo"
                             name="contextInfo"
-                            placeholder="Horarios de atención, productos, precios, políticas..."
+                            placeholder={t.contextInfoPlaceholder}
                             rows={3}
                         />
                         <p className="text-xs text-muted-foreground">
-                            Información adicional que el agente usará para responder.
+                            {t.contextInfoHint}
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="model">Modelo</Label>
+                            <Label htmlFor="model">{t.model}</Label>
                             <Select name="model" defaultValue="gpt-4o-mini">
                                 <SelectTrigger className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="gpt-4o-mini">GPT-4o Mini (Rápido)</SelectItem>
-                                    <SelectItem value="gpt-4o">GPT-4o (Inteligente)</SelectItem>
+                                    <SelectItem value="gpt-4o-mini">GPT-4o Mini — Rápido y económico</SelectItem>
+                                    <SelectItem value="gpt-4o">GPT-4o — Más inteligente</SelectItem>
+                                    <SelectItem value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Rápido</SelectItem>
+                                    <SelectItem value="claude-sonnet-4-6">Claude Sonnet 4.6 — Equilibrado</SelectItem>
+                                    <SelectItem value="claude-opus-4-6">Claude Opus 4.6 — Avanzado</SelectItem>
+                                    <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash — Rápido y económico</SelectItem>
+                                    <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro — Avanzado</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="temperature">Temperatura</Label>
+                            <Label htmlFor="temperature">{t.temperature}</Label>
                             <Input
                                 id="temperature"
                                 name="temperature"
@@ -188,7 +204,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="transferKeywords">Keywords de Transferencia</Label>
+                        <Label htmlFor="transferKeywords">{t.transferKeywords}</Label>
                         <Input
                             id="transferKeywords"
                             name="transferKeywords"
@@ -196,7 +212,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                             placeholder="humano, agente, persona"
                         />
                         <p className="text-xs text-muted-foreground">
-                            Separadas por coma. Si el cliente escribe alguna, se transfiere a un humano.
+                            {t.transferKeywordsHint}
                         </p>
                     </div>
 
@@ -204,9 +220,9 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="dataCaptureEnabled" className="flex flex-col gap-1">
-                                <span>Captura de Datos</span>
+                                <span>{t.dataCaptureLabel}</span>
                                 <span className="font-normal text-xs text-muted-foreground">
-                                    Permite al agente capturar automáticamente datos del cliente (nombre, email, teléfono, documentos).
+                                    {t.dataCaptureDesc}
                                 </span>
                             </Label>
                             <Switch
@@ -222,11 +238,11 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="calendarEnabled" className="flex flex-col gap-1">
-                                <span>Google Calendar</span>
+                                <span>{t.googleCalendar}</span>
                                 <span className="font-normal text-xs text-muted-foreground">
                                     {hasGoogleCalendar
-                                        ? 'Permite al agente consultar disponibilidad y agendar reuniones.'
-                                        : 'Conecta Google Calendar en Settings > IA y Créditos primero.'}
+                                        ? t.googleCalendarConnected
+                                        : t.googleCalendarDisconnected}
                                 </span>
                             </Label>
                             <Switch
@@ -239,7 +255,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                         <input type="hidden" name="calendarEnabled" value={calendarEnabled ? 'on' : 'off'} />
                         {calendarEnabled && (
                             <div className="space-y-2 mt-2">
-                                <Label htmlFor="calendarId">Calendar ID</Label>
+                                <Label htmlFor="calendarId">{t.calendarIdLabel}</Label>
                                 <Input
                                     id="calendarId"
                                     name="calendarId"
@@ -247,7 +263,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                                     placeholder="primary"
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    Usa &quot;primary&quot; para el calendario principal o el ID de otro calendario.
+                                    {t.calendarIdHint}
                                 </p>
                             </div>
                         )}
@@ -257,11 +273,11 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="ecommerceEnabled" className="flex flex-col gap-1">
-                                <span>Tienda Online</span>
+                                <span>{t.onlineStore}</span>
                                 <span className="font-normal text-xs text-muted-foreground">
                                     {hasEcommerce
-                                        ? 'Permite al agente consultar productos, precios e inventario.'
-                                        : 'Conecta tu tienda en Settings > IA y Créditos primero.'}
+                                        ? t.onlineStoreConnected
+                                        : t.onlineStoreDisconnected}
                                 </span>
                             </Label>
                             <Switch
@@ -278,9 +294,9 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                     <div className="space-y-2 rounded-md border p-3">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="webhookEnabled" className="flex flex-col gap-1">
-                                <span>Webhook (ERP/CRM)</span>
+                                <span>{t.webhookErp}</span>
                                 <span className="font-normal text-xs text-muted-foreground">
-                                    Envía los datos capturados a un sistema externo cuando el agente lo decida.
+                                    {t.webhookErpDesc}
                                 </span>
                             </Label>
                             <Switch
@@ -292,7 +308,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                         {webhookEnabled && (
                             <div className="space-y-3 mt-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="webhookUrl">URL del Webhook</Label>
+                                    <Label htmlFor="webhookUrl">{t.webhookUrlLabel}</Label>
                                     <Input
                                         id="webhookUrl"
                                         name="webhookUrl"
@@ -301,15 +317,15 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="webhookSecret">Secret (opcional)</Label>
+                                    <Label htmlFor="webhookSecret">{t.webhookSecretLabel}</Label>
                                     <Input
                                         id="webhookSecret"
                                         name="webhookSecret"
-                                        placeholder="Clave secreta para firmar payloads (HMAC-SHA256)"
+                                        placeholder={t.webhookSecretPlaceholder}
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="webhookHeaders">Headers personalizados (opcional)</Label>
+                                    <Label htmlFor="webhookHeaders">{t.webhookHeadersLabel}</Label>
                                     <Textarea
                                         id="webhookHeaders"
                                         name="webhookHeaders"
@@ -317,7 +333,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                                         rows={2}
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                        JSON con headers adicionales. Ej: {`{"Authorization": "Bearer key"}`}
+                                        {t.webhookHeadersHint} {`{"Authorization": "Bearer key"}`}
                                     </p>
                                 </div>
                             </div>
@@ -326,10 +342,10 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
 
                     {/* Channels */}
                     <div className="space-y-2">
-                        <Label>Canales</Label>
+                        <Label>{t.channels}</Label>
                         <div className="space-y-2 rounded-md border p-3">
                             {channels.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No hay canales configurados. Configura uno en Settings.</p>
+                                <p className="text-sm text-muted-foreground">{t.noChannelsConfigured}</p>
                             ) : (
                                 channels.map(channel => (
                                     <div key={channel.id} className="flex items-center gap-2">
@@ -362,7 +378,7 @@ export function CreateAiAgentDialog({ channels, hasGoogleCalendar, hasEcommerce 
                     <DialogFooter>
                         <Button type="submit" disabled={isPending}>
                             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Crear Agente IA
+                            {t.createAgentBtn}
                         </Button>
                     </DialogFooter>
                 </form>

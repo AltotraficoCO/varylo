@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import ResetPasswordForm from './reset-password-form';
 import { getDictionary, Locale } from '@/lib/dictionary';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 export default async function ResetPasswordPage({
     params,
@@ -17,7 +18,10 @@ export default async function ResetPasswordPage({
 
     if (!token) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-white px-6 py-12">
+            <div className="relative flex min-h-screen items-center justify-center bg-white px-6 py-12">
+                <div className="absolute top-4 right-4">
+                    <LanguageSwitcher />
+                </div>
                 <div className="w-full max-w-md space-y-6">
                     <div className="flex justify-center mb-4">
                         <Image src="/logo.png" alt="Varylo" width={140} height={79} priority />
@@ -39,7 +43,10 @@ export default async function ResetPasswordPage({
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-white px-6 py-12">
+        <div className="relative flex min-h-screen items-center justify-center bg-white px-6 py-12">
+            <div className="absolute top-4 right-4">
+                <LanguageSwitcher />
+            </div>
             <div className="w-full max-w-md space-y-6">
                 <div className="flex justify-center mb-4">
                     <Image src="/logo.png" alt="Varylo" width={140} height={79} priority />

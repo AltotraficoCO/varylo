@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/select';
 import { updateCompany, adjustCompanyCredits, toggleSubscriptionStatus, createManualSubscription, getAvailablePlanPricings } from './actions';
 import { Company } from '@prisma/client';
+import { useDictionary } from '@/lib/i18n-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -68,6 +69,9 @@ function formatCOP(amount: number): string {
 }
 
 export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
+    const dict = useDictionary();
+    const t = dict.superAdminUI?.editCompanyDialog || {};
+    const ui = dict.ui || {};
     const [open, setOpen] = useState(false);
     const [creditAmount, setCreditAmount] = useState('');
     const [creditDescription, setCreditDescription] = useState('');
@@ -113,14 +117,14 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
         try {
             const result = await updateCompany(values);
             if (result.success) {
-                toast.success('Empresa actualizada correctamente');
+                toast.success(t.companyUpdated || 'Empresa actualizada correctamente');
                 setOpen(false);
                 router.refresh();
             } else {
-                toast.error(result.error || 'Error al actualizar la empresa');
+                toast.error(result.error || (t.updateError || 'Error al actualizar la empresa'));
             }
         } catch (error) {
-            toast.error('Ocurrió un error inesperado');
+            toast.error(t.unexpectedError || 'Ocurrió un error inesperado');
         }
     }
 
@@ -150,7 +154,7 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                 toast.error(result.error || 'Error al ajustar créditos');
             }
         } catch {
-            toast.error('Ocurrió un error inesperado');
+            toast.error(t.unexpectedError || 'Ocurrió un error inesperado');
         } finally {
             setCreditLoading(false);
         }
@@ -160,22 +164,22 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="sm">
-                    Administrar
+                    {t.manage || 'Administrar'}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
-                    <DialogTitle>Administrar Empresa</DialogTitle>
+                    <DialogTitle>{t.manageCompany || 'Administrar Empresa'}</DialogTitle>
                     <DialogDescription>
-                        Gestiona los detalles y usuarios de la empresa.
+                        {t.manageCompanyDesc || 'Gestiona los detalles y usuarios de la empresa.'}
                     </DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="details" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
-                        <TabsTrigger value="details">Detalles</TabsTrigger>
-                        <TabsTrigger value="subscription">Suscripción</TabsTrigger>
-                        <TabsTrigger value="users">Usuarios</TabsTrigger>
-                        <TabsTrigger value="credits">Créditos</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+                        <TabsTrigger value="details" className="text-xs sm:text-sm">{t.detailsTab || 'Detalles'}</TabsTrigger>
+                        <TabsTrigger value="subscription" className="text-xs sm:text-sm">{t.subscriptionTab || 'Suscripción'}</TabsTrigger>
+                        <TabsTrigger value="users" className="text-xs sm:text-sm">{t.usersTab || 'Usuarios'}</TabsTrigger>
+                        <TabsTrigger value="credits" className="text-xs sm:text-sm">{t.creditsTab || 'Créditos'}</TabsTrigger>
                     </TabsList>
                     <TabsContent value="details">
                         <Form {...form}>
@@ -185,7 +189,7 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                     name="name"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Nombre de la Empresa</FormLabel>
+                                            <FormLabel>{t.companyNameLabel || 'Nombre de la Empresa'}</FormLabel>
                                             <FormControl>
                                                 <Input placeholder="Acme Inc." {...field} />
                                             </FormControl>
@@ -241,7 +245,7 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                         {form.formState.isSubmitting && (
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         )}
-                                        Guardar Cambios
+                                        {t.saveChanges || 'Guardar Cambios'}
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -279,7 +283,7 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                     </div>
 
                                     {/* Dates */}
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div className="rounded-lg border p-3">
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                                                 <CalendarDays className="h-3.5 w-3.5" />
@@ -569,7 +573,7 @@ export function EditCompanyDialog({ company }: EditCompanyDialogProps) {
                                     {creditLoading ? (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     ) : null}
-                                    Ajustar Créditos
+                                    {t.adjustCredits || 'Ajustar Créditos'}
                                 </Button>
                             </div>
                         </div>

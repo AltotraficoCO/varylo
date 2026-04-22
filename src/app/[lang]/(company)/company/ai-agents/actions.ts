@@ -5,10 +5,18 @@ import { prisma } from '@/lib/prisma';
 import { AI_AGENT_TYPES } from '@/lib/ai-agent-types';
 import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
+import { validateExternalWebhookUrl } from '@/lib/url-validator';
 
-function parseWebhookConfig(formData: FormData): Prisma.InputJsonValue | null {
+type WebhookParseResult =
+    | { ok: true; value: Prisma.InputJsonValue | null }
+    | { ok: false; error: string };
+
+async function parseWebhookConfig(formData: FormData): Promise<WebhookParseResult> {
     const webhookUrl = (formData.get('webhookUrl') as string)?.trim() || '';
-    if (!webhookUrl) return null;
+    if (!webhookUrl) return { ok: true, value: null };
+
+    const validated = await validateExternalWebhookUrl(webhookUrl);
+    if (!validated.ok) return { ok: false, error: `Webhook URL: ${validated.error}` };
 
     const webhookSecret = (formData.get('webhookSecret') as string)?.trim() || '';
     const webhookHeadersRaw = (formData.get('webhookHeaders') as string)?.trim() || '';
@@ -23,9 +31,12 @@ function parseWebhookConfig(formData: FormData): Prisma.InputJsonValue | null {
     }
 
     return {
-        url: webhookUrl,
-        ...(webhookSecret ? { secret: webhookSecret } : {}),
-        ...(headers ? { headers } : {}),
+        ok: true,
+        value: {
+            url: validated.url.toString(),
+            ...(webhookSecret ? { secret: webhookSecret } : {}),
+            ...(headers ? { headers } : {}),
+        },
     };
 }
 
@@ -39,7 +50,13 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const agentType = formData.get('agentType') as string || 'CUSTOM';
     const systemPrompt = formData.get('systemPrompt') as string;
     const contextInfo = formData.get('contextInfo') as string;
-    const allowedModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+    const allowedModels = [
+        'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+        'claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20251030', 'claude-sonnet-4-6', 'claude-opus-4-6',
+        // legacy aliases — kept so existing agents can still be edited without forced model change
+        'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
+        'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash',
+    ];
     const model = allowedModels.includes(formData.get('model') as string)
         ? (formData.get('model') as string)
         : 'gpt-4o-mini';
@@ -48,9 +65,15 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const transferKeywordsRaw = formData.get('transferKeywords') as string;
     const channelIds = formData.getAll('channelIds') as string[];
     const dataCaptureEnabled = formData.get('dataCaptureEnabled') !== 'off';
+    const captureFieldsRaw = formData.get('captureFields') as string;
+    let captureFields: any = null;
+    if (captureFieldsRaw) {
+        try { captureFields = JSON.parse(captureFieldsRaw); } catch {}
+    }
     const calendarEnabled = formData.get('calendarEnabled') === 'on';
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
+    const crmEnabled = formData.get('crmEnabled') === 'on';
 
     if (!name || !systemPrompt) {
         return 'Error: Nombre y prompt del sistema son requeridos.';
@@ -62,7 +85,9 @@ export async function createAiAgent(prevState: string | undefined, formData: For
         ? transferKeywordsRaw.split(',').map(k => k.trim()).filter(Boolean).slice(0, 50)
         : ['humano', 'agente', 'persona'];
 
-    const webhookConfigJson = parseWebhookConfig(formData);
+    const webhookParsed = await parseWebhookConfig(formData);
+    if (!webhookParsed.ok) return `Error: ${webhookParsed.error}`;
+    const webhookConfigJson = webhookParsed.value;
 
     try {
         // Verify channel IDs belong to this company
@@ -86,9 +111,11 @@ export async function createAiAgent(prevState: string | undefined, formData: For
                 temperature,
                 transferKeywords,
                 dataCaptureEnabled,
+                captureFields: captureFields ?? Prisma.JsonNull,
                 calendarEnabled,
                 calendarId,
                 ecommerceEnabled,
+                crmEnabled,
                 webhookConfigJson: webhookConfigJson ?? Prisma.JsonNull,
                 channels: validChannelIds.length > 0 ? {
                     connect: validChannelIds.map(id => ({ id })),
@@ -113,7 +140,13 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const agentType = formData.get('agentType') as string || 'CUSTOM';
     const systemPrompt = formData.get('systemPrompt') as string;
     const contextInfo = formData.get('contextInfo') as string;
-    const allowedModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+    const allowedModels = [
+        'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+        'claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20251030', 'claude-sonnet-4-6', 'claude-opus-4-6',
+        // legacy aliases — kept so existing agents can still be edited without forced model change
+        'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
+        'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash',
+    ];
     const model = allowedModels.includes(formData.get('model') as string)
         ? (formData.get('model') as string)
         : 'gpt-4o-mini';
@@ -122,9 +155,15 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const transferKeywordsRaw = formData.get('transferKeywords') as string;
     const channelIds = formData.getAll('channelIds') as string[];
     const dataCaptureEnabled = formData.get('dataCaptureEnabled') !== 'off';
+    const captureFieldsRaw2 = formData.get('captureFields') as string;
+    let captureFields: any = null;
+    if (captureFieldsRaw2) {
+        try { captureFields = JSON.parse(captureFieldsRaw2); } catch {}
+    }
     const calendarEnabled = formData.get('calendarEnabled') === 'on';
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
+    const crmEnabled = formData.get('crmEnabled') === 'on';
 
     if (!id || !name || !systemPrompt) return 'Error: Campos requeridos faltantes.';
 
@@ -134,7 +173,9 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
         ? transferKeywordsRaw.split(',').map(k => k.trim()).filter(Boolean).slice(0, 50)
         : ['humano', 'agente', 'persona'];
 
-    const webhookConfigJson = parseWebhookConfig(formData);
+    const webhookParsed = await parseWebhookConfig(formData);
+    if (!webhookParsed.ok) return `Error: ${webhookParsed.error}`;
+    const webhookConfigJson = webhookParsed.value;
 
     try {
         const validChannels = await prisma.channel.findMany({
@@ -153,9 +194,11 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
                 temperature,
                 transferKeywords,
                 dataCaptureEnabled,
+                captureFields: captureFields ?? Prisma.JsonNull,
                 calendarEnabled,
                 calendarId,
                 ecommerceEnabled,
+                crmEnabled,
                 webhookConfigJson: webhookConfigJson ?? Prisma.JsonNull,
                 channels: {
                     set: validChannels.map(c => ({ id: c.id })),

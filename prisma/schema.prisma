@@ -113,6 +113,8 @@ model User {
   assignedConversations Conversation[] @relation("ConversationAgents")
   sentMessages          Message[]
   broadcasts            Broadcast[]
+  assignedDeals         Deal[]        @relation("DealAssignee")
+  createdQuotes         Quote[]       @relation("QuoteCreator")
 }
 
 model Company {
@@ -125,6 +127,10 @@ model Company {
 
   openaiApiKey          String?
   openaiApiKeyUpdatedAt DateTime?
+  anthropicApiKey          String?
+  anthropicApiKeyUpdatedAt DateTime?
+  geminiApiKey          String?
+  geminiApiKeyUpdatedAt DateTime?
   creditBalance         Int           @default(0)
 
   assignmentStrategy    AssignmentStrategy @default(LEAST_BUSY)
@@ -149,10 +155,16 @@ model Company {
   aiUsageLogs        AiUsageLog[]
   paymentSources     PaymentSource[]
   subscriptions      Subscription[]
-  ecommerceIntegration EcommerceIntegration?
+  ecommerceIntegrations EcommerceIntegration[]
+  webhookIntegrations   WebhookIntegration[]
   contactLists       ContactList[]
   broadcasts         Broadcast[]
   apiKeys            ApiKey[]
+  pipelineStages     PipelineStage[]
+  deals              Deal[]
+  products           Product[]
+  productCategories  ProductCategory[]
+  quotes             Quote[]
 }
 
 model Channel {
@@ -170,6 +182,8 @@ model Channel {
   conversations Conversation[]
   aiAgents    AiAgent[]     @relation("AiAgentChannels")
   chatbots    Chatbot[]     @relation("ChatbotChannels")
+
+  @@index([companyId])
 }
 
 model Contact {
@@ -193,6 +207,11 @@ model Contact {
   tags          Tag[]
   contactLists     ContactList[]    @relation("ContactListMembers")
   broadcastLogs    BroadcastLog[]
+  deals            Deal[]
+  quotes           Quote[]
+
+  @@index([companyId])
+  @@index([companyId, phone])
 }
 
 model Conversation {
@@ -222,6 +241,10 @@ model Conversation {
   tags            Tag[]
   chatbotSessions ChatbotSession[]
   capturedData    CapturedData[]
+  deals           Deal[]
+
+  @@index([companyId, status])
+  @@index([companyId, updatedAt])
 }
 
 model Message {
@@ -248,6 +271,8 @@ model Message {
   conversation      Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@unique([providerMessageId, companyId])
+  @@index([companyId, createdAt])
+  @@index([conversationId])
 }
 
 model ContactLead {
@@ -285,6 +310,8 @@ model Tag {
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   contacts      Contact[]
+
+  @@index([companyId])
 }
 
 model AiAgent {
@@ -299,15 +326,19 @@ model AiAgent {
   temperature        Float     @default(0.7)
   transferKeywords   String[]  @default(["humano", "agente", "persona"])
   dataCaptureEnabled Boolean   @default(true)
+  captureFields      Json?     // [{ key: "nombre", label: "Nombre", required: true }, ...]
   calendarEnabled    Boolean   @default(false)
   calendarId         String    @default("primary")
   ecommerceEnabled   Boolean   @default(false)
+  crmEnabled         Boolean   @default(false)
   webhookConfigJson  Json?     // { url, secret?, headers? }
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   channels           Channel[] @relation("AiAgentChannels")
   conversations      Conversation[]
+
+  @@index([companyId])
 }
 
 model Chatbot {
@@ -322,6 +353,8 @@ model Chatbot {
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   channels  Channel[] @relation("ChatbotChannels")
   sessions  ChatbotSession[]
+
+  @@index([companyId])
 }
 
 model ChatbotSession {
@@ -362,6 +395,8 @@ model AiUsageLog {
   createdAt        DateTime @default(now())
 
   company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
 }
 
 model PasswordResetToken {
@@ -485,7 +520,8 @@ model CapturedData {
 
 model EcommerceIntegration {
   id            String   @id @default(cuid())
-  companyId     String   @unique
+  companyId     String
+  name          String   @default("Mi tienda") // user-friendly label
   platform      String   // "shopify" | "woocommerce"
   storeUrl      String   // e.g. "mystore.myshopify.com" or "mystore.com"
   apiKey        String   // encrypted - Shopify Admin API access token or WooCommerce consumer key
@@ -495,6 +531,26 @@ model EcommerceIntegration {
   updatedAt     DateTime @updatedAt
 
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model WebhookIntegration {
+  id          String   @id @default(cuid())
+  companyId   String
+  platform    String   // "n8n" | "zapier" | "make" | "custom"
+  name        String   @default("Mi webhook")
+  webhookUrl  String
+  secret      String?  // optional HMAC secret
+  events      String[] @default(["message.received", "conversation.created", "data.captured"])
+  active      Boolean  @default(true)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model SiteConfig {
@@ -597,4 +653,164 @@ model TrustedLogo {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ===== CRM =====
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+}
+
+model PipelineStage {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  color       String   @default("#3B82F6")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  deals       Deal[]
+
+  @@index([companyId])
+}
+
+model Deal {
+  id              String     @id @default(cuid())
+  companyId       String
+  stageId         String
+  contactId       String?
+  conversationId  String?
+  assignedToId    String?
+  title           String
+  value           Float      @default(0)
+  currency        String     @default("COP")
+  status          DealStatus @default(OPEN)
+  probability     Int        @default(50) // 0-100
+  expectedCloseAt DateTime?
+  notes           String?    @db.Text
+  customFields    Json?      // { key: value } for custom data
+  closedAt        DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stage          PipelineStage  @relation(fields: [stageId], references: [id])
+  contact        Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  conversation   Conversation?  @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  assignedTo     User?          @relation("DealAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  quotes         Quote[]
+  followUps      FollowUp[]
+
+  @@index([companyId])
+  @@index([stageId])
+  @@index([contactId])
+}
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@index([companyId])
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  companyId   String
+  categoryId  String?
+  name        String
+  description String?   @db.Text
+  sku         String?
+  price       Float     @default(0)
+  currency    String    @default("COP")
+  stock       Int?
+  imageUrl    String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category    ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  quoteItems  QuoteItem[]
+
+  @@index([companyId])
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  companyId   String
+  dealId      String?
+  contactId   String?
+  number      String      // "COT-001"
+  status      QuoteStatus @default(DRAFT)
+  subtotal    Float       @default(0)
+  tax         Float       @default(0)
+  discount    Float       @default(0)
+  total       Float       @default(0)
+  currency    String      @default("COP")
+  notes       String?     @db.Text
+  validUntil  DateTime?
+  sentAt      DateTime?
+  viewedAt    DateTime?
+  respondedAt DateTime?
+  createdById String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  deal        Deal?       @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  contact     Contact?    @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  createdBy   User?       @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items       QuoteItem[]
+
+  @@index([companyId])
+  @@index([dealId])
+}
+
+model QuoteItem {
+  id        String  @id @default(cuid())
+  quoteId   String
+  productId String?
+  name      String
+  quantity  Int     @default(1)
+  unitPrice Float
+  total     Float
+
+  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+}
+
+model FollowUp {
+  id          String    @id @default(cuid())
+  dealId      String
+  type        String    @default("reminder") // "reminder" | "auto_message"
+  message     String?
+  scheduledAt DateTime
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@index([scheduledAt])
 }

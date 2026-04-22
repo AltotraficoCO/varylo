@@ -2,23 +2,25 @@ import { getLandingPlansWithPricing } from "./actions"
 import { PlanManager } from "./plan-manager"
 import { PaymentGateways } from "./payment-gateways"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getDictionary, Locale } from '@/lib/dictionary';
 
-export default async function BillingPage() {
+export default async function BillingPage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params;
+    const dict = await getDictionary(lang as Locale);
+    const t = dict.dashboard.billingAdmin;
     const plans = await getLandingPlansWithPricing();
 
     return (
         <div className="space-y-6">
-            <div>
-                <h2 className="text-2xl font-bold tracking-tight">Planes & Facturación</h2>
-                <p className="text-muted-foreground">
-                    Gestiona los planes de la landing y las pasarelas de pago.
-                </p>
+            <div className="flex flex-col gap-1">
+                <h1 className="text-[28px] font-bold text-foreground">{t.title}</h1>
+                <p className="text-sm text-muted-foreground">{t.subtitle}</p>
             </div>
 
             <Tabs defaultValue="plans" className="space-y-6">
                 <TabsList>
-                    <TabsTrigger value="plans">Planes</TabsTrigger>
-                    <TabsTrigger value="gateways">Pasarelas de Pago</TabsTrigger>
+                    <TabsTrigger value="plans">{t.plansTab}</TabsTrigger>
+                    <TabsTrigger value="gateways">{t.gatewaysTab}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="plans">

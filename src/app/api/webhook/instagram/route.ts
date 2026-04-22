@@ -6,20 +6,14 @@ import { runAutomationPipeline } from '@/jobs/pipeline';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { rateLimitResponse } from '@/lib/rate-limit';
+import { readChannelSecret } from '@/lib/channel-config';
 
 export const maxDuration = 60;
 
 const MAX_MESSAGE_LENGTH = 4096;
 
-/** Verify Meta X-Hub-Signature-256 header */
-function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
-    const appSecret = process.env.META_APP_SECRET;
-    if (!appSecret) {
-        console.error('[Instagram] META_APP_SECRET not configured');
-        return false;
-    }
-    if (!signature || !signature.startsWith('sha256=')) return false;
-
+/** Verify Meta X-Hub-Signature-256 header against a given appSecret */
+function verifySignatureWithSecret(rawBody: Buffer, signature: string, appSecret: string): boolean {
     const expectedSignature = createHmac('sha256', appSecret)
         .update(rawBody)
         .digest('hex');
@@ -27,6 +21,37 @@ function verifyWebhookSignature(rawBody: string, signature: string | null): bool
     const actual = Buffer.from(signature, 'utf8');
     if (expected.length !== actual.length) return false;
     return timingSafeEqual(expected, actual);
+}
+
+/**
+ * Verify webhook signature trying:
+ * 1. Global META_APP_SECRET env var
+ * 2. Each Instagram channel's appSecret from configJson
+ */
+async function verifyWebhookSignature(rawBody: Buffer, signature: string | null): Promise<boolean> {
+    if (!signature || !signature.startsWith('sha256=')) return false;
+
+    // Try global env var first (backwards compatible)
+    const globalSecret = process.env.META_APP_SECRET;
+    if (globalSecret) {
+        if (verifySignatureWithSecret(rawBody, signature, globalSecret)) return true;
+    }
+
+    // Try each Instagram channel's appSecret
+    const channels = await prisma.channel.findMany({
+        where: { type: ChannelType.INSTAGRAM, status: 'CONNECTED' },
+        select: { configJson: true },
+    });
+
+    for (const ch of channels) {
+        const config = ch.configJson as { appSecret?: string } | null;
+        const channelAppSecret = readChannelSecret(config?.appSecret);
+        if (channelAppSecret && verifySignatureWithSecret(rawBody, signature, channelAppSecret)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 export async function GET(req: NextRequest) {
@@ -72,15 +97,15 @@ export async function POST(req: NextRequest) {
     if (rateLimited) return rateLimited;
 
     try {
-        const rawBody = await req.text();
+        const rawBuffer = Buffer.from(await req.arrayBuffer());
 
-        // Verify webhook signature from Meta
         const signature = req.headers.get('x-hub-signature-256');
-        if (!verifyWebhookSignature(rawBody, signature)) {
-            return new NextResponse('Forbidden', { status: 403 });
+        const signatureValid = await verifyWebhookSignature(rawBuffer, signature);
+        if (!signatureValid) {
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
         }
 
-        const body = JSON.parse(rawBody);
+        const body = JSON.parse(rawBuffer.toString('utf-8'));
 
         // Check format
         const entry = body.entry?.[0];
@@ -114,23 +139,44 @@ export async function POST(req: NextRequest) {
             // Validate message length
             if (text.length > MAX_MESSAGE_LENGTH) return NextResponse.json({ status: 'ignored' });
 
-            // Find the channel by pageId or instagramId using JSON filtering
+            // Find the channel by pageId or instagramId using JSON filtering.
+            // Use orderBy updatedAt desc to always pick the most recently connected channel
+            // in case the same Instagram account is connected to multiple companies.
             let channel = await prisma.channel.findFirst({
                 where: {
                     type: ChannelType.INSTAGRAM,
+                    status: 'CONNECTED',
                     configJson: { path: ['pageId'], equals: recipientId },
                 },
+                orderBy: { updatedAt: 'desc' },
             });
             if (!channel) {
                 channel = await prisma.channel.findFirst({
                     where: {
                         type: ChannelType.INSTAGRAM,
+                        status: 'CONNECTED',
+                        configJson: { path: ['igAccountId'], equals: recipientId },
+                    },
+                    orderBy: { updatedAt: 'desc' },
+                });
+            }
+            if (!channel) {
+                channel = await prisma.channel.findFirst({
+                    where: {
+                        type: ChannelType.INSTAGRAM,
+                        status: 'CONNECTED',
                         configJson: { path: ['instagramId'], equals: recipientId },
                     },
+                    orderBy: { updatedAt: 'desc' },
                 });
             }
 
-            if (channel) {
+            if (!channel) {
+                console.error('[Instagram Webhook] No connected channel matched incoming recipientId');
+                return NextResponse.json({ status: 'no_channel' });
+            }
+
+            {
                 const companyId = channel.companyId;
 
                 // Find or create Contact
@@ -140,12 +186,30 @@ export async function POST(req: NextRequest) {
                 });
 
                 if (!contact) {
+                    // Fetch real Instagram username from Meta Graph API
+                    let igName = 'Instagram User';
+                    try {
+                        const channelConfig = channel.configJson as { accessToken?: string } | null;
+                        const igToken = readChannelSecret(channelConfig?.accessToken);
+                        if (igToken) {
+                            const profileRes = await fetch(
+                                `https://graph.facebook.com/v21.0/${senderId}?fields=name,username`,
+                                { headers: { Authorization: `Bearer ${igToken}` } },
+                            );
+                            if (profileRes.ok) {
+                                const profile = await profileRes.json();
+                                igName = profile.name || profile.username || igName;
+                            }
+                        }
+                    } catch {
+                        // Fallback to default name
+                    }
+
                     contact = await prisma.contact.create({
                         data: {
                             companyId,
                             phone: senderId,
-                            name: "Instagram User",
-                            companyName: "Instagram",
+                            name: igName,
                             originChannel: ChannelType.INSTAGRAM,
                         }
                     });

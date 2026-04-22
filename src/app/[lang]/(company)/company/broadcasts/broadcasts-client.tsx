@@ -3,16 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,13 +21,11 @@ import {
   Send,
   Trash2,
   Megaphone,
-  ListChecks,
   Loader2,
   CheckCircle2,
   XCircle,
   Clock,
   AlertCircle,
-  Eye,
   Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -44,13 +33,14 @@ import { CreateListDialog } from './create-list-dialog';
 import { SendBroadcastDialog } from './send-broadcast-dialog';
 import { EditListDialog } from './edit-list-dialog';
 import { deleteContactList } from './actions';
+import { useDictionary } from '@/lib/i18n-context';
 
-const STATUS_MAP: Record<string, { label: string; icon: any; color: string }> = {
-  PENDING: { label: 'Pendiente', icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
-  IN_PROGRESS: { label: 'Enviando...', icon: Loader2, color: 'text-blue-600 bg-blue-50 border-blue-200' },
-  COMPLETED: { label: 'Completada', icon: CheckCircle2, color: 'text-green-600 bg-green-50 border-green-200' },
-  FAILED: { label: 'Fallida', icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200' },
-  CANCELLED: { label: 'Cancelada', icon: AlertCircle, color: 'text-gray-600 bg-gray-50 border-gray-200' },
+const STATUS_MAP_STATIC: Record<string, { labelKey: string; fallback: string; icon: any; color: string }> = {
+  PENDING: { labelKey: 'pending', fallback: 'Pendiente', icon: Clock, color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
+  IN_PROGRESS: { labelKey: 'sending', fallback: 'Enviando...', icon: Loader2, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+  COMPLETED: { labelKey: 'completed', fallback: 'Completada', icon: CheckCircle2, color: 'text-green-600 bg-green-50 border-green-200' },
+  FAILED: { labelKey: 'failed', fallback: 'Fallida', icon: XCircle, color: 'text-red-600 bg-red-50 border-red-200' },
+  CANCELLED: { labelKey: 'cancelled', fallback: 'Cancelada', icon: AlertCircle, color: 'text-gray-600 bg-gray-50 border-gray-200' },
 };
 
 interface ContactList {
@@ -96,6 +86,9 @@ export function BroadcastsClient({
   contacts: Contact[];
   lang: string;
 }) {
+  const dict = useDictionary();
+  const t = dict.broadcasts || {};
+  const ui = dict.ui || {};
   const [tab, setTab] = useState<Tab>('lists');
   const [showCreateList, setShowCreateList] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
@@ -124,23 +117,28 @@ export function BroadcastsClient({
     const result = await deleteContactList(deleteListId);
     setIsDeleting(false);
     if (result.success) {
-      toast.success('Lista eliminada');
+      toast.success(ui.deletedSuccessfully || 'Lista eliminada');
       setDeleteListId(null);
       router.refresh();
     } else {
-      toast.error(result.error || 'Error al eliminar');
+      toast.error(result.error || ui.errorOccurred || 'Error al eliminar');
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white">
+    <div className="space-y-6">
       {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-10">
-        <div className="h-14 flex items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">Difusiones</h1>
+      <div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[22px] sm:text-[28px] font-bold text-[#09090B] leading-tight">
+              {t.title || 'Difusiones'}
+            </h1>
+            <p className="text-sm text-[#71717A] mt-1">
+              {t.subtitle || 'Envía plantillas de WhatsApp a listas de contactos'}
+            </p>
             {tierLabel && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                 <Badge variant="outline" className={cn('text-[10px] px-2 h-5', qualityColor)}>
                   Tier: {tierLabel}
                 </Badge>
@@ -152,239 +150,287 @@ export function BroadcastsClient({
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {tab === 'lists' && (
-              <>
-                {contactLists.length > 0 && (
-                  <Button size="sm" variant="outline" onClick={() => setShowBroadcast(true)} className="h-8 px-3 text-xs">
-                    <Megaphone className="h-3.5 w-3.5 mr-1.5" />
-                    Enviar difusión
-                  </Button>
-                )}
-                <Button size="sm" onClick={() => setShowCreateList(true)} className="h-8 px-3 text-xs">
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Nueva lista
-                </Button>
-              </>
-            )}
-            {tab === 'broadcasts' && contactLists.length > 0 && (
-              <Button size="sm" onClick={() => setShowBroadcast(true)} className="h-8 px-3 text-xs">
-                <Megaphone className="h-3.5 w-3.5 mr-1.5" />
-                Nueva difusión
-              </Button>
-            )}
-          </div>
+          <button
+            onClick={() => {
+              if (tab === 'lists') {
+                setShowCreateList(true);
+              } else {
+                setShowBroadcast(true);
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white px-4 py-2 text-sm font-medium transition-colors self-start shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+            {tab === 'lists' ? (t.createList || 'Nueva lista') : (t.sendBroadcast || 'Nueva difusión')}
+          </button>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="flex px-6 gap-4">
+      {/* Tab bar */}
+      <div className="border-b border-[#E4E4E7] w-full overflow-x-auto">
+        <div className="flex min-w-max">
           <button
             onClick={() => setTab('lists')}
             className={cn(
-              'pb-3 border-b-2 px-1 transition-colors text-sm flex items-center gap-1.5',
-              tab === 'lists'
-                ? 'border-primary text-primary font-medium'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+              "text-sm px-4 py-3 bg-transparent border-0 border-b-2 cursor-pointer transition-colors whitespace-nowrap",
+              tab === 'lists' ? "font-semibold text-[#09090B] border-[#10B981]" : "font-normal text-[#71717A] border-transparent"
             )}
           >
-            <ListChecks className="h-4 w-4" />
-            Listas de contactos
-            <Badge variant="secondary" className="px-1.5 py-0 h-5 text-[10px] bg-muted">
-              {contactLists.length}
-            </Badge>
+            {t.selectContacts || 'Listas de contactos'}
           </button>
           <button
             onClick={() => setTab('broadcasts')}
             className={cn(
-              'pb-3 border-b-2 px-1 transition-colors text-sm flex items-center gap-1.5',
-              tab === 'broadcasts'
-                ? 'border-primary text-primary font-medium'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+              "text-sm px-4 py-3 bg-transparent border-0 border-b-2 cursor-pointer transition-colors whitespace-nowrap",
+              tab === 'broadcasts' ? "font-semibold text-[#09090B] border-[#10B981]" : "font-normal text-[#71717A] border-transparent"
             )}
           >
-            <Megaphone className="h-4 w-4" />
-            Historial de difusiones
-            <Badge variant="secondary" className="px-1.5 py-0 h-5 text-[10px] bg-muted">
-              {broadcasts.length}
-            </Badge>
+            {t.history || 'Historial de envíos'}
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
-        {tab === 'lists' && (
-          <>
-            {contactLists.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto pt-20">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                  <Users className="h-8 w-8 text-gray-400" />
+      {tab === 'lists' && (
+        <>
+          {contactLists.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto pt-20">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                <Users className="h-8 w-8 text-gray-400" />
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#09090B' }}>{t.noLists || 'Sin listas de contactos'}</h2>
+              <p style={{ fontSize: 14, color: '#71717A' }}>
+                {t.noListsDesc || 'Crea tu primera lista para organizar contactos y enviar difusiones masivas.'}
+              </p>
+              <button
+                onClick={() => setShowCreateList(true)}
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: '#FFFFFF',
+                  backgroundColor: '#10B981',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                {t.createList || 'Crear primera lista'}
+              </button>
+            </div>
+          ) : (
+            <div style={{ borderRadius: 12, border: '1px solid #E4E4E7', overflowX: 'auto' }}>
+              <div style={{ minWidth: 640 }}>
+              {/* Table header */}
+              <div
+                className="flex items-center"
+                style={{ backgroundColor: '#F4F4F5', padding: '12px 16px' }}
+              >
+                <div className="flex-1" style={{ minWidth: 140, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  {ui.name || 'Nombre'}
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">Sin listas de contactos</h2>
-                <p className="text-muted-foreground">
-                  Crea tu primera lista para organizar contactos y enviar difusiones masivas.
-                </p>
-                <Button onClick={() => setShowCreateList(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear primera lista
-                </Button>
+                <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  {dict.contacts?.title || 'Contactos'}
+                </div>
+                <div style={{ width: 160, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  {ui.date || 'Creada'}
+                </div>
+                <div style={{ width: 160, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  {ui.actions || 'Acciones'}
+                </div>
               </div>
-            ) : (
-              <div className="max-w-5xl mx-auto">
-                <Card>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nombre</TableHead>
-                          <TableHead>Descripción</TableHead>
-                          <TableHead className="text-center">Contactos</TableHead>
-                          <TableHead>Creada</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {contactLists.map((list) => (
-                          <TableRow key={list.id}>
-                            <TableCell className="font-medium">{list.name}</TableCell>
-                            <TableCell className="text-muted-foreground text-sm">
-                              {list.description || '—'}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant="secondary" className="font-mono">
-                                {list._count.contacts}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {new Date(list.createdAt).toLocaleDateString('es-CO')}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 px-2 text-xs text-primary hover:text-primary"
-                                  onClick={() => {
-                                    setBroadcastListId(list.id);
-                                    setShowBroadcast(true);
-                                  }}
-                                >
-                                  <Send className="h-3.5 w-3.5 mr-1" />
-                                  Enviar
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                  onClick={() => setEditListId(list.id)}
-                                  title="Ver / Editar"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                  onClick={() => setDeleteListId(list.id)}
-                                  title="Eliminar"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
+              {/* Table rows */}
+              {contactLists.map((list) => (
+                <div
+                  key={list.id}
+                  className="flex items-center"
+                  style={{ padding: '14px 16px', borderTop: '1px solid #E4E4E7' }}
+                >
+                  <div className="flex-1" style={{ minWidth: 140, fontSize: 14, fontWeight: 500, color: '#09090B' }}>
+                    {list.name}
+                  </div>
+                  <div style={{ width: 120, fontSize: 14, fontWeight: 400, color: '#3F3F46' }}>
+                    {list._count.contacts}
+                  </div>
+                  <div style={{ width: 160, fontSize: 14, fontWeight: 400, color: '#71717A' }}>
+                    {new Date(list.createdAt).toLocaleDateString('es-CO')}
+                  </div>
+                  <div style={{ width: 160, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button
+                      onClick={() => setEditListId(list.id)}
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#10B981',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      {ui.edit || 'Editar'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setBroadcastListId(list.id);
+                        setShowBroadcast(true);
+                      }}
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: '#10B981',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      {ui.send || 'Enviar'}
+                    </button>
+                    <button
+                      onClick={() => setDeleteListId(list.id)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        color: '#71717A',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                      title={ui.delete || 'Eliminar'}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
               </div>
-            )}
-          </>
-        )}
+            </div>
+          )}
+        </>
+      )}
 
-        {tab === 'broadcasts' && (
-          <>
-            {broadcasts.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto pt-20">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                  <Megaphone className="h-8 w-8 text-gray-400" />
+      {tab === 'broadcasts' && (
+        <>
+          {broadcasts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto pt-20">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                <Megaphone className="h-8 w-8 text-gray-400" />
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#09090B' }}>{t.noLists || 'Sin difusiones'}</h2>
+              <p style={{ fontSize: 14, color: '#71717A' }}>
+                {contactLists.length === 0
+                  ? (t.noListsDesc || 'Primero crea una lista de contactos, luego podrás enviar difusiones.')
+                  : (t.subtitle || 'Envía tu primera difusión masiva a una lista de contactos.')}
+              </p>
+              {contactLists.length > 0 && (
+                <button
+                  onClick={() => setShowBroadcast(true)}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: '#FFFFFF',
+                    backgroundColor: '#10B981',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Megaphone className="h-4 w-4" />
+                  {t.sendBroadcast || 'Crear difusión'}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ borderRadius: 12, border: '1px solid #E4E4E7', overflowX: 'auto' }}>
+              <div style={{ minWidth: 900 }}>
+              {/* Table header */}
+              <div
+                className="flex items-center"
+                style={{ backgroundColor: '#F4F4F5', padding: '12px 16px' }}
+              >
+                <div className="flex-1" style={{ minWidth: 160, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  {t.messageTemplate || 'Plantilla'}
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">Sin difusiones</h2>
-                <p className="text-muted-foreground">
-                  {contactLists.length === 0
-                    ? 'Primero crea una lista de contactos, luego podrás enviar difusiones.'
-                    : 'Envía tu primera difusión masiva a una lista de contactos.'}
-                </p>
-                {contactLists.length > 0 && (
-                  <Button onClick={() => setShowBroadcast(true)}>
-                    <Megaphone className="h-4 w-4 mr-2" />
-                    Crear difusión
-                  </Button>
-                )}
+                <div style={{ width: 140, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  {t.listName || 'Lista'}
+                </div>
+                <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  {t.status || ui.status || 'Estado'}
+                </div>
+                <div style={{ width: 100, fontSize: 12, fontWeight: 600, color: '#71717A', textAlign: 'center' }}>
+                  {t.sent || 'Enviados'}
+                </div>
+                <div style={{ width: 80, fontSize: 12, fontWeight: 600, color: '#71717A', textAlign: 'center' }}>
+                  {t.failed || ui.failed || 'Fallidos'}
+                </div>
+                <div style={{ width: 120, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  {ui.actions || 'Creada por'}
+                </div>
+                <div style={{ width: 140, fontSize: 12, fontWeight: 600, color: '#71717A' }}>
+                  {ui.date || 'Fecha'}
+                </div>
               </div>
-            ) : (
-              <div className="max-w-5xl mx-auto">
-                <Card>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Plantilla</TableHead>
-                          <TableHead>Lista</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead className="text-center">Enviados</TableHead>
-                          <TableHead className="text-center">Fallidos</TableHead>
-                          <TableHead>Creada por</TableHead>
-                          <TableHead>Fecha</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {broadcasts.map((b) => {
-                          const status = STATUS_MAP[b.status] || STATUS_MAP.PENDING;
-                          const StatusIcon = status.icon;
-                          return (
-                            <TableRow key={b.id}>
-                              <TableCell className="font-medium">{b.templateName}</TableCell>
-                              <TableCell className="text-sm">{b.contactList.name}</TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant="outline"
-                                  className={cn('text-xs flex items-center gap-1 w-fit', status.color)}
-                                >
-                                  <StatusIcon className={cn('h-3 w-3', b.status === 'IN_PROGRESS' && 'animate-spin')} />
-                                  {status.label}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-center font-mono text-sm text-green-600">
-                                {b.sentCount}/{b.totalContacts}
-                              </TableCell>
-                              <TableCell className="text-center font-mono text-sm text-red-500">
-                                {b.failedCount}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {b.createdBy?.name || '—'}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {new Date(b.createdAt).toLocaleDateString('es-CO', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
+              {/* Table rows */}
+              {broadcasts.map((b) => {
+                const statusDef = STATUS_MAP_STATIC[b.status] || STATUS_MAP_STATIC.PENDING;
+                const StatusIcon = statusDef.icon;
+                const statusLabel = (ui as any)[statusDef.labelKey] || statusDef.fallback;
+                return (
+                  <div
+                    key={b.id}
+                    className="flex items-center"
+                    style={{ padding: '14px 16px', borderTop: '1px solid #E4E4E7' }}
+                  >
+                    <div className="flex-1" style={{ minWidth: 160, fontSize: 14, fontWeight: 500, color: '#09090B' }}>
+                      {b.templateName}
+                    </div>
+                    <div style={{ width: 140, fontSize: 14, fontWeight: 400, color: '#3F3F46' }}>
+                      {b.contactList.name}
+                    </div>
+                    <div style={{ width: 120 }}>
+                      <Badge
+                        variant="outline"
+                        className={cn('text-xs flex items-center gap-1 w-fit', statusDef.color)}
+                      >
+                        <StatusIcon className={cn('h-3 w-3', b.status === 'IN_PROGRESS' && 'animate-spin')} />
+                        {statusLabel}
+                      </Badge>
+                    </div>
+                    <div style={{ width: 100, fontSize: 14, fontWeight: 400, color: '#16a34a', textAlign: 'center', fontFamily: 'monospace' }}>
+                      {b.sentCount}/{b.totalContacts}
+                    </div>
+                    <div style={{ width: 80, fontSize: 14, fontWeight: 400, color: '#ef4444', textAlign: 'center', fontFamily: 'monospace' }}>
+                      {b.failedCount}
+                    </div>
+                    <div style={{ width: 120, fontSize: 14, fontWeight: 400, color: '#71717A' }}>
+                      {b.createdBy?.name || '—'}
+                    </div>
+                    <div style={{ width: 140, fontSize: 14, fontWeight: 400, color: '#71717A' }}>
+                      {new Date(b.createdAt).toLocaleDateString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
               </div>
-            )}
-          </>
-        )}
-      </main>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Dialogs */}
       <CreateListDialog
@@ -413,19 +459,19 @@ export function BroadcastsClient({
       <AlertDialog open={!!deleteListId} onOpenChange={() => setDeleteListId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar esta lista?</AlertDialogTitle>
+            <AlertDialogTitle>{t.deleteList || '¿Eliminar esta lista?'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará la lista de contactos. Los contactos no serán eliminados.
+              {ui.confirmDeleteDesc || 'Esta acción no se puede deshacer.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{ui.cancel || 'Cancelar'}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteList}
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+              {isDeleting ? (ui.deleting || 'Eliminando...') : (ui.delete || 'Eliminar')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

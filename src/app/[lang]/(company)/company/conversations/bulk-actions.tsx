@@ -17,6 +17,7 @@ import {
 import { Trash2, X, CheckSquare } from 'lucide-react';
 import { deleteConversations } from './actions';
 import { toast } from 'sonner';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface BulkActionsProps {
     conversationIds: string[];
@@ -28,6 +29,9 @@ export function BulkActions({ conversationIds }: BulkActionsProps) {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const router = useRouter();
+    const dict = useDictionary();
+    const t = dict.conversations || {};
+    const ui = dict.ui || {};
 
     const toggleSelect = (id: string) => {
         setSelected(prev => {
@@ -51,13 +55,13 @@ export function BulkActions({ conversationIds }: BulkActionsProps) {
         const result = await deleteConversations(Array.from(selected));
         setIsDeleting(false);
         if (result.success) {
-            toast.success(`${result.count} conversaciones eliminadas`);
+            toast.success(`${result.count} ${t.conversationsDeleted}`);
             setSelected(new Set());
             setSelectMode(false);
             setShowDeleteDialog(false);
             router.refresh();
         } else {
-            toast.error(result.message || 'Error al eliminar');
+            toast.error(result.message || t.errorDeletingBulk);
         }
     };
 
@@ -87,6 +91,10 @@ export function BulkToolbar({
     onExit: () => void;
     onEnter: () => void;
 }) {
+    const dict = useDictionary();
+    const t = dict.conversations || {};
+    const ui = dict.ui || {};
+
     if (!selectMode) {
         return (
             <Button
@@ -96,7 +104,7 @@ export function BulkToolbar({
                 className="h-7 px-2 text-xs text-muted-foreground"
             >
                 <CheckSquare className="h-3.5 w-3.5 mr-1" />
-                Seleccionar
+                {t.selectMode}
             </Button>
         );
     }
@@ -108,7 +116,7 @@ export function BulkToolbar({
                 onCheckedChange={onToggleAll}
                 className="h-3.5 w-3.5"
             />
-            <span className="text-xs text-muted-foreground">{selectedCount} sel.</span>
+            <span className="text-xs text-muted-foreground">{selectedCount} {t.sel}</span>
             {selectedCount > 0 && (
                 <Button
                     variant="destructive"
@@ -117,7 +125,7 @@ export function BulkToolbar({
                     className="h-7 px-2 text-xs"
                 >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    Eliminar
+                    {ui.delete}
                 </Button>
             )}
             <Button variant="ghost" size="sm" onClick={onExit} className="h-7 px-2 text-xs">
@@ -165,23 +173,27 @@ export function BulkDeleteDialog({
     isDeleting: boolean;
     onConfirm: () => void;
 }) {
+    const dict = useDictionary();
+    const t = dict.conversations || {};
+    const ui = dict.ui || {};
+
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>¿Eliminar {count} conversaciones?</AlertDialogTitle>
+                    <AlertDialogTitle>{(t.deleteCountConfirm || '').replace('{n}', String(count))}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminarán todos los mensajes de las conversaciones seleccionadas.
+                        {t.deleteCountConfirmDesc}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel disabled={isDeleting}>{ui.cancel}</AlertDialogCancel>
                     <AlertDialogAction
                         onClick={onConfirm}
                         disabled={isDeleting}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                        {isDeleting ? 'Eliminando...' : `Eliminar ${count}`}
+                        {isDeleting ? ui.deleting : (t.deleteCount || '').replace('{n}', String(count))}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

@@ -1,6 +1,7 @@
 import { Sidebar, companyAdminItems } from '@/components/dashboard/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
-import { Locale } from '@/lib/dictionary';
+import { getDictionary, Locale } from '@/lib/dictionary';
+import { DictionaryProvider } from '@/lib/i18n-context';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { AlertTriangle } from 'lucide-react';
@@ -15,6 +16,7 @@ export default async function CompanyLayout({
 }) {
     const { lang } = await params;
     const session = await auth();
+    const dict = await getDictionary(lang as Locale);
 
     let tags: any[] = [];
     let userStatus: 'ONLINE' | 'BUSY' | 'OFFLINE' = 'OFFLINE';
@@ -69,38 +71,42 @@ export default async function CompanyLayout({
     }
 
     return (
-        <div className="grid w-full min-h-screen lg:grid-cols-[240px_1fr]">
-            <Sidebar role="company" lang={lang} tags={tags} className="hidden lg:block" />
-            <div className="flex flex-col min-h-screen">
-                <DashboardHeader
-                    title="Panel de Empresa"
-                    lang={lang}
-                    role="company"
-                    tags={tags}
-                    userStatus={userStatus}
-                    userName={session?.user?.name || undefined}
-                    userEmail={session?.user?.email || undefined}
-                />
-                {subscriptionExpired && (
-                    <div className="bg-red-50 border-b border-red-200 px-4 py-3 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 text-red-700 text-sm">
-                            <AlertTriangle className="h-4 w-4 shrink-0" />
-                            <span>
-                                Tu suscripción ha vencido. Algunas funciones están limitadas.
-                            </span>
+        <DictionaryProvider dictionary={dict}>
+            <div className="grid w-full min-h-screen lg:grid-cols-[240px_1fr]">
+                <Sidebar role="company" lang={lang} tags={tags} className="hidden lg:block" dict={dict.dashboard.sidebar} />
+                <div className="flex flex-col min-h-screen min-w-0">
+                    <DashboardHeader
+                        title={dict.dashboard.companyTitle}
+                        lang={lang}
+                        role="company"
+                        tags={tags}
+                        userStatus={userStatus}
+                        userName={session?.user?.name || undefined}
+                        userEmail={session?.user?.email || undefined}
+                        dict={dict.dashboard}
+                        sidebarDict={dict.dashboard.sidebar}
+                    />
+                    {subscriptionExpired && (
+                        <div className="bg-red-50 border-b border-red-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="flex items-center gap-2 text-red-700 text-sm min-w-0">
+                                <AlertTriangle className="h-4 w-4 shrink-0" />
+                                <span className="truncate">
+                                    Tu suscripción ha vencido. Algunas funciones están limitadas.
+                                </span>
+                            </div>
+                            <Link
+                                href={`/${lang}/company/settings?tab=billing`}
+                                className="text-sm font-medium text-red-700 hover:text-red-800 underline whitespace-nowrap self-start sm:self-auto"
+                            >
+                                Renovar plan
+                            </Link>
                         </div>
-                        <Link
-                            href={`/${lang}/company/settings?tab=billing`}
-                            className="text-sm font-medium text-red-700 hover:text-red-800 underline whitespace-nowrap"
-                        >
-                            Renovar plan
-                        </Link>
-                    </div>
-                )}
-                <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-                    {children}
-                </main>
+                    )}
+                    <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:px-10 lg:py-8 min-w-0 overflow-x-hidden">
+                        {children}
+                    </main>
+                </div>
             </div>
-        </div>
+        </DictionaryProvider>
     );
 }

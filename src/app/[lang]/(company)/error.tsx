@@ -17,6 +17,9 @@ export default function CompanyError({
         <p className="text-sm text-muted-foreground">
           Ocurrió un error al cargar esta sección. Por favor intenta de nuevo.
         </p>
+        <p className="text-xs text-muted-foreground/60 font-mono break-all">
+          {error?.message}
+        </p>
         <Button onClick={reset} variant="outline">
           Reintentar
         </Button>

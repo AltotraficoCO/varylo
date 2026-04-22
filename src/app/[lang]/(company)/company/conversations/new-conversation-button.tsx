@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SendTemplateDialog } from '../contacts/send-template-dialog';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface Contact {
     id: string;
@@ -19,6 +20,8 @@ export function NewConversationButton({
     lang: string;
 }) {
     const [open, setOpen] = useState(false);
+    const dict = useDictionary();
+    const t = dict.conversations || {};
 
     return (
         <>
@@ -26,7 +29,7 @@ export function NewConversationButton({
                 size="icon-sm"
                 variant="outline"
                 onClick={() => setOpen(true)}
-                title="Nueva conversación"
+                title={t.newConversation}
             >
                 <Plus className="h-4 w-4" />
             </Button>

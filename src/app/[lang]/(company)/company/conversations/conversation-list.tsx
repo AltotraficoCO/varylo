@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Instagram, Phone, Globe, Bot } from 'lucide-react';
 import { UnreadDot } from './unread-dot';
 import { ConversationListActions } from './conversation-list-actions';
+import { useDictionary } from '@/lib/i18n-context';
 
 interface ConversationItem {
     id: string;
@@ -27,12 +28,15 @@ interface ConversationListProps {
 }
 
 export function ConversationList({ conversations, selectedId, filter, isAgent }: ConversationListProps) {
+    const dict = useDictionary();
+    const t = dict.conversations || {};
+
     return (
         <div className="flex-1 overflow-auto">
             {conversations.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted-foreground px-4 space-y-2">
-                    <p className="font-medium">No hay conversaciones</p>
-                    <p className="text-xs opacity-70">Las conversaciones aparecerán aquí.</p>
+                    <p className="font-medium">{t.noConversations}</p>
+                    <p className="text-xs opacity-70">{t.conversationsAppearHere}</p>
                 </div>
             ) : (
                 conversations.map((conv) => {
@@ -54,7 +58,7 @@ export function ConversationList({ conversations, selectedId, filter, isAgent }:
                             />
                             <div className="flex-1 overflow-hidden">
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="font-semibold text-sm truncate text-foreground">{conv.contact?.name || 'Usuario Desconocido'}</span>
+                                    <span className="font-semibold text-sm truncate text-foreground">{conv.contact?.name || t.unknownUser}</span>
                                     <div className="flex items-center gap-1 ml-2">
                                         <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                                             {lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -63,7 +67,7 @@ export function ConversationList({ conversations, selectedId, filter, isAgent }:
                                     </div>
                                 </div>
                                 <p className="text-sm text-muted-foreground truncate mb-2">
-                                    {lastMsg?.content || 'Nueva conversación'}
+                                    {lastMsg?.content || t.newConversation}
                                 </p>
                                 <div className="flex gap-2 flex-wrap">
                                     {conv.channel?.type === 'INSTAGRAM' ? (

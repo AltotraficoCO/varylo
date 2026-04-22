@@ -180,7 +180,6 @@ export async function handlePaymentSuccess(subscriptionId: string, attemptId: st
         });
     }
 
-    console.log(`[Subscription] Payment success for sub ${subscriptionId}, new period ends ${newPeriodEnd.toISOString()}`);
 }
 
 /**
@@ -205,7 +204,6 @@ export async function handlePaymentFailure(
         }),
     ]);
 
-    console.log(`[Subscription] Payment failure for sub ${subscriptionId}: ${reason}`);
 }
 
 /**
@@ -219,7 +217,6 @@ export async function cancelSubscription(subscriptionId: string) {
         },
     });
 
-    console.log(`[Subscription] Subscription ${subscriptionId} marked for cancellation at period end`);
 }
 
 /**
@@ -241,22 +238,18 @@ async function pollTransactionStatus(
                 select: { status: true },
             });
             if (attempt?.status !== 'PENDING') {
-                console.log(`[Subscription] Polling: attempt ${attemptId} already resolved as ${attempt?.status}`);
                 return;
             }
 
             const tx = await getTransaction(wompiTransactionId);
-            console.log(`[Subscription] Polling attempt ${i + 1}: transaction ${wompiTransactionId} status=${tx.status}`);
 
             if (tx.status === 'APPROVED') {
                 await handlePaymentSuccess(subscriptionId, attemptId);
-                console.log(`[Subscription] Polling: activated subscription ${subscriptionId} via fallback`);
                 return;
             }
 
             if (tx.status === 'DECLINED' || tx.status === 'ERROR') {
                 await handlePaymentFailure(subscriptionId, attemptId, tx.status_message || tx.status);
-                console.log(`[Subscription] Polling: payment failed for ${subscriptionId}: ${tx.status}`);
                 return;
             }
 
@@ -266,7 +259,6 @@ async function pollTransactionStatus(
         }
     }
 
-    console.log(`[Subscription] Polling: gave up after 3 attempts for transaction ${wompiTransactionId}`);
 }
 
 /**

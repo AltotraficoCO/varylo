@@ -35,10 +35,7 @@ export default auth((req) => {
         );
     }
 
-    // 2. Extract locale for further logic if needed (e.g. /es/dashboard)
-    // const locale = pathname.split('/')[1];
-
-    // 3. Protect Roles (adapted for locale prefix)
+    // 2. Protect Roles (adapted for locale prefix)
     // Logic: Check if path segment after locale matches protected routes
     // /es/super-admin -> segments: ['', 'es', 'super-admin']
     const segments = pathname.split('/');
@@ -74,7 +71,19 @@ export default auth((req) => {
         }
     }
 
-    return NextResponse.next();
+    const response = NextResponse.next();
+
+    // Security headers
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-XSS-Protection', '1; mode=block');
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()');
+    if (process.env.NODE_ENV === 'production') {
+        response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
+
+    return response;
 });
 
 export const config = {
