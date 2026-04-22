@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { CreateChatbotDialog } from './create-chatbot-dialog';
+import { ChatbotCardControls } from './chatbot-card-controls';
 import Link from 'next/link';
 import { Bot, MessageSquare, Zap } from 'lucide-react';
 import { getDictionary } from '@/lib/dictionary';
@@ -49,41 +50,47 @@ export default async function ChatbotsPage({ params }: { params: Promise<{ lang:
                     const nodeCount = chatbot.flowJson ? (Array.isArray(chatbot.flowJson) ? (chatbot.flowJson as any[]).length : 0) : 0;
 
                     return (
-                        <Link
-                            key={chatbot.id}
-                            href={`/${lang}/company/chatbots/${chatbot.id}`}
-                            className="bg-white rounded-xl border border-[#E4E4E7] p-6 flex flex-col gap-4 hover:shadow-md transition-shadow cursor-pointer"
-                        >
-                            {/* Icon */}
-                            <div className={`h-12 w-12 rounded-lg ${theme.bg} flex items-center justify-center`}>
-                                <IconComponent className={`h-6 w-6 ${theme.color}`} />
-                            </div>
+                        <div key={chatbot.id} className="relative">
+                            <ChatbotCardControls
+                                chatbotId={chatbot.id}
+                                chatbotName={chatbot.name}
+                                isActive={chatbot.active}
+                            />
+                            <Link
+                                href={`/${lang}/company/chatbots/${chatbot.id}`}
+                                className="bg-white rounded-xl border border-[#E4E4E7] p-6 flex flex-col gap-4 hover:shadow-md transition-shadow cursor-pointer"
+                            >
+                                {/* Icon */}
+                                <div className={`h-12 w-12 rounded-lg ${theme.bg} flex items-center justify-center`}>
+                                    <IconComponent className={`h-6 w-6 ${theme.color}`} />
+                                </div>
 
-                            {/* Title + Badge */}
-                            <div className="flex items-center gap-2">
-                                <h3 className="text-base font-semibold text-[#09090B]">{chatbot.name}</h3>
-                                {chatbot.active && (
-                                    <span className="bg-[#ECFDF5] text-[#10B981] text-xs rounded-xl px-2.5 py-0.5">
-                                        {t.active}
-                                    </span>
-                                )}
-                                {!chatbot.active && (
-                                    <span className="bg-[#F4F4F5] text-[#71717A] text-xs rounded-xl px-2.5 py-0.5">
-                                        {t.inactive}
-                                    </span>
-                                )}
-                            </div>
+                                {/* Title + Badge */}
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-base font-semibold text-[#09090B]">{chatbot.name}</h3>
+                                    {chatbot.active && (
+                                        <span className="bg-[#ECFDF5] text-[#10B981] text-xs rounded-xl px-2.5 py-0.5">
+                                            {t.active}
+                                        </span>
+                                    )}
+                                    {!chatbot.active && (
+                                        <span className="bg-[#F4F4F5] text-[#71717A] text-xs rounded-xl px-2.5 py-0.5">
+                                            {t.inactive}
+                                        </span>
+                                    )}
+                                </div>
 
-                            {/* Description */}
-                            <p className="text-[13px] text-[#3F3F46] leading-[1.4] line-clamp-2">
-                                {t.automatedFlow}
-                            </p>
+                                {/* Description */}
+                                <p className="text-[13px] text-[#3F3F46] leading-[1.4] line-clamp-2">
+                                    {t.automatedFlow}
+                                </p>
 
-                            {/* Stats */}
-                            <p className="text-xs text-[#71717A]">
-                                {nodeCount} {t.nodes} • {chatbot._count.channels} {chatbot._count.channels === 1 ? t.channel : t.channelsPlural}
-                            </p>
-                        </Link>
+                                {/* Stats */}
+                                <p className="text-xs text-[#71717A]">
+                                    {nodeCount} {t.nodes} • {chatbot._count.channels} {chatbot._count.channels === 1 ? t.channel : t.channelsPlural}
+                                </p>
+                            </Link>
+                        </div>
                     );
                 })}
 
