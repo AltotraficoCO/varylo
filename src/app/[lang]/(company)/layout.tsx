@@ -72,11 +72,11 @@ export default async function CompanyLayout({
 
     return (
         <DictionaryProvider dictionary={dict}>
-            <div className="grid w-full min-h-screen lg:grid-cols-[240px_1fr]">
-                <div className="hidden lg:block bg-sidebar">
+            <div className="flex w-full h-screen overflow-hidden">
+                <div className="hidden lg:block shrink-0">
                     <Sidebar role="company" lang={lang} tags={tags} dict={dict.dashboard.sidebar} />
                 </div>
-                <div className="flex flex-col min-h-screen min-w-0">
+                <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
                     <DashboardHeader
                         title={dict.dashboard.companyTitle}
                         lang={lang}
