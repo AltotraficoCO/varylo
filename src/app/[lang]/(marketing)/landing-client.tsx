@@ -185,9 +185,10 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
               scrollTrigger: { trigger: '.metrics-section', start: 'top 80%', once: true } });
 
         // ── HOW IT WORKS — horizontal pin on desktop only.
-        // On <1024px the panels stack vertically via CSS (see globals.css),
-        // so GSAP must not translate the track. iOS Safari's dynamic viewport
-        // also breaks the calc(100vh + ...) pin at this breakpoint.
+        // On <1024px the panels stack vertically via CSS (see globals.css).
+        // The pin duration uses ScrollTrigger's own pinSpacing so the section
+        // height stays at 100vh (no inline calc) and the pin ends exactly when
+        // the horizontal scroll finishes — no dead scroll after the last step.
         const howPanels = gsap.utils.toArray<HTMLElement>('.how-panel');
         if (howPanels.length > 0 && window.matchMedia('(min-width: 1024px)').matches) {
             gsap.to('.how-track', {
@@ -195,9 +196,12 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                 ease: 'none',
                 scrollTrigger: {
                     trigger: '.how-sticky',
+                    pin: true,
                     start: 'top top',
                     end: () => `+=${(howPanels.length - 1) * window.innerWidth}`,
                     scrub: 1,
+                    invalidateOnRefresh: true,
+                    anticipatePin: 1,
                     onUpdate(self) {
                         const num = document.querySelector('.how-step-num');
                         const bar = document.querySelector('.how-bar') as HTMLElement;
@@ -613,11 +617,12 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
 
             <div className="border-t border-white/[.06]" />
 
-            {/* ══ HOW IT WORKS — CSS STICKY (no GSAP pin = no spacer bugs) ════════ */}
-            {/* Outer section is tall enough to contain the full horizontal scroll distance */}
-            <section className="how-section relative" style={{ height: `calc(100vh + ${(steps.length - 1) * 100}vw)` }}>
-                {/* Sticky inner — CSS handles the pin, not GSAP */}
-                <div className="how-sticky sticky top-0 h-screen overflow-hidden bg-black">
+            {/* ══ HOW IT WORKS — GSAP pin handles the scroll hijack ═══════════════ */}
+            {/* GSAP adds its own pinSpacer sized to (steps-1) * innerWidth so
+                the scroll distance matches the horizontal animation exactly.  */}
+            <section className="how-section relative">
+                {/* Inner is a normal block — GSAP will pin it while scrolling */}
+                <div className="how-sticky h-screen overflow-hidden bg-black">
                     {/* Progress bar */}
                     <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/[.06] z-20">
                         <div className="how-bar h-full bg-emerald-500 w-0" style={{ transition: 'none' }} />
