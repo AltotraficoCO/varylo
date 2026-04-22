@@ -16,7 +16,9 @@ export default async function SuperAdminLayout({
     return (
         <DictionaryProvider dictionary={dict}>
             <div className="grid min-h-screen w-full lg:grid-cols-[240px_1fr]">
-                <Sidebar role="super-admin" lang={lang} className="hidden lg:block" dict={dict.dashboard.sidebar} />
+                <div className="hidden lg:block bg-sidebar">
+                    <Sidebar role="super-admin" lang={lang} dict={dict.dashboard.sidebar} />
+                </div>
                 <div className="flex flex-col min-h-screen min-w-0">
                     <DashboardHeader
                         title={dict.dashboard.superAdminTitle}
@@ -30,6 +32,7 @@ export default async function SuperAdminLayout({
                     </main>
                 </div>
             </div>
+
         </DictionaryProvider>
     );
 }
