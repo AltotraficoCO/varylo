@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { FileText, Download, Play, Pause, AlertCircle } from 'lucide-react';
+import { FileText, Download, Play, Pause, AlertCircle, X } from 'lucide-react';
 import { useDictionary } from '@/lib/i18n-context';
 
 interface Message {
@@ -203,6 +203,77 @@ function AudioPlayer({ src, mimeType, isOutbound, audioUnsupportedLabel }: { src
     );
 }
 
+function ImageThumbnail({ src, alt, fileName, isSticker }: { src: string; alt: string; fileName?: string | null; isSticker: boolean }) {
+    const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+        document.addEventListener('keydown', onKey);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            document.body.style.overflow = prevOverflow;
+        };
+    }, [open]);
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="block p-0 border-0 bg-transparent cursor-zoom-in"
+                aria-label="Ver imagen en grande"
+            >
+                <img
+                    src={src}
+                    alt={alt}
+                    className={cn(
+                        "rounded-lg max-w-full max-h-64 object-contain",
+                        isSticker && "max-h-32"
+                    )}
+                    loading="lazy"
+                />
+            </button>
+            {open && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
+                    onClick={() => setOpen(false)}
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+                        className="absolute top-4 right-4 rounded-full bg-white/10 hover:bg-white/20 text-white p-2 backdrop-blur"
+                        aria-label="Cerrar"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                    <a
+                        href={src}
+                        download={fileName || 'imagen'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute top-4 right-16 rounded-full bg-white/10 hover:bg-white/20 text-white p-2 backdrop-blur"
+                        aria-label="Descargar"
+                    >
+                        <Download className="h-5 w-5" />
+                    </a>
+                    <img
+                        src={src}
+                        alt={alt}
+                        onClick={(e) => e.stopPropagation()}
+                        className="max-w-[95vw] max-h-[95vh] object-contain rounded-md"
+                    />
+                </div>
+            )}
+        </>
+    );
+}
+
 function MediaContent({ msg, t }: { msg: Message; t: Record<string, string> }) {
     const isOutbound = msg.direction === 'OUTBOUND';
     const src = resolveMediaSrc(msg);
@@ -213,14 +284,11 @@ function MediaContent({ msg, t }: { msg: Message; t: Record<string, string> }) {
         case 'image':
         case 'sticker':
             return (
-                <img
+                <ImageThumbnail
                     src={src}
                     alt={msg.fileName || 'Imagen'}
-                    className={cn(
-                        "rounded-lg max-w-full max-h-64 object-contain",
-                        msg.mediaType === 'sticker' && "max-h-32"
-                    )}
-                    loading="lazy"
+                    fileName={msg.fileName}
+                    isSticker={msg.mediaType === 'sticker'}
                 />
             );
 
