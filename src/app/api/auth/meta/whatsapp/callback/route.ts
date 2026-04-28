@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
 
     try {
         console.log('[WhatsApp OAuth] callback start companyId=', companyId);
+        console.log('[WhatsApp OAuth] using appId=', appId, 'appSecret length=', appSecret?.length, 'appSecret prefix=', appSecret?.slice(0, 4), 'redirectUri=', redirectUri);
 
         // Step 1: Exchange code for token
         const tokenRes = await fetch(
