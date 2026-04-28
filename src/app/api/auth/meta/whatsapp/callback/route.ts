@@ -142,6 +142,23 @@ export async function GET(req: NextRequest) {
             } catch { /* ignore */ }
         }
 
+        // Step 6.5: Register the phone number with Cloud API (required to send)
+        try {
+            const regRes = await fetch(`${META_GRAPH}/${phoneNumberId}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messaging_product: 'whatsapp',
+                    pin: '123456',
+                    access_token: accessToken,
+                }),
+            });
+            const regData = await regRes.json();
+            console.log('[WhatsApp OAuth] register phone:', JSON.stringify(regData));
+        } catch (err) {
+            console.warn('[WhatsApp OAuth] register failed:', err instanceof Error ? err.message : 'unknown');
+        }
+
         // Step 7: Subscribe WABA to webhooks
         if (wabaId) {
             try {
