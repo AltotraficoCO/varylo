@@ -21,7 +21,11 @@ export default auth((req) => {
 
     // 1. Check for Locale
     const pathname = nextUrl.pathname;
-    const pathnameIsMissingLocale = locales.every(
+
+    // Public routes that bypass locale prefix
+    const localeExempt = pathname === '/status' || pathname.startsWith('/status/');
+
+    const pathnameIsMissingLocale = !localeExempt && locales.every(
         (locale) => !pathname.startsWith(`/${locale}/`) && pathname !== `/${locale}`
     );
 
