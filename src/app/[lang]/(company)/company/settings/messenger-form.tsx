@@ -159,17 +159,39 @@ export function MessengerForm({
                 </div>
             )}
 
-            <div className="pt-2">
-                <a href="/api/auth/meta/messenger">
-                    <Button className="w-full bg-[#0866FF] hover:bg-[#0757D9] text-white rounded-lg h-10 flex items-center gap-2">
-                        <MessengerLogo className="h-4 w-4" />
-                        Continuar con Facebook
-                    </Button>
-                </a>
-                <p className="text-xs text-[#71717A] text-center mt-3">
+            <div className="space-y-3">
+                <div className="bg-[#F4F4F5] rounded-lg p-4 space-y-2">
+                    <p className="text-[13px] text-[#3F3F46]">
+                        Al conectar, autorizarás a Varylo a:
+                    </p>
+                    <ul className="text-[13px] text-[#71717A] space-y-1">
+                        <li className="flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-[#71717A]" />
+                            Recibir mensajes de Messenger en tu página
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-[#71717A]" />
+                            Responder mensajes en tu nombre
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-[#71717A]" />
+                            Ver información básica de tu página
+                        </li>
+                    </ul>
+                </div>
+
+                <p className="text-[12px] text-[#A1A1AA]">
                     Necesitas ser administrador de la página de Facebook que quieres conectar.
                 </p>
             </div>
+
+            <a
+                href="/api/auth/meta/messenger"
+                className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#0866FF] hover:bg-[#0757D9] text-white font-semibold text-[14px] py-2.5 px-4 transition-colors"
+            >
+                <MessengerLogo className="h-5 w-5" />
+                Conectar con Messenger
+            </a>
         </div>
     );
 }

@@ -45,7 +45,6 @@ export function WhatsAppConnectionForm({
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [priority, setPriority] = useState(automationPriority || 'CHATBOT_FIRST');
     const [isSavingPriority, setIsSavingPriority] = useState(false);
-    const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const isSuccess = state?.startsWith('Success');
     const isError = state?.startsWith('Error');
@@ -230,86 +229,81 @@ export function WhatsAppConnectionForm({
                 <ExternalLink className="h-3.5 w-3.5 ml-1 opacity-70" />
             </a>
 
-            <div className="border-t border-[#E4E4E7] pt-4">
-                <button
-                    type="button"
-                    onClick={() => setAdvancedOpen(!advancedOpen)}
-                    className="flex items-center gap-1.5 text-[13px] text-[#71717A] hover:text-[#09090B] transition-colors"
-                >
-                    {advancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <details className="group border-t border-[#E4E4E7] pt-4">
+                <summary className="cursor-pointer list-none flex items-center gap-1.5 text-[13px] text-[#71717A] hover:text-[#09090B] transition-colors">
+                    <ChevronDown className="h-4 w-4 group-open:hidden" />
+                    <ChevronUp className="h-4 w-4 hidden group-open:inline" />
                     Configuración avanzada (usar mi propia app de Meta)
-                </button>
+                </summary>
 
-                {advancedOpen && (
-                    <form action={action} className="flex flex-col gap-4 mt-4">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="phoneNumberId" className="text-xs text-[#71717A]">Phone Number ID</Label>
-                            <Input
-                                id="phoneNumberId"
-                                name="phoneNumberId"
-                                placeholder="Ej. 10456..."
-                                defaultValue={initialPhoneNumberId}
-                                className="rounded-lg"
-                                required
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="accessToken" className="text-xs text-[#71717A]">Access Token</Label>
-                            <Input
-                                id="accessToken"
-                                name="accessToken"
-                                type="password"
-                                placeholder="EAAG..."
-                                className="rounded-lg"
-                                required
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="appSecret" className="text-xs text-[#71717A]">App Secret</Label>
-                            <Input
-                                id="appSecret"
-                                name="appSecret"
-                                type="password"
-                                placeholder="Tu App Secret de Meta"
-                                className="rounded-lg"
-                                required
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="verifyToken" className="text-xs text-[#71717A]">Verify Token (Webhook)</Label>
-                            <Input
-                                id="verifyToken"
-                                name="verifyToken"
-                                placeholder="MiTokenSecreto"
-                                defaultValue={initialVerifyToken}
-                                className="rounded-lg"
-                                required
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="wabaId" className="text-xs text-[#71717A]">WhatsApp Business Account ID</Label>
-                            <Input
-                                id="wabaId"
-                                name="wabaId"
-                                placeholder="Ej. 10234..."
-                                defaultValue={initialWabaId}
-                                className="rounded-lg"
-                            />
-                        </div>
+                <form action={action} className="flex flex-col gap-4 mt-4">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="phoneNumberId" className="text-xs text-[#71717A]">Phone Number ID</Label>
+                        <Input
+                            id="phoneNumberId"
+                            name="phoneNumberId"
+                            placeholder="Ej. 10456..."
+                            defaultValue={initialPhoneNumberId}
+                            className="rounded-lg"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="accessToken" className="text-xs text-[#71717A]">Access Token</Label>
+                        <Input
+                            id="accessToken"
+                            name="accessToken"
+                            type="password"
+                            placeholder="EAAG..."
+                            className="rounded-lg"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="appSecret" className="text-xs text-[#71717A]">App Secret</Label>
+                        <Input
+                            id="appSecret"
+                            name="appSecret"
+                            type="password"
+                            placeholder="Tu App Secret de Meta"
+                            className="rounded-lg"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="verifyToken" className="text-xs text-[#71717A]">Verify Token (Webhook)</Label>
+                        <Input
+                            id="verifyToken"
+                            name="verifyToken"
+                            placeholder="MiTokenSecreto"
+                            defaultValue={initialVerifyToken}
+                            className="rounded-lg"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="wabaId" className="text-xs text-[#71717A]">WhatsApp Business Account ID</Label>
+                        <Input
+                            id="wabaId"
+                            name="wabaId"
+                            placeholder="Ej. 10234..."
+                            defaultValue={initialWabaId}
+                            className="rounded-lg"
+                        />
+                    </div>
 
-                        {isError && (
-                            <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-[#FEF2F2] text-[#EF4444]">
-                                <AlertCircle className="h-4 w-4 shrink-0" />
-                                {state}
-                            </div>
-                        )}
+                    {isError && (
+                        <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-[#FEF2F2] text-[#EF4444]">
+                            <AlertCircle className="h-4 w-4 shrink-0" />
+                            {state}
+                        </div>
+                    )}
 
-                        <Button type="submit" disabled={isPending} className="rounded-lg">
-                            {isPending ? 'Guardando...' : 'Guardar credenciales'}
-                        </Button>
-                    </form>
-                )}
-            </div>
+                    <Button type="submit" disabled={isPending} className="rounded-lg">
+                        {isPending ? 'Guardando...' : 'Guardar credenciales'}
+                    </Button>
+                </form>
+            </details>
         </div>
     );
 }
