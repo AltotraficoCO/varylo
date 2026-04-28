@@ -144,11 +144,17 @@ export async function GET(req: NextRequest) {
 
         // Step 7: Subscribe WABA to webhooks
         if (wabaId) {
-            await fetch(`${META_GRAPH}/${wabaId}/subscribed_apps`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ access_token: accessToken }),
-            }).catch(() => {});
+            try {
+                const subRes = await fetch(`${META_GRAPH}/${wabaId}/subscribed_apps`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token: accessToken }),
+                });
+                const subData = await subRes.json();
+                console.log('[WhatsApp OAuth] subscribed_apps:', JSON.stringify(subData));
+            } catch (err) {
+                console.warn('[WhatsApp OAuth] subscribe failed:', err instanceof Error ? err.message : 'unknown');
+            }
         }
 
         // Step 8: Generate verify token and save

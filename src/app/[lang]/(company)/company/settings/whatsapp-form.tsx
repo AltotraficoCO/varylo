@@ -220,9 +220,20 @@ export function WhatsAppConnectionForm({
             )}
 
             {waResult === 'connected' && (
-                <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-[#ECFDF5] text-[#10B981]">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <span>WhatsApp conectado{waPhone ? ` (${waPhone})` : ''}. Recarga la página para ver los cambios.</span>
+                <div className="flex flex-col gap-2 text-sm p-3 rounded-lg bg-[#ECFDF5] text-[#065F46]">
+                    <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        <span className="font-semibold">WhatsApp conectado{waPhone ? ` (${waPhone})` : ''}</span>
+                    </div>
+                    <p className="text-[12px] text-[#047857]">
+                        Antes de enviar mensajes, asegúrate de autorizar el envío en tu Business Manager:
+                    </p>
+                    <ol className="text-[12px] text-[#065F46] list-decimal list-inside space-y-0.5 ml-1">
+                        <li>Entra a business.facebook.com</li>
+                        <li>Configuración → Cuentas → Cuentas de WhatsApp → tu WABA</li>
+                        <li>Apps conectadas → Agregar app → busca y agrega Varylo</li>
+                        <li>Asigna el permiso "Mensajería"</li>
+                    </ol>
                 </div>
             )}
 
