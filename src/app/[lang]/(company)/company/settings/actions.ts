@@ -137,6 +137,98 @@ export async function testWhatsAppConnection() {
     }
 }
 
+/**
+ * TEMPORAL: re-verificar el número de WhatsApp con Meta Cloud API.
+ * Útil cuando code_verification_status === 'EXPIRED'.
+ * Solicita SMS o llamada con un código de 6 dígitos.
+ */
+export async function requestWhatsAppVerification(method: 'SMS' | 'VOICE' = 'SMS') {
+    const session = await auth();
+    if (!session?.user?.companyId) return { success: false, message: 'No authorized session.' };
+
+    const channel = await prisma.channel.findFirst({
+        where: { companyId: session.user.companyId, type: ChannelType.WHATSAPP },
+    });
+    if (!channel?.configJson) return { success: false, message: 'No WhatsApp configuration found.' };
+
+    const config = channel.configJson as { phoneNumberId?: string; accessToken?: string };
+    const { readChannelSecret } = await import('@/lib/channel-config');
+    const phoneNumberId = config.phoneNumberId;
+    const accessToken = readChannelSecret(config.accessToken);
+    if (!phoneNumberId || !accessToken) return { success: false, message: 'Configuración incompleta.' };
+
+    try {
+        const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/request_code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code_method: method,
+                language: 'es',
+                access_token: accessToken,
+            }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            const msg = data?.error?.message || `HTTP ${res.status}`;
+            return { success: false, message: msg };
+        }
+        return { success: true, message: `Código enviado por ${method === 'SMS' ? 'SMS' : 'llamada'}.` };
+    } catch (err) {
+        return { success: false, message: err instanceof Error ? err.message : 'Error desconocido' };
+    }
+}
+
+/**
+ * TEMPORAL: confirmar el código de verificación de 6 dígitos.
+ */
+export async function verifyWhatsAppCode(code: string) {
+    const session = await auth();
+    if (!session?.user?.companyId) return { success: false, message: 'No authorized session.' };
+
+    const cleaned = code.replace(/\D/g, '');
+    if (cleaned.length !== 6) return { success: false, message: 'El código debe tener 6 dígitos.' };
+
+    const channel = await prisma.channel.findFirst({
+        where: { companyId: session.user.companyId, type: ChannelType.WHATSAPP },
+    });
+    if (!channel?.configJson) return { success: false, message: 'No WhatsApp configuration found.' };
+
+    const config = channel.configJson as { phoneNumberId?: string; accessToken?: string };
+    const { readChannelSecret } = await import('@/lib/channel-config');
+    const phoneNumberId = config.phoneNumberId;
+    const accessToken = readChannelSecret(config.accessToken);
+    if (!phoneNumberId || !accessToken) return { success: false, message: 'Configuración incompleta.' };
+
+    try {
+        const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/verify_code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code: cleaned,
+                access_token: accessToken,
+            }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            const msg = data?.error?.message || `HTTP ${res.status}`;
+            return { success: false, message: msg };
+        }
+        // Re-register after verification (idempotent)
+        await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messaging_product: 'whatsapp',
+                pin: '123456',
+                access_token: accessToken,
+            }),
+        }).catch(() => {});
+        return { success: true, message: 'Número verificado. Ya puedes enviar mensajes.' };
+    } catch (err) {
+        return { success: false, message: err instanceof Error ? err.message : 'Error desconocido' };
+    }
+}
+
 export async function disconnectWhatsApp() {
     const session = await auth();
     if (!session?.user?.companyId) {

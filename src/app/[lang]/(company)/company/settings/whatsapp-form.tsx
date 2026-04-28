@@ -63,6 +63,39 @@ export function WhatsAppConnectionForm({
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [priority, setPriority] = useState(automationPriority || 'CHATBOT_FIRST');
     const [isSavingPriority, setIsSavingPriority] = useState(false);
+    const [verifyOpen, setVerifyOpen] = useState(false);
+    const [verifyCode, setVerifyCode] = useState('');
+    const [verifyMsg, setVerifyMsg] = useState<{ success: boolean; message: string } | null>(null);
+    const [verifyLoading, setVerifyLoading] = useState<'request' | 'confirm' | null>(null);
+
+    const handleRequestVerification = async (method: 'SMS' | 'VOICE') => {
+        setVerifyLoading('request');
+        setVerifyMsg(null);
+        try {
+            const { requestWhatsAppVerification } = await import('./actions');
+            const result = await requestWhatsAppVerification(method);
+            setVerifyMsg(result);
+        } catch {
+            setVerifyMsg({ success: false, message: 'Error al solicitar código' });
+        } finally {
+            setVerifyLoading(null);
+        }
+    };
+
+    const handleVerifyCode = async () => {
+        setVerifyLoading('confirm');
+        setVerifyMsg(null);
+        try {
+            const { verifyWhatsAppCode } = await import('./actions');
+            const result = await verifyWhatsAppCode(verifyCode);
+            setVerifyMsg(result);
+            if (result.success) setVerifyCode('');
+        } catch {
+            setVerifyMsg({ success: false, message: 'Error al confirmar código' });
+        } finally {
+            setVerifyLoading(null);
+        }
+    };
 
     const isSuccess = state?.startsWith('Success');
     const isError = state?.startsWith('Error');
@@ -166,6 +199,81 @@ export function WhatsAppConnectionForm({
                         {testResult.success ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                         {testResult.message}
                     </div>
+                )}
+
+                {/* TEMPORAL: re-verificación del número */}
+                {isOauth && (
+                    <details
+                        className="group rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] p-3"
+                        open={verifyOpen}
+                        onToggle={(e) => setVerifyOpen((e.target as HTMLDetailsElement).open)}
+                    >
+                        <summary className="cursor-pointer list-none flex items-center justify-between text-[13px] font-medium text-[#3F3F46]">
+                            <span className="flex items-center gap-1.5">
+                                <ChevronDown className="h-4 w-4 group-open:hidden" />
+                                <ChevronUp className="h-4 w-4 hidden group-open:inline" />
+                                Re-verificar número
+                            </span>
+                            <span className="text-[11px] text-[#A1A1AA]">si no envías mensajes</span>
+                        </summary>
+
+                        <div className="mt-3 space-y-3">
+                            <p className="text-[12px] text-[#71717A]">
+                                Si Meta dice &ldquo;permisos insuficientes&rdquo; al enviar, el número está vencido y hay que re-verificarlo.
+                            </p>
+
+                            <div className="flex gap-2 flex-wrap">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={verifyLoading !== null}
+                                    onClick={() => handleRequestVerification('SMS')}
+                                    className="rounded-lg"
+                                >
+                                    {verifyLoading === 'request' ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                                    Recibir código por SMS
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={verifyLoading !== null}
+                                    onClick={() => handleRequestVerification('VOICE')}
+                                    className="rounded-lg"
+                                >
+                                    Recibir por llamada
+                                </Button>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <Input
+                                    inputMode="numeric"
+                                    placeholder="Código de 6 dígitos"
+                                    value={verifyCode}
+                                    onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    className="rounded-lg flex-1"
+                                />
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={verifyLoading !== null || verifyCode.length !== 6}
+                                    onClick={handleVerifyCode}
+                                    className="rounded-lg"
+                                >
+                                    {verifyLoading === 'confirm' ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                                    Confirmar
+                                </Button>
+                            </div>
+
+                            {verifyMsg && (
+                                <div className={`flex items-start gap-2 text-[12px] p-2.5 rounded-lg ${verifyMsg.success ? 'bg-[#ECFDF5] text-[#065F46]' : 'bg-[#FEF2F2] text-[#991B1B]'}`}>
+                                    {verifyMsg.success ? <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />}
+                                    <span>{verifyMsg.message}</span>
+                                </div>
+                            )}
+                        </div>
+                    </details>
                 )}
 
                 <div className="flex gap-3 pt-2 flex-wrap">
