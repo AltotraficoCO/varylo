@@ -5,8 +5,8 @@ import { saveWhatsAppCredentials } from './actions';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Loader2, RefreshCw } from "lucide-react";
+import { WhatsAppLogo } from "@/components/channel-logos";
 
 type TokenStatus = 'ACTIVE' | 'WARNING' | 'EXPIRED';
 
@@ -95,225 +95,221 @@ export function WhatsAppConnectionForm({
         }
     };
 
+    // ----- Connected state -----
     if (isConnected) {
-        const cardClass = status === 'EXPIRED'
-            ? 'border-red-200 bg-red-50 dark:bg-red-950/10'
-            : status === 'WARNING'
-                ? 'border-amber-200 bg-amber-50 dark:bg-amber-950/10'
-                : 'border-green-200 bg-green-50 dark:bg-green-950/10';
-
-        const titleClass = status === 'EXPIRED'
-            ? 'text-red-700'
-            : status === 'WARNING'
-                ? 'text-amber-700'
-                : 'text-green-700';
-
-        const iconClass = status === 'EXPIRED'
-            ? 'text-red-600'
-            : status === 'WARNING'
-                ? 'text-amber-600'
-                : 'text-green-600';
+        const headerSubtitle = phoneDisplay || initialPhoneNumberId || 'Cuenta conectada';
+        const statusBadge = status === 'EXPIRED'
+            ? { label: 'Conexión expirada', className: 'bg-[#FEF2F2] text-[#EF4444]' }
+            : status === 'WARNING' && daysLeft !== null
+                ? { label: `Expira en ${daysLeft} día${daysLeft === 1 ? '' : 's'}`, className: 'bg-[#FFFBEB] text-[#D97706]' }
+                : isOauth && status === 'ACTIVE' && daysLeft !== null
+                    ? { label: `${daysLeft} día${daysLeft === 1 ? '' : 's'} restantes`, className: 'bg-[#ECFDF5] text-[#10B981]' }
+                    : null;
 
         return (
-            <Card className={cardClass}>
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        {status === 'EXPIRED' || status === 'WARNING'
-                            ? <AlertCircle className={`h-6 w-6 ${iconClass}`} />
-                            : <CheckCircle2 className={`h-6 w-6 ${iconClass}`} />}
-                        <CardTitle className={titleClass}>
-                            {status === 'EXPIRED' ? 'WhatsApp Desconectado' : 'WhatsApp Configurado'}
-                        </CardTitle>
+            <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
+                        <WhatsAppLogo className="h-6 w-6" />
                     </div>
-                    <CardDescription>
-                        {status === 'EXPIRED'
-                            ? 'Tu conexión expiró. Reconecta para seguir enviando y recibiendo mensajes.'
-                            : status === 'WARNING' && daysLeft !== null
-                                ? `Tu conexión expira en ${daysLeft} día${daysLeft === 1 ? '' : 's'}. Reconecta pronto para no perder el servicio.`
-                                : 'Tu cuenta de WhatsApp Business está conectada y lista para recibir mensajes.'}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {phoneDisplay && (
-                        <div className="grid gap-1">
-                            <Label className="text-xs text-muted-foreground">Número</Label>
-                            <p className="font-mono text-sm">{phoneDisplay}</p>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-[15px] font-semibold text-[#09090B]">WhatsApp Business conectado</h3>
+                            <CheckCircle2 className="h-4 w-4 text-[#10B981]" />
                         </div>
-                    )}
-
-                    <div className="grid gap-1">
-                        <Label className="text-xs text-muted-foreground">Phone Number ID</Label>
-                        <p className="font-mono text-sm">{initialPhoneNumberId}</p>
+                        <p className="text-[13px] text-[#71717A] truncate">{headerSubtitle}</p>
                     </div>
+                </div>
 
-                    {isOauth && status === 'ACTIVE' && daysLeft !== null && (
-                        <div className="text-xs text-muted-foreground">
-                            Conexión válida por {daysLeft} día{daysLeft === 1 ? '' : 's'} más.
-                        </div>
-                    )}
+                {statusBadge && (
+                    <div className={`text-[13px] px-3 py-2 rounded-lg ${statusBadge.className}`}>
+                        {statusBadge.label}
+                        {status === 'EXPIRED' && ' — reconecta para seguir enviando mensajes.'}
+                        {status === 'WARNING' && ' — reconecta pronto para no perder el servicio.'}
+                    </div>
+                )}
 
-                    {channelId && (
-                        <div className="grid gap-1.5">
-                            <Label className="text-xs text-muted-foreground">Prioridad de automatización</Label>
-                            <select
-                                value={priority}
-                                onChange={(e) => handlePriorityChange(e.target.value)}
-                                disabled={isSavingPriority}
-                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            >
-                                <option value="CHATBOT_FIRST">Chatbot primero (recomendado)</option>
-                                <option value="AI_FIRST">Agente IA primero</option>
-                            </select>
-                            <p className="text-xs text-muted-foreground">
-                                {priority === 'CHATBOT_FIRST'
-                                    ? 'Los mensajes pasan primero por el chatbot, luego al agente IA si no es manejado.'
-                                    : 'Los mensajes pasan primero al agente IA, luego al chatbot si no es manejado.'}
-                            </p>
-                        </div>
-                    )}
-
-                    {testResult && (
-                        <div className={`flex items-center gap-2 text-sm p-3 rounded-md bg-background border ${testResult.success ? 'text-green-600 border-green-200' : 'text-destructive border-red-200'}`}>
-                            {testResult.success ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                            {testResult.message}
-                        </div>
-                    )}
-                </CardContent>
-                <CardFooter className="flex gap-3 justify-end flex-wrap">
-                    {isOauth && (status === 'WARNING' || status === 'EXPIRED') && (
-                        <Button
-                            type="button"
-                            onClick={() => { window.location.href = '/api/auth/meta/whatsapp/redirect'; }}
-                            className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                {channelId && (
+                    <div className="space-y-1.5">
+                        <Label className="text-xs text-[#71717A]">Prioridad de automatización</Label>
+                        <select
+                            value={priority}
+                            onChange={(e) => handlePriorityChange(e.target.value)}
+                            disabled={isSavingPriority}
+                            className="flex h-9 w-full rounded-lg border border-[#E4E4E7] bg-white px-3 py-1 text-sm focus:outline-none focus:border-[#10B981]"
                         >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Reconectar con Facebook
-                        </Button>
+                            <option value="CHATBOT_FIRST">Chatbot primero (recomendado)</option>
+                            <option value="AI_FIRST">Agente IA primero</option>
+                        </select>
+                    </div>
+                )}
+
+                {testResult && (
+                    <div className={`flex items-center gap-2 text-sm p-3 rounded-lg ${testResult.success ? 'bg-[#ECFDF5] text-[#10B981]' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
+                        {testResult.success ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                        {testResult.message}
+                    </div>
+                )}
+
+                <div className="flex gap-3 pt-2 flex-wrap">
+                    {isOauth && (status === 'WARNING' || status === 'EXPIRED') && (
+                        <a
+                            href="/api/auth/meta/whatsapp/redirect"
+                            className="flex items-center justify-center gap-2 rounded-lg bg-[#10B981] hover:bg-[#0EA371] text-white font-semibold text-[14px] py-2 px-4 transition-colors"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                            Reconectar
+                        </a>
                     )}
                     <Button
-                        type="button"
                         variant="outline"
                         onClick={handleTestConnection}
                         disabled={isTesting || isDisconnecting}
-                        className="bg-background"
+                        className="rounded-lg"
                     >
-                        {isTesting ? 'Probando...' : 'Probar Conexión'}
+                        {isTesting ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Probando...</> : 'Probar conexión'}
                     </Button>
                     <Button
-                        type="button"
                         variant="destructive"
                         onClick={handleDisconnect}
                         disabled={isDisconnecting || isTesting}
+                        className="rounded-lg"
                     >
                         {isDisconnecting ? 'Desconectando...' : 'Desconectar'}
                     </Button>
-                </CardFooter>
-            </Card>
+                </div>
+            </div>
         );
     }
 
+    // ----- Not connected -----
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Conexión de WhatsApp Business</CardTitle>
-                <CardDescription>
-                    Conecta tu número de WhatsApp Business con un solo click.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <Button
-                    type="button"
-                    onClick={() => { window.location.href = '/api/auth/meta/whatsapp/redirect'; }}
-                    className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white"
-                >
-                    Conectar con Facebook
-                </Button>
-                <p className="text-xs text-muted-foreground text-center">
+        <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
+            <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
+                    <WhatsAppLogo className="h-6 w-6" />
+                </div>
+                <div>
+                    <h3 className="text-[15px] font-semibold text-[#09090B]">Conectar WhatsApp Business</h3>
+                    <p className="text-[13px] text-[#71717A]">Recibe y responde mensajes en tu número de WhatsApp Business</p>
+                </div>
+            </div>
+
+            <div className="space-y-3">
+                <div className="bg-[#F4F4F5] rounded-lg p-4 space-y-2">
+                    <p className="text-[13px] text-[#3F3F46]">
+                        Al conectar, autorizarás a Varylo a:
+                    </p>
+                    <ul className="text-[13px] text-[#71717A] space-y-1">
+                        <li className="flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-[#71717A]" />
+                            Recibir mensajes de tus contactos en WhatsApp
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-[#71717A]" />
+                            Responder mensajes en tu nombre
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-[#71717A]" />
+                            Acceder a tus plantillas y datos del WABA
+                        </li>
+                    </ul>
+                </div>
+
+                <p className="text-[12px] text-[#A1A1AA]">
                     Necesitas tener tu cuenta de WhatsApp Business creada en Meta Business Suite.
                 </p>
+            </div>
 
-                <div className="border-t pt-4">
-                    <button
-                        type="button"
-                        onClick={() => setAdvancedOpen(!advancedOpen)}
-                        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                    >
-                        {advancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        Configuración avanzada (usar mi propia app de Meta)
-                    </button>
+            <a
+                href="/api/auth/meta/whatsapp/redirect"
+                className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#25D366] hover:bg-[#1EBE5C] text-white font-semibold text-[14px] py-2.5 px-4 transition-colors"
+            >
+                <WhatsAppLogo className="h-5 w-5" />
+                Conectar con WhatsApp
+                <ExternalLink className="h-3.5 w-3.5 ml-1 opacity-70" />
+            </a>
 
-                    {advancedOpen && (
-                        <form action={action} className="flex flex-col gap-4 mt-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="phoneNumberId">Phone Number ID</Label>
-                                <Input
-                                    id="phoneNumberId"
-                                    name="phoneNumberId"
-                                    placeholder="Ej. 10456..."
-                                    defaultValue={initialPhoneNumberId}
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="accessToken">Permanent Access Token</Label>
-                                <Input
-                                    id="accessToken"
-                                    name="accessToken"
-                                    type="password"
-                                    placeholder="EAAG..."
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="appSecret">App Secret</Label>
-                                <Input
-                                    id="appSecret"
-                                    name="appSecret"
-                                    type="password"
-                                    placeholder="Tu App Secret de Meta"
-                                    required
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Meta for Developers → Tu App → Settings → Basic → App Secret
-                                </p>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="verifyToken">Verify Token (Webhook)</Label>
-                                <Input
-                                    id="verifyToken"
-                                    name="verifyToken"
-                                    placeholder="MiTokenSecreto"
-                                    defaultValue={initialVerifyToken}
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="wabaId">WhatsApp Business Account ID (opcional)</Label>
-                                <Input
-                                    id="wabaId"
-                                    name="wabaId"
-                                    placeholder="Ej. 10234..."
-                                    defaultValue={initialWabaId}
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Necesario para enviar plantillas. Meta Business Suite → WhatsApp → Configuración → WABA ID
-                                </p>
-                            </div>
+            <div className="border-t border-[#E4E4E7] pt-4">
+                <button
+                    type="button"
+                    onClick={() => setAdvancedOpen(!advancedOpen)}
+                    className="flex items-center gap-1.5 text-[13px] text-[#71717A] hover:text-[#09090B] transition-colors"
+                >
+                    {advancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    Configuración avanzada (usar mi propia app de Meta)
+                </button>
 
-                            {isError && (
-                                <div className="flex items-center gap-2 text-sm text-destructive">
-                                    <AlertCircle className="h-4 w-4" />
-                                    {state}
-                                </div>
-                            )}
+                {advancedOpen && (
+                    <form action={action} className="flex flex-col gap-4 mt-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="phoneNumberId" className="text-xs text-[#71717A]">Phone Number ID</Label>
+                            <Input
+                                id="phoneNumberId"
+                                name="phoneNumberId"
+                                placeholder="Ej. 10456..."
+                                defaultValue={initialPhoneNumberId}
+                                className="rounded-lg"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="accessToken" className="text-xs text-[#71717A]">Access Token</Label>
+                            <Input
+                                id="accessToken"
+                                name="accessToken"
+                                type="password"
+                                placeholder="EAAG..."
+                                className="rounded-lg"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="appSecret" className="text-xs text-[#71717A]">App Secret</Label>
+                            <Input
+                                id="appSecret"
+                                name="appSecret"
+                                type="password"
+                                placeholder="Tu App Secret de Meta"
+                                className="rounded-lg"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="verifyToken" className="text-xs text-[#71717A]">Verify Token (Webhook)</Label>
+                            <Input
+                                id="verifyToken"
+                                name="verifyToken"
+                                placeholder="MiTokenSecreto"
+                                defaultValue={initialVerifyToken}
+                                className="rounded-lg"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="wabaId" className="text-xs text-[#71717A]">WhatsApp Business Account ID</Label>
+                            <Input
+                                id="wabaId"
+                                name="wabaId"
+                                placeholder="Ej. 10234..."
+                                defaultValue={initialWabaId}
+                                className="rounded-lg"
+                            />
+                        </div>
 
-                            <Button type="submit" disabled={isPending} className="w-full">
-                                {isPending ? 'Guardando...' : 'Guardar credenciales manuales'}
-                            </Button>
-                        </form>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
+                        {isError && (
+                            <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-[#FEF2F2] text-[#EF4444]">
+                                <AlertCircle className="h-4 w-4 shrink-0" />
+                                {state}
+                            </div>
+                        )}
+
+                        <Button type="submit" disabled={isPending} className="rounded-lg">
+                            {isPending ? 'Guardando...' : 'Guardar credenciales'}
+                        </Button>
+                    </form>
+                )}
+            </div>
+        </div>
     );
 }
