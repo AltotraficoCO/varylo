@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
+import { readChannelSecret } from '@/lib/channel-config';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -34,9 +35,33 @@ export async function GET(req: NextRequest) {
         tokenPreview: config?.accessToken ? config.accessToken.substring(0, 20) + '...' : 'MISSING',
     };
 
-    const accessToken = config?.accessToken;
+    const accessToken = readChannelSecret(config?.accessToken);
     if (!accessToken) {
         return NextResponse.json({ ...results, error: 'No access token' });
+    }
+    results.connectionMode = config?.connectionMode || 'unknown';
+
+    // Check 0: Token scopes via debug_token
+    const appId = process.env.META_APP_ID;
+    const appSecret = process.env.META_APP_SECRET;
+    if (appId && appSecret) {
+        try {
+            const dbgRes = await fetch(
+                `${META_GRAPH}/debug_token?input_token=${accessToken}&access_token=${appId}|${appSecret}`
+            );
+            const dbgData = await dbgRes.json();
+            results.tokenInfo = {
+                app_id: dbgData?.data?.app_id,
+                user_id: dbgData?.data?.user_id,
+                expires_at: dbgData?.data?.expires_at,
+                data_access_expires_at: dbgData?.data?.data_access_expires_at,
+                scopes: dbgData?.data?.scopes,
+                granular_scopes: dbgData?.data?.granular_scopes,
+                is_valid: dbgData?.data?.is_valid,
+            };
+        } catch (e: any) {
+            results.tokenInfoError = e.message;
+        }
     }
 
     // Check 1: Verify token is valid
@@ -48,6 +73,36 @@ export async function GET(req: NextRequest) {
     } catch (e: any) {
         results.tokenValid = false;
         results.tokenError = e.message;
+    }
+
+    // Check 1.5: Phone number details (status, registration)
+    if (config?.phoneNumberId) {
+        try {
+            const pRes = await fetch(
+                `${META_GRAPH}/${config.phoneNumberId}?fields=id,display_phone_number,verified_name,quality_rating,code_verification_status,account_mode,name_status,platform_type,throughput,messaging_limit_tier&access_token=${accessToken}`
+            );
+            const pData = await pRes.json();
+            results.phoneDetail = pData;
+        } catch (e: any) {
+            results.phoneDetailError = e.message;
+        }
+
+        // Check 1.6: Try to register the phone (idempotent if already registered)
+        try {
+            const regRes = await fetch(`${META_GRAPH}/${config.phoneNumberId}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messaging_product: 'whatsapp',
+                    pin: '123456',
+                    access_token: accessToken,
+                }),
+            });
+            const regData = await regRes.json();
+            results.registerAttempt = regData;
+        } catch (e: any) {
+            results.registerError = e.message;
+        }
     }
 
     // Check 2: Get WABA info
