@@ -29,14 +29,13 @@ export default auth((req) => {
         (locale) => !pathname.startsWith(`/${locale}/`) && pathname !== `/${locale}`
     );
 
-    // If locale is missing, redirect
+    // If locale is missing, redirect (preserving search params and hash)
     if (pathnameIsMissingLocale) {
         const locale = getLocale(req);
-        // Correctly handle redirect while preserving query params could be done here, 
-        // but simple redirect is fine for now.
-        return NextResponse.redirect(
-            new URL(`/${locale}${pathname.startsWith('/') ? '' : '/'}${pathname}`, nextUrl)
-        );
+        const target = new URL(`/${locale}${pathname.startsWith('/') ? '' : '/'}${pathname}`, nextUrl);
+        target.search = nextUrl.search;
+        target.hash = nextUrl.hash;
+        return NextResponse.redirect(target);
     }
 
     // 2. Protect Roles (adapted for locale prefix)

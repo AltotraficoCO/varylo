@@ -45,6 +45,8 @@ export async function GET(req: NextRequest) {
     const redirectUri = `${baseUrl}/api/auth/meta/whatsapp/callback`;
 
     try {
+        console.log('[WhatsApp OAuth] callback start companyId=', companyId);
+
         // Step 1: Exchange code for token
         const tokenRes = await fetch(
             `${META_GRAPH}/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`
@@ -52,9 +54,10 @@ export async function GET(req: NextRequest) {
         const tokenData = await tokenRes.json();
 
         if (!tokenData.access_token) {
-            console.error('[WhatsApp OAuth] Token exchange failed:', tokenData);
+            console.error('[WhatsApp OAuth] Token exchange failed. Meta response:', JSON.stringify(tokenData));
             return NextResponse.redirect(`${settingsUrl}&wa=error&reason=token_failed`);
         }
+        console.log('[WhatsApp OAuth] step1 ok, token length=', tokenData.access_token.length);
 
         // Step 2: Exchange for long-lived token
         const longTokenRes = await fetch(
@@ -70,11 +73,12 @@ export async function GET(req: NextRequest) {
             `${META_GRAPH}/debug_token?input_token=${accessToken}&access_token=${appId}|${appSecret}`
         );
         const debugData = await debugRes.json();
+        const grantedScopes = debugData?.data?.scopes || [];
+        const granularScopes = debugData?.data?.granular_scopes || [];
+        console.log('[WhatsApp OAuth] step3 debug_token scopes=', JSON.stringify(grantedScopes), 'granular=', JSON.stringify(granularScopes));
 
-        // debug_token returns WABA IDs in granular_scopes (NOT phone number IDs)
         let wabaId: string | null = null;
 
-        const granularScopes = debugData?.data?.granular_scopes || [];
         for (const scope of granularScopes) {
             if (scope.scope === 'whatsapp_business_management' && scope.target_ids?.length > 0) {
                 wabaId = scope.target_ids[0];
@@ -82,10 +86,10 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // If no WABA from debug_token, try listing businesses
         if (!wabaId) {
             const bizRes = await fetch(`${META_GRAPH}/me/businesses?access_token=${accessToken}`);
             const bizData = await bizRes.json();
+            console.log('[WhatsApp OAuth] fallback /me/businesses:', JSON.stringify(bizData));
 
             if (bizData.data?.length > 0) {
                 for (const biz of bizData.data) {
@@ -93,6 +97,7 @@ export async function GET(req: NextRequest) {
                         `${META_GRAPH}/${biz.id}/owned_whatsapp_business_accounts?access_token=${accessToken}`
                     );
                     const wabaData = await wabaRes.json();
+                    console.log(`[WhatsApp OAuth] biz ${biz.id} owned_whatsapp_business_accounts:`, JSON.stringify(wabaData));
                     if (wabaData.data?.length > 0) {
                         wabaId = wabaData.data[0].id;
                         break;
@@ -102,8 +107,10 @@ export async function GET(req: NextRequest) {
         }
 
         if (!wabaId) {
+            console.error('[WhatsApp OAuth] no_waba: scopes were', grantedScopes, 'granular', granularScopes);
             return NextResponse.redirect(`${settingsUrl}&wa=error&reason=no_waba`);
         }
+        console.log('[WhatsApp OAuth] step3 wabaId=', wabaId);
 
         // Get phone numbers from WABA (this is the REAL phone number ID)
         let phoneNumberId: string | null = null;
@@ -111,13 +118,17 @@ export async function GET(req: NextRequest) {
             `${META_GRAPH}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${accessToken}`
         );
         const phonesData = await phonesRes.json();
+        console.log('[WhatsApp OAuth] phone_numbers:', JSON.stringify(phonesData));
+
         if (phonesData.data?.length > 0) {
             phoneNumberId = phonesData.data[0].id;
         }
 
         if (!phoneNumberId) {
+            console.error('[WhatsApp OAuth] no_phone: WABA has no phone numbers attached');
             return NextResponse.redirect(`${settingsUrl}&wa=error&reason=no_phone`);
         }
+        console.log('[WhatsApp OAuth] step4 phoneNumberId=', phoneNumberId);
 
         // Step 6: Get phone display name
         let phoneDisplay = '';

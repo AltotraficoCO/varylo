@@ -1,12 +1,25 @@
 'use client';
 
 import { useActionState, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { saveWhatsAppCredentials } from './actions';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { WhatsAppLogo } from "@/components/channel-logos";
+
+const OAUTH_ERROR_MESSAGE: Record<string, string> = {
+    missing_params: 'Facebook no envió los parámetros necesarios. Vuelve a intentar.',
+    unauthorized: 'Sesión expirada. Inicia sesión y vuelve a intentar.',
+    invalid_state: 'El parámetro de estado no es válido. Vuelve a intentar.',
+    company_mismatch: 'La sesión no coincide con la empresa. Cierra y vuelve a iniciar sesión.',
+    token_failed: 'Facebook no devolvió un token de acceso. Verifica que tu app esté en modo Live y que tu usuario tenga rol en la app si aún no tienes Advanced Access.',
+    no_waba: 'No se encontró una cuenta de WhatsApp Business asociada. Verifica en Meta Business Suite que tengas un WABA creado y que aceptaste los permisos.',
+    no_phone: 'Tu cuenta de WhatsApp Business no tiene un número asignado. Agrégalo desde Meta Business Suite.',
+    internal: 'Ocurrió un error interno. Revisa los logs.',
+    access_denied: 'Cancelaste el acceso desde Facebook.',
+};
 
 type TokenStatus = 'ACTIVE' | 'WARNING' | 'EXPIRED';
 
@@ -39,6 +52,11 @@ export function WhatsAppConnectionForm({
     tokenStatus?: string | null,
     tokenExpiresAt?: string | null,
 }) {
+    const searchParams = useSearchParams();
+    const waResult = searchParams.get('wa');
+    const waReason = searchParams.get('reason');
+    const waPhone = searchParams.get('phone');
+
     const [state, action, isPending] = useActionState(saveWhatsAppCredentials, undefined);
     const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
     const [isTesting, setIsTesting] = useState(false);
@@ -193,6 +211,20 @@ export function WhatsAppConnectionForm({
                     <p className="text-[13px] text-[#71717A]">Recibe y responde mensajes en tu número de WhatsApp Business</p>
                 </div>
             </div>
+
+            {waResult === 'error' && (
+                <div className="flex items-start gap-2 text-sm p-3 rounded-lg bg-[#FEF2F2] text-[#EF4444]">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{(waReason && OAUTH_ERROR_MESSAGE[waReason]) || `Error al conectar (${waReason || 'desconocido'}).`}</span>
+                </div>
+            )}
+
+            {waResult === 'connected' && (
+                <div className="flex items-center gap-2 text-sm p-3 rounded-lg bg-[#ECFDF5] text-[#10B981]">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>WhatsApp conectado{waPhone ? ` (${waPhone})` : ''}. Recarga la página para ver los cambios.</span>
+                </div>
+            )}
 
             <div className="space-y-3">
                 <div className="bg-[#F4F4F5] rounded-lg p-4 space-y-2">
