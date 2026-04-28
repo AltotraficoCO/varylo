@@ -168,12 +168,14 @@ export async function requestWhatsAppVerification(method: 'SMS' | 'VOICE' = 'SMS
             }),
         });
         const data = await res.json();
+        console.log(`[WhatsApp] request_code(${method}) phoneNumberId=${phoneNumberId} status=${res.status} body=${JSON.stringify(data)}`);
         if (!res.ok) {
             const msg = data?.error?.message || `HTTP ${res.status}`;
             return { success: false, message: msg };
         }
         return { success: true, message: `Código enviado por ${method === 'SMS' ? 'SMS' : 'llamada'}.` };
     } catch (err) {
+        console.error('[WhatsApp] request_code error:', err);
         return { success: false, message: err instanceof Error ? err.message : 'Error desconocido' };
     }
 }
@@ -209,6 +211,7 @@ export async function verifyWhatsAppCode(code: string) {
             }),
         });
         const data = await res.json();
+        console.log(`[WhatsApp] verify_code phoneNumberId=${phoneNumberId} status=${res.status} body=${JSON.stringify(data)}`);
         if (!res.ok) {
             const msg = data?.error?.message || `HTTP ${res.status}`;
             return { success: false, message: msg };
