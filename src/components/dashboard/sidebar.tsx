@@ -21,6 +21,7 @@ import {
     Megaphone,
     Puzzle,
     CalendarDays,
+    Activity,
 } from 'lucide-react';
 import { SidebarUnreadBadge } from './unread-badge';
 
@@ -93,6 +94,7 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[]): { s
                         { title: t.companies, href: '/super-admin/companies', icon: Building2 },
                         { title: t.billing, href: '/super-admin/billing', icon: CreditCard },
                         { title: t.siteSettings, href: '/super-admin/site-settings', icon: Globe },
+                        { title: 'Estado del sistema', href: '/super-admin/status', icon: Activity },
                     ]
                 },
                 {

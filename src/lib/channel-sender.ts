@@ -335,6 +335,17 @@ export async function sendChannelMessage({
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({}));
                 const errorMsg = (errorData as any)?.error?.message || `HTTP ${res.status}`;
+                const errorCode = (errorData as any)?.error?.code;
+                const errorSubcode = (errorData as any)?.error?.error_subcode;
+
+                // Code 190 = expired/invalid OAuth token. Mark channel so the UI surfaces a reconnect banner.
+                if (errorCode === 190 || errorSubcode === 463 || errorSubcode === 467) {
+                    await prisma.channel.update({
+                        where: { id: channel.id },
+                        data: { tokenStatus: 'EXPIRED' },
+                    }).catch(() => {});
+                }
+
                 console.error(`[WhatsApp] Failed to send message to ${contact.phone}:`, errorMsg);
                 throw new Error(`WhatsApp API error: ${errorMsg}`);
             }

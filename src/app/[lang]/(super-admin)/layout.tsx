@@ -2,6 +2,7 @@ import { Sidebar, superAdminItems } from '@/components/dashboard/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
 import { getDictionary, Locale } from '@/lib/dictionary';
 import { DictionaryProvider } from '@/lib/i18n-context';
+import { StatusBanner } from '@/components/status-banner';
 
 export default async function SuperAdminLayout({
     children,
@@ -20,6 +21,7 @@ export default async function SuperAdminLayout({
                     <Sidebar role="super-admin" lang={lang} dict={dict.dashboard.sidebar} />
                 </div>
                 <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+                    <StatusBanner />
                     <DashboardHeader
                         title={dict.dashboard.superAdminTitle}
                         lang={lang}

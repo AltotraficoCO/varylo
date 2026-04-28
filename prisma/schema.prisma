@@ -173,6 +173,8 @@ model Channel {
   type        ChannelType
   status      ChannelStatus @default(CONNECTED)
   configJson  Json?         // WhatsApp credentials etc.
+  tokenExpiresAt DateTime?
+  tokenStatus    String?    // ACTIVE | WARNING | EXPIRED
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -813,4 +815,23 @@ model FollowUp {
 
   @@index([dealId])
   @@index([scheduledAt])
+}
+
+model StatusIncident {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  type        String    // 'MAINTENANCE' | 'INCIDENT'
+  severity    String    // 'INFO' | 'MINOR' | 'MAJOR' | 'CRITICAL'
+  components  String[]  @default([])
+  startsAt    DateTime
+  endsAt      DateTime?
+  resolvedAt  DateTime?
+  showBanner  Boolean   @default(true)
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([resolvedAt])
+  @@index([startsAt])
 }

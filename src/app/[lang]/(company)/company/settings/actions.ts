@@ -44,6 +44,7 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
             accessToken: writeChannelSecret(accessToken),
             verifyToken,
             appSecret: writeChannelSecret(appSecret),
+            connectionMode: 'manual' as const,
             ...(wabaId ? { wabaId } : {}),
         };
 
@@ -53,6 +54,8 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
                 data: {
                     configJson,
                     status: ChannelStatus.CONNECTED,
+                    tokenExpiresAt: null,
+                    tokenStatus: null,
                 },
             });
         } else {

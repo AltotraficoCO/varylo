@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import { StatusBanner } from '@/components/status-banner';
 
 export default async function CompanyLayout({
     children,
@@ -77,6 +78,7 @@ export default async function CompanyLayout({
                     <Sidebar role="company" lang={lang} tags={tags} dict={dict.dashboard.sidebar} />
                 </div>
                 <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+                    <StatusBanner />
                     <DashboardHeader
                         title={dict.dashboard.companyTitle}
                         lang={lang}

@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+
+type TokenStatus = 'ACTIVE' | 'WARNING' | 'EXPIRED';
+
+function daysUntil(iso: string | null | undefined): number | null {
+    if (!iso) return null;
+    const ms = new Date(iso).getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+}
 
 export function WhatsAppConnectionForm({
     initialPhoneNumberId,
@@ -15,6 +23,10 @@ export function WhatsAppConnectionForm({
     hasAccessToken,
     channelId,
     automationPriority,
+    phoneDisplay,
+    connectionMode,
+    tokenStatus,
+    tokenExpiresAt,
 }: {
     initialPhoneNumberId?: string,
     initialVerifyToken?: string,
@@ -22,6 +34,10 @@ export function WhatsAppConnectionForm({
     hasAccessToken?: boolean,
     channelId?: string | null,
     automationPriority?: string,
+    phoneDisplay?: string,
+    connectionMode?: 'oauth' | 'manual',
+    tokenStatus?: string | null,
+    tokenExpiresAt?: string | null,
 }) {
     const [state, action, isPending] = useActionState(saveWhatsAppCredentials, undefined);
     const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -29,15 +45,14 @@ export function WhatsAppConnectionForm({
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [priority, setPriority] = useState(automationPriority || 'CHATBOT_FIRST');
     const [isSavingPriority, setIsSavingPriority] = useState(false);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
 
     const isSuccess = state?.startsWith('Success');
     const isError = state?.startsWith('Error');
-
-    // Derived state: Connected if hasAccessToken OR if just successfully saved (optimistic update could be complex with useActionState, 
-    // but usually page revalidation handles it. However, useActionState doesn't auto-refresh props without revalidation.
-    // The server action calls revalidatePath, so props should update if this is a subcomponent of a RSC.
-    // But we can fallback to isSuccess to switch view temporarily).
     const isConnected = hasAccessToken || isSuccess;
+    const isOauth = connectionMode === 'oauth';
+    const status = (tokenStatus as TokenStatus | null) || null;
+    const daysLeft = daysUntil(tokenExpiresAt);
 
     const handleTestConnection = async () => {
         setIsTesting(true);
@@ -46,7 +61,7 @@ export function WhatsAppConnectionForm({
             const { testWhatsAppConnection } = await import('./actions');
             const result = await testWhatsAppConnection();
             setTestResult(result);
-        } catch (error) {
+        } catch {
             setTestResult({ success: false, message: 'Failed to run test.' });
         } finally {
             setIsTesting(false);
@@ -61,7 +76,7 @@ export function WhatsAppConnectionForm({
             const { updateChannelPriority } = await import('./actions');
             await updateChannelPriority(channelId, newPriority as 'CHATBOT_FIRST' | 'AI_FIRST');
         } catch {
-            setPriority(priority); // revert on error
+            setPriority(priority);
         } finally {
             setIsSavingPriority(false);
         }
@@ -69,13 +84,11 @@ export function WhatsAppConnectionForm({
 
     const handleDisconnect = async () => {
         if (!confirm('¿Estás seguro de que quieres desconectar WhatsApp? Dejarás de recibir mensajes.')) return;
-
         setIsDisconnecting(true);
         try {
             const { disconnectWhatsApp } = await import('./actions');
             await disconnectWhatsApp();
-            // Props will update via revalidatePath
-        } catch (error) {
+        } catch {
             alert('Error al desconectar.');
         } finally {
             setIsDisconnecting(false);
@@ -83,22 +96,61 @@ export function WhatsAppConnectionForm({
     };
 
     if (isConnected) {
+        const cardClass = status === 'EXPIRED'
+            ? 'border-red-200 bg-red-50 dark:bg-red-950/10'
+            : status === 'WARNING'
+                ? 'border-amber-200 bg-amber-50 dark:bg-amber-950/10'
+                : 'border-green-200 bg-green-50 dark:bg-green-950/10';
+
+        const titleClass = status === 'EXPIRED'
+            ? 'text-red-700'
+            : status === 'WARNING'
+                ? 'text-amber-700'
+                : 'text-green-700';
+
+        const iconClass = status === 'EXPIRED'
+            ? 'text-red-600'
+            : status === 'WARNING'
+                ? 'text-amber-600'
+                : 'text-green-600';
+
         return (
-            <Card className="border-green-200 bg-green-50 dark:bg-green-950/10">
+            <Card className={cardClass}>
                 <CardHeader>
                     <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-6 w-6 text-green-600" />
-                        <CardTitle className="text-green-700">WhatsApp Configurado</CardTitle>
+                        {status === 'EXPIRED' || status === 'WARNING'
+                            ? <AlertCircle className={`h-6 w-6 ${iconClass}`} />
+                            : <CheckCircle2 className={`h-6 w-6 ${iconClass}`} />}
+                        <CardTitle className={titleClass}>
+                            {status === 'EXPIRED' ? 'WhatsApp Desconectado' : 'WhatsApp Configurado'}
+                        </CardTitle>
                     </div>
                     <CardDescription>
-                        Tu cuenta de WhatsApp Business está conectada y lista para recibir mensajes.
+                        {status === 'EXPIRED'
+                            ? 'Tu conexión expiró. Reconecta para seguir enviando y recibiendo mensajes.'
+                            : status === 'WARNING' && daysLeft !== null
+                                ? `Tu conexión expira en ${daysLeft} día${daysLeft === 1 ? '' : 's'}. Reconecta pronto para no perder el servicio.`
+                                : 'Tu cuenta de WhatsApp Business está conectada y lista para recibir mensajes.'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    {phoneDisplay && (
+                        <div className="grid gap-1">
+                            <Label className="text-xs text-muted-foreground">Número</Label>
+                            <p className="font-mono text-sm">{phoneDisplay}</p>
+                        </div>
+                    )}
+
                     <div className="grid gap-1">
                         <Label className="text-xs text-muted-foreground">Phone Number ID</Label>
                         <p className="font-mono text-sm">{initialPhoneNumberId}</p>
                     </div>
+
+                    {isOauth && status === 'ACTIVE' && daysLeft !== null && (
+                        <div className="text-xs text-muted-foreground">
+                            Conexión válida por {daysLeft} día{daysLeft === 1 ? '' : 's'} más.
+                        </div>
+                    )}
 
                     {channelId && (
                         <div className="grid gap-1.5">
@@ -127,7 +179,17 @@ export function WhatsAppConnectionForm({
                         </div>
                     )}
                 </CardContent>
-                <CardFooter className="flex gap-3 justify-end">
+                <CardFooter className="flex gap-3 justify-end flex-wrap">
+                    {isOauth && (status === 'WARNING' || status === 'EXPIRED') && (
+                        <Button
+                            type="button"
+                            onClick={() => { window.location.href = '/api/auth/meta/whatsapp/redirect'; }}
+                            className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                        >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Reconectar con Facebook
+                        </Button>
+                    )}
                     <Button
                         type="button"
                         variant="outline"
@@ -155,80 +217,103 @@ export function WhatsAppConnectionForm({
             <CardHeader>
                 <CardTitle>Conexión de WhatsApp Business</CardTitle>
                 <CardDescription>
-                    Ingresa tus credenciales de Meta for Developers para conectar tu número.
+                    Conecta tu número de WhatsApp Business con un solo click.
                 </CardDescription>
             </CardHeader>
-            <form action={action} className="flex flex-col gap-6">
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="phoneNumberId">Phone Number ID</Label>
-                        <Input
-                            id="phoneNumberId"
-                            name="phoneNumberId"
-                            placeholder="Ej. 10456..."
-                            defaultValue={initialPhoneNumberId}
-                            required
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="accessToken">Permanent Access Token</Label>
-                        <Input
-                            id="accessToken"
-                            name="accessToken"
-                            type="password"
-                            placeholder="EAAG..."
-                            required
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="appSecret">App Secret</Label>
-                        <Input
-                            id="appSecret"
-                            name="appSecret"
-                            type="password"
-                            placeholder="Tu App Secret de Meta"
-                            required
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Meta for Developers → Tu App → Settings → Basic → App Secret
-                        </p>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="verifyToken">Verify Token (Webhook)</Label>
-                        <Input
-                            id="verifyToken"
-                            name="verifyToken"
-                            placeholder="MiTokenSecreto"
-                            defaultValue={initialVerifyToken}
-                            required
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="wabaId">WhatsApp Business Account ID (opcional)</Label>
-                        <Input
-                            id="wabaId"
-                            name="wabaId"
-                            placeholder="Ej. 10234..."
-                            defaultValue={initialWabaId}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Necesario para enviar plantillas. Meta Business Suite → WhatsApp → Configuración → WABA ID
-                        </p>
-                    </div>
+            <CardContent className="space-y-4">
+                <Button
+                    type="button"
+                    onClick={() => { window.location.href = '/api/auth/meta/whatsapp/redirect'; }}
+                    className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                >
+                    Conectar con Facebook
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                    Necesitas tener tu cuenta de WhatsApp Business creada en Meta Business Suite.
+                </p>
 
-                    {isError && (
-                        <div className="flex items-center gap-2 text-sm text-destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            {state}
-                        </div>
+                <div className="border-t pt-4">
+                    <button
+                        type="button"
+                        onClick={() => setAdvancedOpen(!advancedOpen)}
+                        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                        {advancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        Configuración avanzada (usar mi propia app de Meta)
+                    </button>
+
+                    {advancedOpen && (
+                        <form action={action} className="flex flex-col gap-4 mt-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="phoneNumberId">Phone Number ID</Label>
+                                <Input
+                                    id="phoneNumberId"
+                                    name="phoneNumberId"
+                                    placeholder="Ej. 10456..."
+                                    defaultValue={initialPhoneNumberId}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="accessToken">Permanent Access Token</Label>
+                                <Input
+                                    id="accessToken"
+                                    name="accessToken"
+                                    type="password"
+                                    placeholder="EAAG..."
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="appSecret">App Secret</Label>
+                                <Input
+                                    id="appSecret"
+                                    name="appSecret"
+                                    type="password"
+                                    placeholder="Tu App Secret de Meta"
+                                    required
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Meta for Developers → Tu App → Settings → Basic → App Secret
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="verifyToken">Verify Token (Webhook)</Label>
+                                <Input
+                                    id="verifyToken"
+                                    name="verifyToken"
+                                    placeholder="MiTokenSecreto"
+                                    defaultValue={initialVerifyToken}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="wabaId">WhatsApp Business Account ID (opcional)</Label>
+                                <Input
+                                    id="wabaId"
+                                    name="wabaId"
+                                    placeholder="Ej. 10234..."
+                                    defaultValue={initialWabaId}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Necesario para enviar plantillas. Meta Business Suite → WhatsApp → Configuración → WABA ID
+                                </p>
+                            </div>
+
+                            {isError && (
+                                <div className="flex items-center gap-2 text-sm text-destructive">
+                                    <AlertCircle className="h-4 w-4" />
+                                    {state}
+                                </div>
+                            )}
+
+                            <Button type="submit" disabled={isPending} className="w-full">
+                                {isPending ? 'Guardando...' : 'Guardar credenciales manuales'}
+                            </Button>
+                        </form>
                     )}
-                </CardContent>
-                <CardFooter>
-                    <Button type="submit" disabled={isPending} className="w-full">
-                        {isPending ? 'Guardando...' : 'Conectar WhatsApp'}
-                    </Button>
-                </CardFooter>
-            </form>
+                </div>
+            </CardContent>
         </Card>
     );
 }

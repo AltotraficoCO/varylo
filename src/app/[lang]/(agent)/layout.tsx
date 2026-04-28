@@ -4,6 +4,7 @@ import { getDictionary, Locale } from '@/lib/dictionary';
 import { DictionaryProvider } from '@/lib/i18n-context';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { StatusBanner } from '@/components/status-banner';
 
 export default async function AgentLayout({
     children,
@@ -46,6 +47,7 @@ export default async function AgentLayout({
                     <Sidebar role="agent" lang={lang} dict={dict.dashboard.sidebar} />
                 </div>
                 <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+                    <StatusBanner />
                     <DashboardHeader
                         title={dict.dashboard.agentTitle}
                         lang={lang}
