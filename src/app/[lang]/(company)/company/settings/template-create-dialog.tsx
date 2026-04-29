@@ -74,6 +74,50 @@ function countVars(text: string): number {
     return (text.match(/\{\{\d+\}\}/g) || []).length;
 }
 
+/**
+ * Re-encode an image through canvas to reduce size before uploading. Big phone
+ * photos (5–10MB) get cut to ~300–800KB, well under the Vercel 4.5MB body cap.
+ */
+async function compressImage(file: File, maxWidth = 1600, quality = 0.85): Promise<File> {
+    if (!file.type.startsWith('image/')) return file;
+    if (file.size < 600 * 1024) return file;
+
+    const url = URL.createObjectURL(file);
+    try {
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const i = new Image();
+            i.onload = () => resolve(i);
+            i.onerror = reject;
+            i.src = url;
+        });
+
+        let { width, height } = img;
+        if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return file;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const blob = await new Promise<Blob | null>((resolve) =>
+            canvas.toBlob((b) => resolve(b), 'image/jpeg', quality)
+        );
+        if (!blob) return file;
+
+        const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        return new File([blob], newName, { type: 'image/jpeg' });
+    } catch {
+        return file;
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
+
 function renderRich(text: string, examples: string[]) {
     if (!text) return null;
     const re = /\{\{(\d+)\}\}/g;
@@ -161,16 +205,43 @@ export function TemplateCreateDialog({
     const onUpload = async (file: File, format: 'IMAGE' | 'VIDEO' | 'DOCUMENT') => {
         setUploading(true);
         try {
+            let toUpload = file;
+            if (format === 'IMAGE') {
+                toUpload = await compressImage(file);
+            }
+
+            const PLATFORM_LIMIT = 4 * 1024 * 1024;
+            if (toUpload.size > PLATFORM_LIMIT) {
+                toast.error(
+                    `El archivo (${(toUpload.size / 1024 / 1024).toFixed(1)}MB) supera el límite de 4MB. Usa un archivo más pequeño.`
+                );
+                return;
+            }
+
             const fd = new FormData();
-            fd.append('file', file);
+            fd.append('file', toUpload);
             const res = await fetch('/api/whatsapp/templates/upload', { method: 'POST', body: fd });
-            const data = await res.json();
+
+            const txt = await res.text();
+            let data: { handle?: string; error?: string } = {};
+            try {
+                data = JSON.parse(txt);
+            } catch {
+                if (res.status === 413 || /entity too large/i.test(txt)) {
+                    toast.error('El archivo es demasiado grande para el servidor. Reduce el tamaño y vuelve a intentar.');
+                } else {
+                    toast.error(`Error del servidor (${res.status}). Inténtalo de nuevo.`);
+                }
+                return;
+            }
+
             if (!res.ok || !data.handle) {
                 toast.error(data.error || 'Error al subir el archivo.');
                 return;
             }
-            const previewUrl = format === 'IMAGE' ? URL.createObjectURL(file) : undefined;
-            setHeader({ format, mediaHandle: data.handle, fileName: file.name, previewUrl });
+
+            const previewUrl = format === 'IMAGE' ? URL.createObjectURL(toUpload) : undefined;
+            setHeader({ format, mediaHandle: data.handle, fileName: toUpload.name, previewUrl });
             toast.success('Archivo subido a Meta.');
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Error de red.');
