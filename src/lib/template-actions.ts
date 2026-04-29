@@ -13,6 +13,7 @@ export interface TemplateComponent {
 }
 
 export interface WhatsAppTemplate {
+    id?: string;
     name: string;
     language: string;
     status: string;
@@ -80,7 +81,7 @@ export async function getWhatsAppTemplates(
 
     try {
         const res = await fetch(
-            `https://graph.facebook.com/v18.0/${config.wabaId}/message_templates?limit=100`,
+            `https://graph.facebook.com/v21.0/${config.wabaId}/message_templates?limit=100&fields=id,name,language,status,category,components`,
             {
                 headers: { Authorization: `Bearer ${config.accessToken}` },
                 cache: 'no-store',
@@ -255,3 +256,186 @@ export async function sendTemplateMessage(params: {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────
+// CREATE / DELETE
+// ─────────────────────────────────────────────────────────────────
+
+export type TemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+
+export type TemplateButton =
+    | { type: 'QUICK_REPLY'; text: string }
+    | { type: 'URL'; text: string; url: string; example?: string }
+    | { type: 'PHONE_NUMBER'; text: string; phone_number: string };
+
+export interface CreateTemplateInput {
+    name: string;
+    language: string;
+    category: TemplateCategory;
+    header?:
+        | { format: 'TEXT'; text: string; example?: string[] }
+        | { format: 'IMAGE' | 'VIDEO' | 'DOCUMENT'; mediaHandle: string };
+    body: string;
+    bodyExample?: string[];
+    footer?: string;
+    buttons?: TemplateButton[];
+}
+
+const NAME_RE = /^[a-z0-9_]{1,512}$/;
+
+function buildComponents(input: CreateTemplateInput): unknown[] {
+    const components: unknown[] = [];
+
+    if (input.header) {
+        if (input.header.format === 'TEXT') {
+            const headerVarCount = (input.header.text.match(/\{\{\d+\}\}/g) || []).length;
+            const example = headerVarCount > 0 && input.header.example
+                ? { header_text: input.header.example.slice(0, headerVarCount) }
+                : undefined;
+            components.push({
+                type: 'HEADER',
+                format: 'TEXT',
+                text: input.header.text,
+                ...(example ? { example } : {}),
+            });
+        } else {
+            components.push({
+                type: 'HEADER',
+                format: input.header.format,
+                example: { header_handle: [input.header.mediaHandle] },
+            });
+        }
+    }
+
+    const bodyVarCount = (input.body.match(/\{\{\d+\}\}/g) || []).length;
+    components.push({
+        type: 'BODY',
+        text: input.body,
+        ...(bodyVarCount > 0 && input.bodyExample && input.bodyExample.length > 0
+            ? { example: { body_text: [input.bodyExample.slice(0, bodyVarCount)] } }
+            : {}),
+    });
+
+    if (input.footer) {
+        components.push({ type: 'FOOTER', text: input.footer });
+    }
+
+    if (input.buttons && input.buttons.length > 0) {
+        components.push({
+            type: 'BUTTONS',
+            buttons: input.buttons.map((b) => {
+                if (b.type === 'URL') {
+                    return {
+                        type: 'URL',
+                        text: b.text,
+                        url: b.url,
+                        ...(b.example ? { example: [b.example] } : {}),
+                    };
+                }
+                if (b.type === 'PHONE_NUMBER') {
+                    return { type: 'PHONE_NUMBER', text: b.text, phone_number: b.phone_number };
+                }
+                return { type: 'QUICK_REPLY', text: b.text };
+            }),
+        });
+    }
+
+    return components;
+}
+
+export async function createWhatsAppTemplate(
+    input: CreateTemplateInput
+): Promise<{ success: boolean; templateId?: string; status?: string; error?: string }> {
+    const session = await auth();
+    if (!session?.user?.companyId) return { success: false, error: 'No autorizado.' };
+
+    if (!NAME_RE.test(input.name)) {
+        return {
+            success: false,
+            error: 'El nombre debe ser minúsculas, números y guiones bajos (ej: order_confirmation).',
+        };
+    }
+    if (!input.body || input.body.trim().length === 0) {
+        return { success: false, error: 'El cuerpo de la plantilla es obligatorio.' };
+    }
+
+    const result = await getWhatsAppChannelConfig(session.user.companyId);
+    if ('error' in result) return { success: false, error: result.error };
+
+    const { config } = result;
+    if (!config.accessToken || !config.wabaId) {
+        return { success: false, error: 'Falta WABA ID o Access Token. Configúralo en Ajustes → Canales.' };
+    }
+
+    const payload = {
+        name: input.name,
+        language: input.language,
+        category: input.category,
+        components: buildComponents(input),
+    };
+
+    try {
+        const res = await fetch(
+            `https://graph.facebook.com/v21.0/${config.wabaId}/message_templates`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${config.accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            }
+        );
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const msg = (data as any)?.error?.message || `HTTP ${res.status}`;
+            const detail = (data as any)?.error?.error_user_msg || (data as any)?.error?.error_data?.details;
+            return { success: false, error: `Error de Meta: ${detail || msg}` };
+        }
+
+        return { success: true, templateId: data.id, status: data.status };
+    } catch (error) {
+        console.error('[createWhatsAppTemplate]', error);
+        return { success: false, error: 'Error de red al crear la plantilla.' };
+    }
+}
+
+export async function deleteWhatsAppTemplate(
+    name: string,
+    hsmId?: string
+): Promise<{ success: boolean; error?: string }> {
+    const session = await auth();
+    if (!session?.user?.companyId) return { success: false, error: 'No autorizado.' };
+
+    const result = await getWhatsAppChannelConfig(session.user.companyId);
+    if ('error' in result) return { success: false, error: result.error };
+
+    const { config } = result;
+    if (!config.accessToken || !config.wabaId) {
+        return { success: false, error: 'Falta WABA ID o Access Token.' };
+    }
+
+    const params = new URLSearchParams({ name });
+    if (hsmId) params.set('hsm_id', hsmId);
+
+    try {
+        const res = await fetch(
+            `https://graph.facebook.com/v21.0/${config.wabaId}/message_templates?${params.toString()}`,
+            {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${config.accessToken}` },
+            }
+        );
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const msg = (data as any)?.error?.message || `HTTP ${res.status}`;
+            return { success: false, error: `Error de Meta: ${msg}` };
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('[deleteWhatsAppTemplate]', error);
+        return { success: false, error: 'Error de red al borrar la plantilla.' };
+    }
+}

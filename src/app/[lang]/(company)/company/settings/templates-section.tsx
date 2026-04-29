@@ -5,9 +5,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, RefreshCw, Loader2, FileText } from 'lucide-react';
-import { getWhatsAppTemplates } from '@/lib/template-actions';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Search, RefreshCw, Loader2, FileText, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { getWhatsAppTemplates, deleteWhatsAppTemplate } from '@/lib/template-actions';
 import { useDictionary } from '@/lib/i18n-context';
+import { TemplateCreateDialog } from './template-create-dialog';
 
 interface TemplateComponent {
     type: string;
@@ -15,6 +27,7 @@ interface TemplateComponent {
 }
 
 interface Template {
+    id?: string;
     name: string;
     language: string;
     status: string;
@@ -27,6 +40,9 @@ export function TemplatesSection() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
+    const [createOpen, setCreateOpen] = useState(false);
+    const [deleting, setDeleting] = useState<Template | null>(null);
+    const [deletingInFlight, setDeletingInFlight] = useState(false);
 
     const dict = useDictionary();
     const t = dict.settingsUI?.templatesSection || {};
@@ -77,15 +93,21 @@ export function TemplatesSection() {
                             <CardDescription>{t.description || 'Plantillas sincronizadas desde tu cuenta de WhatsApp Business.'}</CardDescription>
                         </div>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={loadTemplates}
-                        disabled={loading}
-                    >
-                        <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-                        {t.refreshButton || 'Refrescar'}
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={loadTemplates}
+                            disabled={loading}
+                        >
+                            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                            {t.refreshButton || 'Refrescar'}
+                        </Button>
+                        <Button size="sm" onClick={() => setCreateOpen(true)}>
+                            <Plus className="h-4 w-4 mr-1" />
+                            Nueva plantilla
+                        </Button>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -142,31 +164,84 @@ export function TemplatesSection() {
                             return (
                                 <div
                                     key={`${tpl.name}-${tpl.language}`}
-                                    className="px-4 py-3 hover:bg-muted/30 transition-colors"
+                                    className="px-4 py-3 hover:bg-muted/30 transition-colors flex items-start gap-2"
                                 >
-                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                        <span className="font-medium text-sm">{tpl.name}</span>
-                                        <Badge variant="outline" className="text-[10px] px-1.5 h-4">
-                                            {tpl.language}
-                                        </Badge>
-                                        <Badge variant={statusInfo.variant} className="text-[10px] px-1.5 h-4">
-                                            {statusInfo.label}
-                                        </Badge>
-                                        <Badge variant="outline" className="text-[10px] px-1.5 h-4">
-                                            {tpl.category}
-                                        </Badge>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                            <span className="font-medium text-sm">{tpl.name}</span>
+                                            <Badge variant="outline" className="text-[10px] px-1.5 h-4">
+                                                {tpl.language}
+                                            </Badge>
+                                            <Badge variant={statusInfo.variant} className="text-[10px] px-1.5 h-4">
+                                                {statusInfo.label}
+                                            </Badge>
+                                            <Badge variant="outline" className="text-[10px] px-1.5 h-4">
+                                                {tpl.category}
+                                            </Badge>
+                                        </div>
+                                        {body?.text && (
+                                            <p className="text-xs text-muted-foreground line-clamp-2">
+                                                {body.text}
+                                            </p>
+                                        )}
                                     </div>
-                                    {body?.text && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2">
-                                            {body.text}
-                                        </p>
-                                    )}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                        onClick={() => setDeleting(tpl)}
+                                        title="Borrar plantilla"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             );
                         })}
                     </div>
                 )}
             </CardContent>
+
+            <TemplateCreateDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                onCreated={loadTemplates}
+            />
+
+            <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Borrar plantilla?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Vas a borrar <span className="font-mono">{deleting?.name}</span> ({deleting?.language}).
+                            {deleting?.id ? '' : ' Sin ID disponible: se borrarán todas las variantes de idioma con ese nombre.'}
+                            Esta acción es irreversible.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deletingInFlight}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={deletingInFlight}
+                            onClick={async (e) => {
+                                e.preventDefault();
+                                if (!deleting) return;
+                                setDeletingInFlight(true);
+                                const result = await deleteWhatsAppTemplate(deleting.name, deleting.id);
+                                setDeletingInFlight(false);
+                                if (result.success) {
+                                    toast.success('Plantilla borrada.');
+                                    setDeleting(null);
+                                    loadTemplates();
+                                } else {
+                                    toast.error(result.error || 'Error al borrar.');
+                                }
+                            }}
+                        >
+                            {deletingInFlight && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            Borrar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Card>
     );
 }
