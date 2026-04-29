@@ -1,6 +1,7 @@
 import { authenticateApiKey } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
+import { readChannelSecret } from '@/lib/channel-config';
 
 /**
  * GET /api/v1/status
@@ -25,10 +26,15 @@ export async function GET(req: Request) {
         });
     }
 
-    const config = channel.configJson as {
+    const rawConfig = channel.configJson as {
         phoneNumberId?: string;
-        accessToken?: string;
+        accessToken?: unknown;
         phoneDisplay?: string;
+    };
+    const config = {
+        phoneNumberId: rawConfig.phoneNumberId,
+        accessToken: readChannelSecret(rawConfig.accessToken),
+        phoneDisplay: rawConfig.phoneDisplay,
     };
 
     if (!config.phoneNumberId || !config.accessToken) {

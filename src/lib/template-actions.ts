@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType, MessageDirection } from '@prisma/client';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
+import { readChannelSecret } from '@/lib/channel-config';
 
 export interface TemplateComponent {
     type: string;
@@ -32,12 +33,20 @@ async function getWhatsAppChannelConfig(companyId: string) {
         return { error: 'No hay canal WhatsApp configurado.' };
     }
 
-    const config = channel.configJson as {
+    const raw = channel.configJson as {
         phoneNumberId?: string;
-        accessToken?: string;
+        accessToken?: unknown;
         verifyToken?: string;
-        appSecret?: string;
+        appSecret?: unknown;
         wabaId?: string;
+    };
+
+    const config = {
+        phoneNumberId: raw.phoneNumberId,
+        accessToken: readChannelSecret(raw.accessToken),
+        verifyToken: raw.verifyToken,
+        appSecret: readChannelSecret(raw.appSecret),
+        wabaId: raw.wabaId,
     };
 
     return { channel, config };

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
+import { readChannelSecret, writeChannelSecret } from '@/lib/channel-config';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
 const WARNING_THRESHOLD_DAYS = 10;
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     for (const channel of channels) {
         const config = channel.configJson as Record<string, any> | null;
-        const accessToken = config?.accessToken as string | undefined;
+        const accessToken = readChannelSecret(config?.accessToken);
         const expiresAt = channel.tokenExpiresAt;
 
         if (!accessToken || !expiresAt) continue;
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
                         data: {
                             tokenExpiresAt: newExpiresAt,
                             tokenStatus: 'ACTIVE',
-                            configJson: { ...config, accessToken: refreshData.access_token },
+                            configJson: { ...config, accessToken: writeChannelSecret(refreshData.access_token) },
                         },
                     });
                     refreshed++;

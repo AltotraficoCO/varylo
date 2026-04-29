@@ -1,15 +1,21 @@
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
+import { readChannelSecret } from '@/lib/channel-config';
 
 async function getWhatsAppConfig(companyId: string) {
   const channel = await prisma.channel.findFirst({
     where: { companyId, type: ChannelType.WHATSAPP, status: 'CONNECTED' },
   });
   if (!channel?.configJson) return null;
-  const config = channel.configJson as {
+  const raw = channel.configJson as {
     phoneNumberId?: string;
-    accessToken?: string;
+    accessToken?: unknown;
     wabaId?: string;
+  };
+  const config = {
+    phoneNumberId: raw.phoneNumberId,
+    accessToken: readChannelSecret(raw.accessToken),
+    wabaId: raw.wabaId,
   };
   if (!config.phoneNumberId || !config.accessToken) return null;
   return { channel, config };

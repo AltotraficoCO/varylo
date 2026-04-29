@@ -344,8 +344,9 @@ export async function testInstagramConnection() {
             return { success: false, message: 'No Instagram configuration found.' };
         }
 
-        const config = channel.configJson as { pageId?: string; accessToken?: string };
-        const { pageId, accessToken } = config;
+        const config = channel.configJson as { pageId?: string; accessToken?: unknown };
+        const pageId = config.pageId;
+        const accessToken = readChannelSecret(config.accessToken);
 
         if (!pageId || !accessToken) {
             return { success: false, message: 'Incomplete configuration.' };
@@ -455,13 +456,15 @@ export async function testMessengerConnection() {
             return { success: false, message: 'No Messenger configuration found.' };
         }
 
-        const config = channel.configJson as { pageId?: string; accessToken?: string };
-        if (!config.pageId || !config.accessToken) {
+        const config = channel.configJson as { pageId?: string; accessToken?: unknown };
+        const pageId = config.pageId;
+        const accessToken = readChannelSecret(config.accessToken);
+        if (!pageId || !accessToken) {
             return { success: false, message: 'Incomplete configuration.' };
         }
 
         const res = await fetch(
-            `https://graph.facebook.com/v21.0/${config.pageId}?fields=name&access_token=${config.accessToken}`
+            `https://graph.facebook.com/v21.0/${pageId}?fields=name&access_token=${encodeURIComponent(accessToken)}`
         );
 
         if (res.ok) {

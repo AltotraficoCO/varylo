@@ -1,6 +1,7 @@
 import { authenticateApiKey, requireScope } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
+import { readChannelSecret } from '@/lib/channel-config';
 
 /**
  * GET /api/v1/templates
@@ -28,9 +29,13 @@ export async function GET(req: Request) {
         );
     }
 
-    const config = channel.configJson as {
-        accessToken?: string;
+    const rawConfig = channel.configJson as {
+        accessToken?: unknown;
         wabaId?: string;
+    };
+    const config = {
+        accessToken: readChannelSecret(rawConfig.accessToken),
+        wabaId: rawConfig.wabaId,
     };
 
     if (!config.accessToken || !config.wabaId) {

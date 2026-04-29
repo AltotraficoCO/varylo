@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
+import { readChannelSecret } from '@/lib/channel-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,9 +24,13 @@ export async function GET() {
     return NextResponse.json({ error: 'No WhatsApp channel' }, { status: 404 });
   }
 
-  const config = channel.configJson as {
+  const rawConfig = channel.configJson as {
     phoneNumberId?: string;
-    accessToken?: string;
+    accessToken?: unknown;
+  };
+  const config = {
+    phoneNumberId: rawConfig.phoneNumberId,
+    accessToken: readChannelSecret(rawConfig.accessToken),
   };
 
   if (!config.phoneNumberId || !config.accessToken) {
