@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType, ChannelStatus, AutomationPriority, AssignmentStrategy } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { encrypt } from '@/lib/encryption';
-import { writeChannelSecret } from '@/lib/channel-config';
+import { writeChannelSecret, readChannelSecret } from '@/lib/channel-config';
 import { getGoogleAuthUrl } from '@/lib/google-calendar';
 import OpenAI from 'openai';
 
@@ -104,8 +104,9 @@ export async function testWhatsAppConnection() {
             return { success: false, message: 'No WhatsApp configuration found.' };
         }
 
-        const config = channel.configJson as { phoneNumberId?: string; accessToken?: string };
-        const { phoneNumberId, accessToken } = config;
+        const config = channel.configJson as { phoneNumberId?: string; accessToken?: unknown };
+        const phoneNumberId = config.phoneNumberId;
+        const accessToken = readChannelSecret(config.accessToken);
 
         if (!phoneNumberId || !accessToken) {
             return { success: false, message: 'Incomplete configuration.' };
