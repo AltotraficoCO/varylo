@@ -100,6 +100,23 @@ export async function POST(req: NextRequest) {
         const signature = req.headers.get('x-hub-signature-256');
         const sigValid = await verifyWebhookSignature(rawBuffer, signature);
         if (!sigValid) {
+            // Diagnostic: identify which WABA/phone is sending webhooks we can't verify
+            // (parse-only, no DB writes). A bad/rotated per-channel appSecret shows up here.
+            let phoneNumberId: string | undefined;
+            let entryId: string | undefined;
+            try {
+                const parsed = JSON.parse(rawBuffer.toString('utf-8'));
+                const v = parsed?.entry?.[0]?.changes?.[0]?.value;
+                phoneNumberId = v?.metadata?.phone_number_id;
+                entryId = parsed?.entry?.[0]?.id;
+            } catch { /* non-JSON body — almost certainly a scanner */ }
+            console.warn('[WhatsApp Webhook] 403 signature mismatch', {
+                hasSignatureHeader: !!signature,
+                phoneNumberId: phoneNumberId || 'n/a',
+                wabaOrEntryId: entryId || 'n/a',
+                ua: req.headers.get('user-agent') || 'n/a',
+                ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'n/a',
+            });
             return new NextResponse('Forbidden', { status: 403 });
         }
 
