@@ -1,38 +1,31 @@
-const CACHE_NAME = 'varylo-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/manifest.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-];
+// Kill-switch service worker.
+// Previous versions intercepted cross-origin requests (Google Fonts) which were
+// blocked by CSP, breaking navigations and producing blank pages.
+// This worker unregisters itself on activation and reloads every client so the
+// browser falls back to standard network behaviour.
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
-  self.skipWaiting();
+self.addEventListener('install', () => {
+    self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+    event.waitUntil(
+        (async () => {
+            try {
+                await self.registration.unregister();
+                const clients = await self.clients.matchAll({ type: 'window' });
+                for (const client of clients) {
+                    try {
+                        client.navigate(client.url);
+                    } catch {
+                        // ignore — client may have been navigated already
+                    }
+                }
+            } catch {
+                // best-effort cleanup
+            }
+        })()
+    );
 });
 
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-
-  // Let navigation and API requests go directly to the network (no SW interception)
-  // Intercepting navigations causes CSP violations in some browsers
-  if (request.mode === 'navigate' || request.url.includes('/api/')) {
-    return;
-  }
-
-  // Cache-first for static assets only
-  event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
-  );
-});
+// No fetch handler — let the browser handle every request directly.
