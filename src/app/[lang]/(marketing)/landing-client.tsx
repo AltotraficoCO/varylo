@@ -334,7 +334,7 @@ export function LandingClient({ lang, d: initialD, dict: initialDict, plans, log
                         ))}
                     </div>
                     <div className="flex items-center gap-3">
-                        <Link href={`/${displayLang}/login`} className="hidden sm:block text-sm text-white/50 hover:text-white transition-colors">{dict.nav.login}</Link>
+                        <Link href={`/${displayLang}/login`} className="text-sm text-white/50 hover:text-white transition-colors">{dict.nav.login}</Link>
                         <Link href={`/${displayLang}/register`}>
                             <button className="flex items-center gap-1.5 bg-white text-black text-sm font-semibold px-4 py-2 rounded-full hover:bg-white/90 transition-colors">
                                 {dict.nav.getStarted} <ArrowUpRight className="h-3.5 w-3.5" />
