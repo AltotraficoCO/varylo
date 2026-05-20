@@ -138,6 +138,7 @@ model Company {
   assignmentStrategy    AssignmentStrategy @default(LEAST_BUSY)
   specificAgentId       String?
   roundRobinLastUserId  String?
+  excludedAgentIds      String[]           @default([])
 
   googleCalendarRefreshToken String?
   googleCalendarEmail        String?

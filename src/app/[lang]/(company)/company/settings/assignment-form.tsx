@@ -13,16 +13,32 @@ import { useDictionary } from '@/lib/i18n-context';
 export function AssignmentForm({
     currentStrategy,
     currentAgentId,
+    currentExcludedIds,
     agents,
 }: {
     currentStrategy: AssignmentStrategy;
     currentAgentId: string | null;
+    currentExcludedIds: string[];
     agents: { id: string; name: string | null; email: string }[];
 }) {
     const [strategy, setStrategy] = useState<AssignmentStrategy>(currentStrategy);
     const [agentId, setAgentId] = useState<string>(currentAgentId || '');
+    const [excluded, setExcluded] = useState<string[]>(currentExcludedIds);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    const supportsExclusion = strategy === 'LEAST_BUSY' || strategy === 'ROUND_ROBIN';
+
+    function toggleExcluded(id: string) {
+        setMessage(null);
+        setExcluded((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    }
+
+    function excludedSetsEqual(a: string[], b: string[]) {
+        if (a.length !== b.length) return false;
+        const sa = new Set(a);
+        return b.every((x) => sa.has(x));
+    }
 
     const dict = useDictionary();
     const t = dict.settingsUI?.assignmentForm || {};
@@ -35,7 +51,10 @@ export function AssignmentForm({
         { value: 'MANUAL_ONLY', label: t.manualOnly || 'Solo manual', description: t.manualOnlyDesc || 'No se asigna automáticamente, quedan en "Sin asignar".' },
     ];
 
-    const hasChanges = strategy !== currentStrategy || (strategy === 'SPECIFIC_AGENT' && agentId !== (currentAgentId || ''));
+    const hasChanges =
+        strategy !== currentStrategy ||
+        (strategy === 'SPECIFIC_AGENT' && agentId !== (currentAgentId || '')) ||
+        (supportsExclusion && !excludedSetsEqual(excluded, currentExcludedIds));
 
     const handleSave = async () => {
         setSaving(true);
@@ -43,7 +62,8 @@ export function AssignmentForm({
         try {
             const result = await updateAssignmentStrategy(
                 strategy,
-                strategy === 'SPECIFIC_AGENT' ? agentId : undefined
+                strategy === 'SPECIFIC_AGENT' ? agentId : undefined,
+                supportsExclusion ? excluded : [],
             );
             setMessage({
                 type: result.success ? 'success' : 'error',
@@ -102,6 +122,55 @@ export function AssignmentForm({
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                )}
+
+                {supportsExclusion && (
+                    <div className="space-y-2 pt-2 border-t">
+                        <div>
+                            <Label>Excluir agentes de esta estrategia</Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Los agentes marcados no recibirán conversaciones automáticamente. Podrás seguir asignándolos manualmente desde el chat.
+                            </p>
+                        </div>
+                        {agents.length === 0 ? (
+                            <p className="text-xs text-muted-foreground italic">No hay agentes disponibles.</p>
+                        ) : (
+                            <div className="max-h-60 overflow-y-auto rounded-md border divide-y bg-muted/30">
+                                {agents.map((a) => {
+                                    const isExcluded = excluded.includes(a.id);
+                                    return (
+                                        <label
+                                            key={a.id}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/60 transition-colors"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={isExcluded}
+                                                onChange={() => toggleExcluded(a.id)}
+                                                className="h-4 w-4 rounded border-input"
+                                            />
+                                            <span className="flex-1 truncate">
+                                                {a.name || a.email}
+                                                {a.name && (
+                                                    <span className="text-xs text-muted-foreground ml-2">{a.email}</span>
+                                                )}
+                                            </span>
+                                            {isExcluded && (
+                                                <span className="text-[10px] uppercase tracking-wide text-amber-600 font-medium">
+                                                    Excluido
+                                                </span>
+                                            )}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {excluded.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                {excluded.length} agente{excluded.length === 1 ? '' : 's'} excluido{excluded.length === 1 ? '' : 's'}.
+                            </p>
+                        )}
                     </div>
                 )}
 

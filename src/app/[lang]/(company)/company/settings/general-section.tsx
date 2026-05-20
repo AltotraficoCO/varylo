@@ -24,6 +24,7 @@ type GeneralSectionProps = {
     userEmail: string;
     assignmentStrategy: string;
     specificAgentId: string | null;
+    excludedAgentIds: string[];
     agents: { id: string; name: string | null; email: string }[];
 };
 
@@ -32,6 +33,7 @@ export function GeneralSection({
     userEmail,
     assignmentStrategy,
     specificAgentId,
+    excludedAgentIds,
     agents,
 }: GeneralSectionProps) {
     const [activeItem, setActiveItem] = useState<string | null>(null);
@@ -125,6 +127,7 @@ export function GeneralSection({
                 <AssignmentForm
                     currentStrategy={assignmentStrategy as any}
                     currentAgentId={specificAgentId}
+                    currentExcludedIds={excludedAgentIds}
                     agents={agents}
                 />
             </div>

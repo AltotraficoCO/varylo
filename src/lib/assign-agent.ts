@@ -12,17 +12,20 @@ export async function assignAgent(companyId: string): Promise<string | null> {
             assignmentStrategy: true,
             specificAgentId: true,
             roundRobinLastUserId: true,
+            excludedAgentIds: true,
         },
     });
 
     if (!company) return null;
 
+    const excluded = company.excludedAgentIds ?? [];
+
     switch (company.assignmentStrategy) {
         case 'LEAST_BUSY':
-            return leastBusy(companyId);
+            return leastBusy(companyId, excluded);
 
         case 'ROUND_ROBIN':
-            return roundRobin(companyId, company.roundRobinLastUserId);
+            return roundRobin(companyId, company.roundRobinLastUserId, excluded);
 
         case 'SPECIFIC_AGENT':
             return specificAgent(companyId, company.specificAgentId);
@@ -31,7 +34,7 @@ export async function assignAgent(companyId: string): Promise<string | null> {
             return null;
 
         default:
-            return leastBusy(companyId);
+            return leastBusy(companyId, excluded);
     }
 }
 
@@ -40,12 +43,13 @@ export const findLeastBusyAgent = assignAgent;
 
 // --- Strategy implementations ---
 
-async function getActiveAgents(companyId: string) {
+async function getActiveAgents(companyId: string, excluded: string[] = []) {
     return prisma.user.findMany({
         where: {
             companyId,
             active: true,
             role: { in: [Role.AGENT, Role.COMPANY_ADMIN] },
+            ...(excluded.length > 0 ? { id: { notIn: excluded } } : {}),
         },
         select: {
             id: true,
@@ -60,20 +64,21 @@ async function getActiveAgents(companyId: string) {
     });
 }
 
-async function leastBusy(companyId: string): Promise<string | null> {
-    const users = await getActiveAgents(companyId);
+async function leastBusy(companyId: string, excluded: string[] = []): Promise<string | null> {
+    const users = await getActiveAgents(companyId, excluded);
     if (users.length === 0) return null;
 
     users.sort((a, b) => a._count.assignedConversations - b._count.assignedConversations);
     return users[0].id;
 }
 
-async function roundRobin(companyId: string, lastUserId: string | null): Promise<string | null> {
+async function roundRobin(companyId: string, lastUserId: string | null, excluded: string[] = []): Promise<string | null> {
     const users = await prisma.user.findMany({
         where: {
             companyId,
             active: true,
             role: { in: [Role.AGENT, Role.COMPANY_ADMIN] },
+            ...(excluded.length > 0 ? { id: { notIn: excluded } } : {}),
         },
         select: { id: true },
         orderBy: { id: 'asc' },

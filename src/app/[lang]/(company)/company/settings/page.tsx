@@ -68,6 +68,7 @@ export default async function SettingsPage(props: {
                 googleCalendarRefreshToken: true,
                 assignmentStrategy: true,
                 specificAgentId: true,
+                excludedAgentIds: true,
             },
         }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WHATSAPP } }),
@@ -192,6 +193,7 @@ export default async function SettingsPage(props: {
                             userEmail={userEmail}
                             assignmentStrategy={company?.assignmentStrategy || 'LEAST_BUSY'}
                             specificAgentId={company?.specificAgentId || null}
+                            excludedAgentIds={company?.excludedAgentIds || []}
                             agents={companyAgents}
                         />
                     )}

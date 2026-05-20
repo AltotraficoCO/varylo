@@ -987,7 +987,11 @@ export async function testEcommerceIntegration() {
 
 // ASSIGNMENT STRATEGY
 
-export async function updateAssignmentStrategy(strategy: AssignmentStrategy, specificAgentId?: string) {
+export async function updateAssignmentStrategy(
+    strategy: AssignmentStrategy,
+    specificAgentId?: string,
+    excludedAgentIds: string[] = [],
+) {
     const session = await auth();
     if (!session?.user?.companyId) {
         return { success: false, message: 'No authorized session.' };
@@ -1008,12 +1012,22 @@ export async function updateAssignmentStrategy(strategy: AssignmentStrategy, spe
         }
     }
 
+    let safeExcluded: string[] = [];
+    if (excludedAgentIds.length > 0) {
+        const valid = await prisma.user.findMany({
+            where: { companyId, id: { in: excludedAgentIds } },
+            select: { id: true },
+        });
+        safeExcluded = valid.map((u) => u.id);
+    }
+
     try {
         await prisma.company.update({
             where: { id: companyId },
             data: {
                 assignmentStrategy: strategy,
                 specificAgentId: strategy === 'SPECIFIC_AGENT' ? specificAgentId : null,
+                excludedAgentIds: safeExcluded,
             },
         });
 
