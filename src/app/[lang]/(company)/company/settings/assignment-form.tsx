@@ -19,7 +19,7 @@ export function AssignmentForm({
     currentStrategy: AssignmentStrategy;
     currentAgentId: string | null;
     currentExcludedIds: string[];
-    agents: { id: string; name: string | null; email: string }[];
+    agents: { id: string; name: string | null; email: string; role: string }[];
 }) {
     const [strategy, setStrategy] = useState<AssignmentStrategy>(currentStrategy);
     const [agentId, setAgentId] = useState<string>(currentAgentId || '');
@@ -125,19 +125,21 @@ export function AssignmentForm({
                     </div>
                 )}
 
-                {supportsExclusion && (
+                {supportsExclusion && (() => {
+                    const excludableAgents = agents.filter((a) => a.role !== 'COMPANY_ADMIN');
+                    return (
                     <div className="space-y-2 pt-2 border-t">
                         <div>
                             <Label>Excluir agentes de esta estrategia</Label>
                             <p className="text-xs text-muted-foreground mt-1">
-                                Los agentes marcados no recibirán conversaciones automáticamente. Podrás seguir asignándolos manualmente desde el chat.
+                                Los agentes marcados no recibirán conversaciones automáticamente. Podrás seguir asignándolos manualmente desde el chat. Los administradores nunca entran al pool automático.
                             </p>
                         </div>
-                        {agents.length === 0 ? (
+                        {excludableAgents.length === 0 ? (
                             <p className="text-xs text-muted-foreground italic">No hay agentes disponibles.</p>
                         ) : (
                             <div className="max-h-60 overflow-y-auto rounded-md border divide-y bg-muted/30">
-                                {agents.map((a) => {
+                                {excludableAgents.map((a) => {
                                     const isExcluded = excluded.includes(a.id);
                                     return (
                                         <label
@@ -172,7 +174,8 @@ export function AssignmentForm({
                             </p>
                         )}
                     </div>
-                )}
+                    );
+                })()}
 
                 {message && (
                     <div className={`flex items-center gap-2 text-sm ${message.type === 'success' ? 'text-green-600' : 'text-destructive'}`}>

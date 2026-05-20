@@ -48,7 +48,7 @@ async function getActiveAgents(companyId: string, excluded: string[] = []) {
         where: {
             companyId,
             active: true,
-            role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] },
+            role: { in: [Role.AGENT, Role.SUPERVISOR] },
             ...(excluded.length > 0 ? { id: { notIn: excluded } } : {}),
         },
         select: {
@@ -68,7 +68,11 @@ async function leastBusy(companyId: string, excluded: string[] = []): Promise<st
     const users = await getActiveAgents(companyId, excluded);
     if (users.length === 0) return null;
 
-    users.sort((a, b) => a._count.assignedConversations - b._count.assignedConversations);
+    users.sort((a, b) => {
+        const diff = a._count.assignedConversations - b._count.assignedConversations;
+        if (diff !== 0) return diff;
+        return a.id.localeCompare(b.id);
+    });
     return users[0].id;
 }
 
@@ -77,7 +81,7 @@ async function roundRobin(companyId: string, lastUserId: string | null, excluded
         where: {
             companyId,
             active: true,
-            role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] },
+            role: { in: [Role.AGENT, Role.SUPERVISOR] },
             ...(excluded.length > 0 ? { id: { notIn: excluded } } : {}),
         },
         select: { id: true },

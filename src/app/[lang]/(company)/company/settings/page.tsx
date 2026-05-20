@@ -82,7 +82,7 @@ export default async function SettingsPage(props: {
         }),
         prisma.user.findMany({
             where: { companyId, active: true, role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] } },
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true, role: true },
             orderBy: { name: 'asc' },
         }),
         prisma.ecommerceIntegration.findMany({

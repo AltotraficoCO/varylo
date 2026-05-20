@@ -25,7 +25,7 @@ type GeneralSectionProps = {
     assignmentStrategy: string;
     specificAgentId: string | null;
     excludedAgentIds: string[];
-    agents: { id: string; name: string | null; email: string }[];
+    agents: { id: string; name: string | null; email: string; role: string }[];
 };
 
 export function GeneralSection({
