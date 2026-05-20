@@ -132,7 +132,7 @@ export default async function ConversationsPage({
         where: {
             companyId: session.user.companyId,
             active: true,
-            role: { in: [Role.AGENT, Role.COMPANY_ADMIN] } // Show Admins too so they can assign to themselves
+            role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] } // Show Admins/Supervisors too so they can be assigned manually
         },
         select: { id: true, name: true, email: true }
     });

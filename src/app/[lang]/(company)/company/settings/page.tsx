@@ -81,7 +81,7 @@ export default async function SettingsPage(props: {
             include: { _count: { select: { conversations: true } } }
         }),
         prisma.user.findMany({
-            where: { companyId, active: true, role: { in: [Role.AGENT, Role.COMPANY_ADMIN] } },
+            where: { companyId, active: true, role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] } },
             select: { id: true, name: true, email: true },
             orderBy: { name: 'asc' },
         }),

@@ -48,7 +48,7 @@ async function getActiveAgents(companyId: string, excluded: string[] = []) {
         where: {
             companyId,
             active: true,
-            role: { in: [Role.AGENT, Role.COMPANY_ADMIN] },
+            role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] },
             ...(excluded.length > 0 ? { id: { notIn: excluded } } : {}),
         },
         select: {
@@ -77,7 +77,7 @@ async function roundRobin(companyId: string, lastUserId: string | null, excluded
         where: {
             companyId,
             active: true,
-            role: { in: [Role.AGENT, Role.COMPANY_ADMIN] },
+            role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] },
             ...(excluded.length > 0 ? { id: { notIn: excluded } } : {}),
         },
         select: { id: true },

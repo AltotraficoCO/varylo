@@ -64,7 +64,11 @@ export async function toggleConversationAgent(conversationId: string, agentId: s
 
     // Verify agent belongs to same company
     const agent = await prisma.user.findFirst({
-        where: { id: agentId, companyId: session.user.companyId, role: Role.AGENT },
+        where: {
+            id: agentId,
+            companyId: session.user.companyId,
+            role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] },
+        },
     });
     if (!agent) {
         throw new Error("Agent not found");
