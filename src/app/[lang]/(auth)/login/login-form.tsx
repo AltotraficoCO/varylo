@@ -26,6 +26,7 @@ export default function LoginForm({ dict, lang }: { dict: any; lang: string }) {
 
     return (
         <form action={dispatch} className="space-y-4">
+            <input type="hidden" name="lang" value={lang} />
             {/* Email */}
             <div className="space-y-1.5">
                 <label htmlFor="email" className="block text-[13px] font-medium text-[#374151]">

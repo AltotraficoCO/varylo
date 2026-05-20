@@ -7,8 +7,13 @@ export async function authenticate(
     prevState: string | undefined,
     formData: FormData
 ) {
+    const rawLang = formData.get('lang');
+    const lang = rawLang === 'en' ? 'en' : 'es';
     try {
-        await signIn('credentials', { ...Object.fromEntries(formData), redirectTo: '/dashboard' });
+        await signIn('credentials', {
+            ...Object.fromEntries(formData),
+            redirectTo: `/${lang}/dashboard`,
+        });
     } catch (error) {
         if (error instanceof AuthError) {
             if (error.cause?.err?.message === 'COMPANY_SUSPENDED') {
