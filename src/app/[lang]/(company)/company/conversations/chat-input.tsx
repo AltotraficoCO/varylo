@@ -13,6 +13,7 @@ import {
 import { sendMessage, sendMediaMessage } from './actions';
 import { useRealtimeData } from './realtime-context';
 import { getWhatsAppTemplates, sendTemplateMessage } from '@/lib/template-actions';
+import { QuickReplyButton } from './quick-reply-button';
 import { cn } from '@/lib/utils';
 import { Mp3Encoder } from '@breezystack/lamejs';
 import { useDictionary } from '@/lib/i18n-context';
@@ -723,6 +724,12 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                 >
                     <Paperclip className="h-[18px] w-[18px] text-[#71717A]" />
                 </button>
+
+                {/* Quick reply button */}
+                <QuickReplyButton
+                    disabled={isSending || isRecording}
+                    onPick={(content) => setMessage((prev) => (prev ? prev + (prev.endsWith(' ') ? '' : ' ') + content : content))}
+                />
 
                 {/* Input field - bg #FAFAFA, border #E4E4E7 */}
                 <input

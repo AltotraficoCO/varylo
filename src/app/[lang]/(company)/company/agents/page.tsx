@@ -1,6 +1,8 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { Role } from '@prisma/client';
 import { CreateAgentDialog } from './create-agent-dialog';
+import { RoleToggle } from './role-toggle';
 import { ContactAvatar } from '@/components/contact-avatar';
 import { getDictionary, Locale } from '@/lib/dictionary';
 
@@ -12,10 +14,12 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
     const session = await auth();
     if (!session?.user?.companyId) return null;
 
+    const isAdmin = session.user.role === Role.COMPANY_ADMIN;
+
     const agents = await prisma.user.findMany({
         where: {
             companyId: session.user.companyId,
-            role: 'AGENT',
+            role: { in: [Role.AGENT, Role.SUPERVISOR] },
             NOT: { id: session.user.id }
         },
         include: {
@@ -26,11 +30,13 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
 
     const roleLabel: Record<string, string> = {
         COMPANY_ADMIN: 'Admin',
+        SUPERVISOR: 'Supervisor',
         AGENT: t.role,
     };
 
     const roleBadgeClass: Record<string, string> = {
         COMPANY_ADMIN: 'bg-[#F5F3FF] text-[#8B5CF6]',
+        SUPERVISOR: 'bg-[#F5F3FF] text-[#8B5CF6]',
         AGENT: 'bg-[#EFF6FF] text-[#3B82F6]',
     };
 
@@ -59,7 +65,7 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
                     <h1 className="text-2xl font-bold text-[#09090B]">{t.title}</h1>
                     <p className="text-sm text-[#71717A] mt-1">{t.subtitle}</p>
                 </div>
-                <CreateAgentDialog />
+                {isAdmin && <CreateAgentDialog />}
             </div>
 
             <div className="bg-white rounded-xl border border-[#E4E4E7] overflow-hidden">
@@ -89,9 +95,13 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
                                             </div>
                                             <div className="flex-1 min-w-[160px] text-sm text-[#3F3F46] truncate">{agent.email}</div>
                                             <div className="w-[100px]">
-                                                <span className={`inline-block rounded-xl px-2.5 py-1 text-xs font-medium ${roleBadgeClass[agent.role] || roleBadgeClass.AGENT}`}>
-                                                    {roleLabel[agent.role] || agent.role}
-                                                </span>
+                                                {isAdmin && (agent.role === Role.AGENT || agent.role === Role.SUPERVISOR) ? (
+                                                    <RoleToggle userId={agent.id} currentRole={agent.role} />
+                                                ) : (
+                                                    <span className={`inline-block rounded-xl px-2.5 py-1 text-xs font-medium ${roleBadgeClass[agent.role] || roleBadgeClass.AGENT}`}>
+                                                        {roleLabel[agent.role] || agent.role}
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="w-[120px] flex items-center gap-1.5">
                                                 <span className={`h-2 w-2 rounded-full ${statusDotColor[agent.status] || 'bg-[#A1A1AA]'}`} />

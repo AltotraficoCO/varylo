@@ -274,8 +274,8 @@ export async function deleteConversation(conversationId: string) {
         return { success: false, message: "Unauthorized" };
     }
 
-    if (session.user.role === Role.AGENT) {
-        return { success: false, message: "Agents cannot delete conversations" };
+    if (session.user.role !== Role.COMPANY_ADMIN) {
+        return { success: false, message: "Only company admins can delete conversations" };
     }
 
     try {
@@ -298,8 +298,8 @@ export async function deleteConversations(conversationIds: string[]) {
         return { success: false, message: "Unauthorized" };
     }
 
-    if (session.user.role === Role.AGENT) {
-        return { success: false, message: "Agents cannot delete conversations" };
+    if (session.user.role !== Role.COMPANY_ADMIN) {
+        return { success: false, message: "Only company admins can delete conversations" };
     }
 
     if (!conversationIds.length) {

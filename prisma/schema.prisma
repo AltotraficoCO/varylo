@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   SUPER_ADMIN
   COMPANY_ADMIN
+  SUPERVISOR
   AGENT
 }
 
@@ -115,6 +116,7 @@ model User {
   broadcasts            Broadcast[]
   assignedDeals         Deal[]        @relation("DealAssignee")
   createdQuotes         Quote[]       @relation("QuoteCreator")
+  createdQuickReplies   QuickReply[]  @relation("QuickReplyCreator")
 }
 
 model Company {
@@ -165,6 +167,23 @@ model Company {
   products           Product[]
   productCategories  ProductCategory[]
   quotes             Quote[]
+  quickReplies       QuickReply[]
+}
+
+model QuickReply {
+  id          String   @id @default(cuid())
+  companyId   String
+  createdById String?
+  shortcut    String
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("QuickReplyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, shortcut])
+  @@index([companyId])
 }
 
 model Channel {

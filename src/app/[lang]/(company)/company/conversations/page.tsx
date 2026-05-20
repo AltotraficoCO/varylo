@@ -445,7 +445,7 @@ export default async function ConversationsPage({
                                                     {t.cardRepliesDesc}
                                                 </p>
                                             </div>
-                                            <Link href="/company/settings" className="text-primary text-xs font-medium hover:underline text-center flex items-center justify-center gap-1 group-hover:gap-2 transition-all">
+                                            <Link href="/company/settings/quick-replies" className="text-primary text-xs font-medium hover:underline text-center flex items-center justify-center gap-1 group-hover:gap-2 transition-all">
                                                 {t.cardRepliesCta} <Settings className="h-3 w-3" />
                                             </Link>
                                         </div>
