@@ -15,7 +15,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ lang
 
     if (role === Role.SUPER_ADMIN) {
         redirect(`/${lang}/super-admin`);
-    } else if (role === Role.COMPANY_ADMIN) {
+    } else if (role === Role.COMPANY_ADMIN || role === Role.SUPERVISOR) {
         redirect(`/${lang}/company`);
     } else if (role === Role.AGENT) {
         // Checking if agent has sub-route, typically it was just /agent based on folder structure

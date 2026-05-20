@@ -45,7 +45,7 @@ export const authConfig = {
                 if (isSuperAdminRoute && userRole !== 'SUPER_ADMIN') {
                     return Response.redirect(new URL(`/${segments[1]}/login`, nextUrl));
                 }
-                if (isCompanyRoute && userRole !== 'COMPANY_ADMIN' && userRole !== 'SUPER_ADMIN') {
+                if (isCompanyRoute && userRole !== 'COMPANY_ADMIN' && userRole !== 'SUPERVISOR' && userRole !== 'SUPER_ADMIN') {
                     return Response.redirect(new URL(`/${segments[1]}/login`, nextUrl));
                 }
                 if (isAgentRoute && userRole !== 'AGENT' && userRole !== 'COMPANY_ADMIN' && userRole !== 'SUPER_ADMIN') {
