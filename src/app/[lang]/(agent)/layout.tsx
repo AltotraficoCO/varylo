@@ -4,7 +4,10 @@ import { getDictionary, Locale } from '@/lib/dictionary';
 import { DictionaryProvider } from '@/lib/i18n-context';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { redirect } from 'next/navigation';
 import { StatusBanner } from '@/components/status-banner';
+
+const AGENT_ALLOWED_ROLES = new Set(['AGENT', 'COMPANY_ADMIN', 'SUPER_ADMIN']);
 
 export default async function AgentLayout({
     children,
@@ -16,6 +19,18 @@ export default async function AgentLayout({
     const { lang } = await params;
     const session = await auth();
     const dict = await getDictionary(lang as Locale);
+
+    if (!session?.user) {
+        redirect(`/${lang}/login`);
+    }
+
+    const role = (session.user.role as string | undefined) ?? null;
+    if (role === 'SUPERVISOR') {
+        redirect(`/${lang}/company`);
+    }
+    if (!role || !AGENT_ALLOWED_ROLES.has(role)) {
+        redirect(`/${lang}/dashboard`);
+    }
 
     let userStatus: 'ONLINE' | 'BUSY' | 'OFFLINE' = 'OFFLINE';
 

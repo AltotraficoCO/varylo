@@ -11,8 +11,7 @@ export const authConfig = {
                 token.companyId = user.companyId;
                 token.id = user.id;
             }
-            // Support updating session on the client
-            if (trigger === "update" && session) {
+            if (trigger === 'update' && session) {
                 token = { ...token, ...session };
             }
             return token;
@@ -26,38 +25,24 @@ export const authConfig = {
             return session;
         },
         authorized({ auth, request: { nextUrl } }) {
-            const isLoggedIn = !!auth?.user;
-            const userRole = (auth?.user as any)?.role;
-
             const segments = nextUrl.pathname.split('/');
             const pathWithoutLocale = '/' + segments.slice(2).join('/');
 
-            const isSuperAdminRoute = pathWithoutLocale.startsWith('/super-admin');
-            const isCompanyRoute = pathWithoutLocale.startsWith('/company');
-            const isAgentRoute = pathWithoutLocale.startsWith('/agent');
-            const isDashboardRoute = pathWithoutLocale.startsWith('/dashboard');
+            const isProtected =
+                pathWithoutLocale.startsWith('/super-admin') ||
+                pathWithoutLocale.startsWith('/company') ||
+                pathWithoutLocale.startsWith('/agent') ||
+                pathWithoutLocale.startsWith('/dashboard');
 
-            // All protected routes require authentication
-            if (isSuperAdminRoute || isCompanyRoute || isAgentRoute || isDashboardRoute) {
-                if (!isLoggedIn) return false;
-
-                // Role-based access control
-                if (isSuperAdminRoute && userRole !== 'SUPER_ADMIN') {
-                    return Response.redirect(new URL(`/${segments[1]}/login`, nextUrl));
-                }
-                if (isCompanyRoute && userRole !== 'COMPANY_ADMIN' && userRole !== 'SUPERVISOR' && userRole !== 'SUPER_ADMIN') {
-                    return Response.redirect(new URL(`/${segments[1]}/login`, nextUrl));
-                }
-                if (isAgentRoute && userRole !== 'AGENT' && userRole !== 'COMPANY_ADMIN' && userRole !== 'SUPER_ADMIN') {
-                    return Response.redirect(new URL(`/${segments[1]}/login`, nextUrl));
-                }
-
+            if (!isProtected) {
                 return true;
             }
 
-            // Allow access to other pages (marketing, auth)
-            return true;
+            // Authenticated users pass through. Role-specific redirects are
+            // handled at the page level so that the middleware doesn't bounce
+            // between protected routes (which previously caused ERR_TOO_MANY_REDIRECTS).
+            return !!auth?.user;
         },
     },
-    providers: [], // Providers added in auth.ts
+    providers: [],
 } satisfies NextAuthConfig;

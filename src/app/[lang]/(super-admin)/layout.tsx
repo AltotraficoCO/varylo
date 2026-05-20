@@ -2,6 +2,8 @@ import { Sidebar, superAdminItems } from '@/components/dashboard/sidebar';
 import { DashboardHeader } from '@/components/dashboard/header';
 import { getDictionary, Locale } from '@/lib/dictionary';
 import { DictionaryProvider } from '@/lib/i18n-context';
+import { auth } from '@/auth';
+import { redirect } from 'next/navigation';
 import { StatusBanner } from '@/components/status-banner';
 
 export default async function SuperAdminLayout({
@@ -13,6 +15,15 @@ export default async function SuperAdminLayout({
 }) {
     const { lang } = await params;
     const dict = await getDictionary(lang as Locale);
+    const session = await auth();
+
+    if (!session?.user) {
+        redirect(`/${lang}/login`);
+    }
+    const role = (session.user.role as string | undefined) ?? null;
+    if (role !== 'SUPER_ADMIN') {
+        redirect(`/${lang}/dashboard`);
+    }
 
     return (
         <DictionaryProvider dictionary={dict}>

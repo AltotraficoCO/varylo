@@ -6,7 +6,10 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { StatusBanner } from '@/components/status-banner';
+
+const COMPANY_ALLOWED_ROLES = new Set(['COMPANY_ADMIN', 'SUPERVISOR', 'SUPER_ADMIN']);
 
 export default async function CompanyLayout({
     children,
@@ -18,6 +21,18 @@ export default async function CompanyLayout({
     const { lang } = await params;
     const session = await auth();
     const dict = await getDictionary(lang as Locale);
+
+    if (!session?.user) {
+        redirect(`/${lang}/login`);
+    }
+
+    const role = (session.user.role as string | undefined) ?? null;
+    if (role === 'AGENT') {
+        redirect(`/${lang}/agent`);
+    }
+    if (!role || !COMPANY_ALLOWED_ROLES.has(role)) {
+        redirect(`/${lang}/dashboard`);
+    }
 
     let tags: any[] = [];
     let userStatus: 'ONLINE' | 'BUSY' | 'OFFLINE' = 'OFFLINE';
