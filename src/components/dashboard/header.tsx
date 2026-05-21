@@ -108,16 +108,21 @@ export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OF
                             {userEmail && <p className="text-xs font-normal text-muted-foreground">{userEmail}</p>}
                         </div>
                     </DropdownMenuLabel>
-                    {role !== 'supervisor' && (
-                        <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                                <Link href={role === 'agent' ? `/${lang}/agent/profile` : `/${lang}/company/settings`} className="w-full">
-                                    {t.profile}
-                                </Link>
-                            </DropdownMenuItem>
-                        </>
-                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                        <Link
+                            href={
+                                role === 'agent'
+                                    ? `/${lang}/agent/profile`
+                                    : role === 'supervisor'
+                                        ? `/${lang}/company/profile`
+                                        : `/${lang}/company/settings`
+                            }
+                            className="w-full"
+                        >
+                            {t.profile}
+                        </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={async () => {
                         await updateUserStatus('OFFLINE');
