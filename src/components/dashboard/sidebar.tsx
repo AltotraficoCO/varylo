@@ -182,7 +182,12 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[]): { s
             }
             sections = [
                 { label: t.communication, items: commItems },
-                { label: t.management, items: [{ title: t.team, href: '/company/agents', icon: UsersRound }] },
+                {
+                    label: t.management, items: [
+                        { title: t.team, href: '/company/agents', icon: UsersRound },
+                        { title: t.myProfile, href: '/company/profile', icon: UserCircle },
+                    ]
+                },
             ];
             break;
         }
