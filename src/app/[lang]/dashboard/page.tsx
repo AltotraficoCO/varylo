@@ -15,11 +15,11 @@ export default async function DashboardPage({ params }: { params: Promise<{ lang
     }
 
     const role = (session.user.role as string | undefined) ?? null;
-    console.log('[dashboard-redirect] role=', role, 'lang=', lang);
 
     let target: string | null = null;
     if (role === 'SUPER_ADMIN') target = `/${lang}/super-admin`;
-    else if (role === 'COMPANY_ADMIN' || role === 'SUPERVISOR') target = `/${lang}/company`;
+    else if (role === 'SUPERVISOR') target = `/${lang}/company/conversations`;
+    else if (role === 'COMPANY_ADMIN') target = `/${lang}/company`;
     else if (role === 'AGENT') target = `/${lang}/agent`;
 
     if (target) {

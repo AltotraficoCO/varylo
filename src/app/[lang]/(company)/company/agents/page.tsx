@@ -15,6 +15,8 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
     if (!session?.user?.companyId) return null;
 
     const isAdmin = session.user.role === Role.COMPANY_ADMIN;
+    const isSupervisor = session.user.role === Role.SUPERVISOR;
+    const canAddPeople = isAdmin || isSupervisor;
 
     const agents = await prisma.user.findMany({
         where: {
@@ -65,7 +67,7 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
                     <h1 className="text-2xl font-bold text-[#09090B]">{t.title}</h1>
                     <p className="text-sm text-[#71717A] mt-1">{t.subtitle}</p>
                 </div>
-                {isAdmin && <CreateAgentDialog />}
+                {canAddPeople && <CreateAgentDialog allowRoleSelection={isAdmin} />}
             </div>
 
             <div className="bg-white rounded-xl border border-[#E4E4E7] overflow-hidden">

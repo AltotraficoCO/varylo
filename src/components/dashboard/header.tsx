@@ -29,7 +29,7 @@ export interface HeaderDict {
 interface DashboardHeaderProps {
     title: string;
     lang: string;
-    role: 'super-admin' | 'company' | 'agent';
+    role: 'super-admin' | 'company' | 'supervisor' | 'agent';
     tags?: TagData[];
     userStatus?: 'ONLINE' | 'BUSY' | 'OFFLINE';
     userName?: string;
@@ -108,12 +108,16 @@ export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OF
                             {userEmail && <p className="text-xs font-normal text-muted-foreground">{userEmail}</p>}
                         </div>
                     </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                        <Link href={role === 'agent' ? `/${lang}/agent/profile` : `/${lang}/company/settings`} className="w-full">
-                            {t.profile}
-                        </Link>
-                    </DropdownMenuItem>
+                    {role !== 'supervisor' && (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                                <Link href={role === 'agent' ? `/${lang}/agent/profile` : `/${lang}/company/settings`} className="w-full">
+                                    {t.profile}
+                                </Link>
+                            </DropdownMenuItem>
+                        </>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={async () => {
                         await updateUserStatus('OFFLINE');

@@ -70,7 +70,7 @@ export interface SidebarDict {
     footer: string;
 }
 
-type SidebarRole = 'super-admin' | 'company' | 'agent';
+type SidebarRole = 'super-admin' | 'company' | 'supervisor' | 'agent';
 
 interface SidebarProps {
     role: SidebarRole;
@@ -153,6 +153,37 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[]): { s
                 },
             ];
             bottomItems = [{ title: t.settings, href: '/company/settings', icon: Settings }];
+            break;
+        }
+        case 'supervisor': {
+            const commItems: NavItem[] = [
+                { title: t.conversations, href: '/company/conversations', icon: MessageSquare, unreadBadge: true },
+            ];
+            if (tags && tags.length > 0) {
+                const sidebarTags = tags.filter(tg => tg.showInSidebar);
+                if (sidebarTags.length > 0) {
+                    commItems[0] = {
+                        ...commItems[0],
+                        children: [
+                            { title: t.all, href: '/company/conversations', icon: MessageSquare },
+                            ...sidebarTags.map(tag => ({
+                                title: tag.name,
+                                href: `/company/conversations?filter=all&tag=${tag.id}`,
+                                icon: ({ className }: { className?: string }) => (
+                                    <div
+                                        className={className}
+                                        style={{ backgroundColor: tag.color, borderRadius: '50%', border: '1px solid rgba(0,0,0,0.1)' }}
+                                    />
+                                )
+                            }))
+                        ]
+                    };
+                }
+            }
+            sections = [
+                { label: t.communication, items: commItems },
+                { label: t.management, items: [{ title: t.team, href: '/company/agents', icon: UsersRound }] },
+            ];
             break;
         }
         case 'agent':

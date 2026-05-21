@@ -26,7 +26,6 @@ export default async function CompanyLayout({
     }
 
     const role = (session.user.role as string | undefined) ?? null;
-    console.log('[company-layout] role=', role, 'companyId=', session.user.companyId);
 
     // Only redirect pure AGENT users away. SUPERVISOR / COMPANY_ADMIN / SUPER_ADMIN
     // (and even unknown roles for safety) are allowed through so the page can
@@ -87,18 +86,20 @@ export default async function CompanyLayout({
         }
     }
 
+    const sidebarRole = role === 'SUPERVISOR' ? 'supervisor' : 'company';
+
     return (
         <DictionaryProvider dictionary={dict}>
             <div className="flex w-full h-screen overflow-hidden">
                 <div className="hidden lg:block shrink-0">
-                    <Sidebar role="company" lang={lang} tags={tags} dict={dict.dashboard.sidebar} />
+                    <Sidebar role={sidebarRole} lang={lang} tags={tags} dict={dict.dashboard.sidebar} />
                 </div>
                 <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
                     <StatusBanner />
                     <DashboardHeader
                         title={dict.dashboard.companyTitle}
                         lang={lang}
-                        role="company"
+                        role={sidebarRole}
                         tags={tags}
                         userStatus={userStatus}
                         userName={session?.user?.name || undefined}

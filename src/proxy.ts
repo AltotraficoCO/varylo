@@ -57,6 +57,15 @@ export default auth((req) => {
         if (userRole !== 'COMPANY_ADMIN' && userRole !== 'SUPERVISOR' && userRole !== 'SUPER_ADMIN') {
             return NextResponse.redirect(new URL(`/${locale}/login`, nextUrl));
         }
+        // Supervisors are limited to conversations and the team page.
+        if (userRole === 'SUPERVISOR') {
+            const supervisorAllowed =
+                pathWithoutLocale.startsWith('/company/conversations') ||
+                pathWithoutLocale.startsWith('/company/agents');
+            if (!supervisorAllowed) {
+                return NextResponse.redirect(new URL(`/${locale}/company/conversations`, nextUrl));
+            }
+        }
     }
 
     if (pathWithoutLocale.startsWith('/agent')) {

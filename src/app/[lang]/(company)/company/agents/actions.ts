@@ -20,14 +20,17 @@ export async function createAgent(prevState: string | undefined, formData: FormD
     if (!session?.user?.companyId) {
         return 'Error: No authorized session found.';
     }
-    if (session.user.role !== Role.COMPANY_ADMIN) {
-        return 'Error: Only company admins can create users.';
+    const isAdmin = session.user.role === Role.COMPANY_ADMIN;
+    const isSupervisor = session.user.role === Role.SUPERVISOR;
+    if (!isAdmin && !isSupervisor) {
+        return 'Error: You are not allowed to create users.';
     }
 
     const name = formData.get('name') as string;
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
-    const role = parseRole(formData.get('role'));
+    // Supervisors can only add plain agents; admins can also create supervisors.
+    const role = isAdmin ? parseRole(formData.get('role')) : Role.AGENT;
 
     if (!name || !email || !password) {
         return 'Error: All fields are required.';
