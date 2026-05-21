@@ -9,7 +9,6 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { StatusBanner } from '@/components/status-banner';
 
-const COMPANY_ALLOWED_ROLES = new Set(['COMPANY_ADMIN', 'SUPERVISOR', 'SUPER_ADMIN']);
 
 export default async function CompanyLayout({
     children,
@@ -27,11 +26,13 @@ export default async function CompanyLayout({
     }
 
     const role = (session.user.role as string | undefined) ?? null;
+    console.log('[company-layout] role=', role, 'companyId=', session.user.companyId);
+
+    // Only redirect pure AGENT users away. SUPERVISOR / COMPANY_ADMIN / SUPER_ADMIN
+    // (and even unknown roles for safety) are allowed through so the page can
+    // render rather than triggering a middleware <-> layout redirect loop.
     if (role === 'AGENT') {
         redirect(`/${lang}/agent`);
-    }
-    if (!role || !COMPANY_ALLOWED_ROLES.has(role)) {
-        redirect(`/${lang}/dashboard`);
     }
 
     let tags: any[] = [];

@@ -16,7 +16,25 @@ export default async function CompanyDashboard({
     const t = dict.dashboard.companyHome;
     const tc = dict.dashboard.common;
     const session = await auth();
-    if (!session?.user?.companyId) return null;
+    if (!session?.user) {
+        return (
+            <div className="flex flex-1 items-center justify-center p-8">
+                <p className="text-sm text-muted-foreground">Sesión no encontrada.</p>
+            </div>
+        );
+    }
+    if (!session.user.companyId) {
+        return (
+            <div className="flex flex-1 items-center justify-center p-8">
+                <div className="max-w-md text-center space-y-3">
+                    <h2 className="text-lg font-semibold">Tu cuenta no está vinculada a una empresa</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Pide al administrador que te asigne a una organización para poder ver las conversaciones.
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     const companyId = session.user.companyId;
 
