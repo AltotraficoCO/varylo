@@ -44,24 +44,24 @@ export default auth((req) => {
     const segments = pathname.split('/');
     const pathWithoutLocale = '/' + segments.slice(2).join('/'); // /super-admin
 
+    const locale = segments[1];
+
     if (pathWithoutLocale.startsWith('/super-admin')) {
         if (userRole !== 'SUPER_ADMIN') {
-            // Redirect to login preserving locale
-            const locale = segments[1];
             return NextResponse.redirect(new URL(`/${locale}/login`, nextUrl));
         }
     }
 
     if (pathWithoutLocale.startsWith('/company')) {
-        if (userRole !== 'COMPANY_ADMIN') {
-            const locale = segments[1];
+        // COMPANY_ADMIN, SUPERVISOR and SUPER_ADMIN may access the company area.
+        if (userRole !== 'COMPANY_ADMIN' && userRole !== 'SUPERVISOR' && userRole !== 'SUPER_ADMIN') {
             return NextResponse.redirect(new URL(`/${locale}/login`, nextUrl));
         }
     }
 
     if (pathWithoutLocale.startsWith('/agent')) {
-        if (userRole !== 'AGENT') {
-            const locale = segments[1];
+        // Agents plus admins may access the agent inbox.
+        if (userRole !== 'AGENT' && userRole !== 'COMPANY_ADMIN' && userRole !== 'SUPER_ADMIN') {
             return NextResponse.redirect(new URL(`/${locale}/login`, nextUrl));
         }
     }
@@ -69,7 +69,6 @@ export default auth((req) => {
     // prevent logged in users from accessing auth pages
     if (pathWithoutLocale === '/login' || pathWithoutLocale === '/register') {
         if (req.auth) {
-            const locale = segments[1];
             return NextResponse.redirect(new URL(`/${locale}/dashboard`, nextUrl));
         }
     }
