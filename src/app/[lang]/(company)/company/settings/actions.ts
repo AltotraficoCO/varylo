@@ -1039,6 +1039,33 @@ export async function updateAssignmentStrategy(
     }
 }
 
+// UNATTENDED (DESATENDIDO) THRESHOLD
+
+export async function updateUnattendedThreshold(minutes: number) {
+    const session = await auth();
+    if (!session?.user?.companyId) {
+        return { success: false, message: 'No authorized session.' };
+    }
+
+    const value = Math.round(Number(minutes));
+    if (!Number.isFinite(value) || value < 1 || value > 1440) {
+        return { success: false, message: 'El tiempo debe estar entre 1 y 1440 minutos.' };
+    }
+
+    try {
+        await prisma.company.update({
+            where: { id: session.user.companyId },
+            data: { unattendedThresholdMinutes: value },
+        });
+        revalidatePath('/[lang]/company/settings', 'page');
+        revalidatePath('/[lang]/company/analytics', 'page');
+        return { success: true, message: 'Tiempo de desatención actualizado.' };
+    } catch (error) {
+        console.error('Failed to update unattended threshold:', error);
+        return { success: false, message: 'Error al actualizar el tiempo.' };
+    }
+}
+
 export async function updateChannelPriority(channelId: string, priority: AutomationPriority) {
     const session = await auth();
     if (!session?.user?.companyId) {

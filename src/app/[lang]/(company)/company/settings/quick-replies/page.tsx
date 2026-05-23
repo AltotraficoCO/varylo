@@ -1,13 +1,22 @@
-import { MessageSquareText } from 'lucide-react';
+import { MessageSquareText, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import { listQuickReplies } from './actions';
 import { QuickReplyForm, EditQuickReplyButton } from './quick-reply-form';
 import { DeleteQuickReplyButton } from './delete-button';
 
-export default async function QuickRepliesPage() {
+export default async function QuickRepliesPage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params;
     const replies = await listQuickReplies();
 
     return (
         <div className="max-w-5xl mx-auto py-8 px-6">
+            <Link
+                href={`/${lang}/company/settings`}
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
+            >
+                <ArrowLeft className="h-4 w-4" />
+                Volver a configuración
+            </Link>
             <div className="flex items-start justify-between mb-8 gap-4">
                 <div>
                     <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-2">

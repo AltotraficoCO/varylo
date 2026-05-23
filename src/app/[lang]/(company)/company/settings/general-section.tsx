@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ArrowRight, Building2, Users, Bell } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building2, Users, Bell, Clock } from 'lucide-react';
 import { AssignmentForm } from './assignment-form';
+import { UnattendedThresholdForm } from './unattended-threshold-form';
 import { useDictionary } from '@/lib/i18n-context';
 
 type GeneralItem = {
@@ -26,6 +27,7 @@ type GeneralSectionProps = {
     specificAgentId: string | null;
     excludedAgentIds: string[];
     agents: { id: string; name: string | null; email: string; role: string }[];
+    unattendedThresholdMinutes: number;
 };
 
 export function GeneralSection({
@@ -35,6 +37,7 @@ export function GeneralSection({
     specificAgentId,
     excludedAgentIds,
     agents,
+    unattendedThresholdMinutes,
 }: GeneralSectionProps) {
     const [activeItem, setActiveItem] = useState<string | null>(null);
     const dict = useDictionary();
@@ -59,6 +62,16 @@ export function GeneralSection({
             icon: Users,
             color: 'bg-violet-50 text-violet-600 border-violet-200',
             badge: assignmentStrategy === 'SPECIFIC_AGENT' ? (t.specificAgent || 'Agente específico') : (t.leastBusy || 'Menos ocupado'),
+            badgeVariant: 'default',
+            status: 'active',
+        },
+        {
+            id: 'unattended',
+            name: 'Conversaciones desatendidas',
+            description: 'Define cuántos minutos puede esperar un cliente sin respuesta antes de marcar la conversación como desatendida.',
+            icon: Clock,
+            color: 'bg-amber-50 text-amber-600 border-amber-200',
+            badge: `${unattendedThresholdMinutes} min`,
             badgeVariant: 'default',
             status: 'active',
         },
@@ -130,6 +143,23 @@ export function GeneralSection({
                     currentExcludedIds={excludedAgentIds}
                     agents={agents}
                 />
+            </div>
+        );
+    }
+
+    if (activeItem === 'unattended') {
+        return (
+            <div className="space-y-4">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActiveItem(null)}
+                    className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    {t.backToGeneral || 'Volver a general'}
+                </Button>
+                <UnattendedThresholdForm current={unattendedThresholdMinutes} />
             </div>
         );
     }

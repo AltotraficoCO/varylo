@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Building2, Plug, Coins, Tag, FileText, CreditCard, Key, Puzzle } from "lucide-react";
+import { Building2, Plug, Coins, Tag, FileText, CreditCard, Key, Puzzle, Zap } from "lucide-react";
 import { TagsSection } from "./tags-section";
 import { TemplatesSection } from "./templates-section";
 import { GeneralSection } from "./general-section";
@@ -26,7 +26,7 @@ export default async function SettingsPage(props: {
     const dict = await getDictionary(lang as Locale);
     const ts = dict.dashboard.settings;
 
-    const TABS = [
+    const TABS: { key: string; label: string; icon: typeof Building2; href?: string }[] = [
         { key: 'general', label: ts.tabs.general, icon: Building2 },
         { key: 'channels', label: ts.tabs.channels, icon: Plug },
         { key: 'integrations', label: ts.tabs.integrations, icon: Puzzle },
@@ -35,6 +35,8 @@ export default async function SettingsPage(props: {
         { key: 'api', label: ts.tabs.api, icon: Key },
         { key: 'tags', label: ts.tabs.tags, icon: Tag },
         { key: 'templates', label: ts.tabs.templates, icon: FileText },
+        // Dedicated route (full CRUD) rather than an in-page tab.
+        { key: 'quick-replies', label: ts.tabs.quickReplies || 'Respuestas rápidas', icon: Zap, href: `/${lang}/company/settings/quick-replies` },
     ];
 
     const session = await auth();
@@ -69,6 +71,7 @@ export default async function SettingsPage(props: {
                 assignmentStrategy: true,
                 specificAgentId: true,
                 excludedAgentIds: true,
+                unattendedThresholdMinutes: true,
             },
         }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WHATSAPP } }),
@@ -145,7 +148,7 @@ export default async function SettingsPage(props: {
                         return (
                             <Link
                                 key={tab.key}
-                                href={`?tab=${tab.key}`}
+                                href={tab.href || `?tab=${tab.key}`}
                                 className={cn(
                                     "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                                     isActive
@@ -169,7 +172,7 @@ export default async function SettingsPage(props: {
                             return (
                                 <Link
                                     key={tab.key}
-                                    href={`?tab=${tab.key}`}
+                                    href={tab.href || `?tab=${tab.key}`}
                                     className={cn(
                                         "flex items-center gap-1.5 pb-2.5 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0",
                                         isActive
@@ -195,6 +198,7 @@ export default async function SettingsPage(props: {
                             specificAgentId={company?.specificAgentId || null}
                             excludedAgentIds={company?.excludedAgentIds || []}
                             agents={companyAgents}
+                            unattendedThresholdMinutes={company?.unattendedThresholdMinutes ?? 20}
                         />
                     )}
 

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { CreateAgentDialog } from './create-agent-dialog';
 import { RoleToggle } from './role-toggle';
+import { AgentStatusToggle } from './agent-status-toggle';
+import { DeleteAgentDialog } from './delete-agent-dialog';
 import { ContactAvatar } from '@/components/contact-avatar';
 import { getDictionary, Locale } from '@/lib/dictionary';
 
@@ -72,13 +74,16 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
 
             <div className="bg-white rounded-xl border border-[#E4E4E7] overflow-hidden">
                 <div className="overflow-x-auto">
-                    <div className="min-w-[640px]">
+                    <div className={isAdmin ? "min-w-[820px]" : "min-w-[640px]"}>
                         <div className="flex items-center py-3 px-5 bg-[#F4F4F5] rounded-t-xl">
                             <div className="flex-1 min-w-[140px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Nombre</div>
                             <div className="flex-1 min-w-[160px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Email</div>
                             <div className="w-[100px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Rol</div>
                             <div className="w-[120px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">Estado</div>
                             <div className="w-[100px] text-xs font-semibold text-[#71717A] tracking-[0.3px]">{t.openConv}</div>
+                            {isAdmin && (
+                                <div className="w-[160px] text-xs font-semibold text-[#71717A] tracking-[0.3px] text-right">Acciones</div>
+                            )}
                         </div>
 
                         {agents.length === 0 ? (
@@ -114,6 +119,15 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
                                             <div className={`w-[100px] text-sm font-medium ${openConvs > 0 ? 'text-[#09090B]' : 'text-[#71717A]'}`}>
                                                 {openConvs}
                                             </div>
+                                            {isAdmin && (
+                                                <div className="w-[160px] flex items-center justify-end gap-3">
+                                                    <label className="flex items-center gap-1.5 text-[12px] text-[#71717A]">
+                                                        <AgentStatusToggle id={agent.id} initialStatus={agent.active} />
+                                                        <span>{agent.active ? 'Activo' : 'Inactivo'}</span>
+                                                    </label>
+                                                    <DeleteAgentDialog agentId={agent.id} agentName={agent.name} />
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}

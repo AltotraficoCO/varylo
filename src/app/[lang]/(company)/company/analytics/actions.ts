@@ -9,6 +9,15 @@ export async function getAnalyticsData(heatmapDays: number = 7) {
     if (!session?.user?.companyId) return null;
     const companyId = session.user.companyId;
 
+    // Company-configurable threshold (in minutes) for considering a conversation
+    // "unattended" once the customer is the last to write. Defaults to 20 min.
+    const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { unattendedThresholdMinutes: true },
+    });
+    const thresholdMinutes = company?.unattendedThresholdMinutes ?? 20;
+    const unattendedBefore = new Date(Date.now() - thresholdMinutes * 60 * 1000);
+
     // --- 1. Conversations Summary ---
     // Abrir: Total conversations with status OPEN
     const openCount = await prisma.conversation.count({
@@ -20,22 +29,13 @@ export async function getAnalyticsData(heatmapDays: number = 7) {
         where: { companyId, status: 'OPEN', assignedAgents: { none: {} } }
     });
 
-    // Desatendido: OPEN conversations with no activity in 24h
-    const yesterday = new Date();
-    yesterday.setHours(yesterday.getHours() - 24);
-    const unattendedCount = await prisma.conversation.count({
-        where: {
-            companyId,
-            status: 'OPEN',
-            lastMessageAt: { lt: yesterday }
-        }
-    });
-
-    // Pendientes: OPEN conversations where the last message is INBOUND (customer waiting for reply)
+    // Fetch all OPEN conversations once (with last message direction + timestamp)
+    // so both "pending" and "unattended" reflect who is actually waiting.
     const openConversations = await prisma.conversation.findMany({
         where: { companyId, status: 'OPEN' },
         select: {
             id: true,
+            lastMessageAt: true,
             messages: {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
@@ -43,8 +43,18 @@ export async function getAnalyticsData(heatmapDays: number = 7) {
             },
         },
     });
+
+    // Pendientes: OPEN conversations where the last message is INBOUND (customer waiting for reply)
     const pendingCount = openConversations.filter(
         c => c.messages[0]?.direction === MessageDirection.INBOUND
+    ).length;
+
+    // Desatendido: customer wrote last (INBOUND) AND has been waiting longer than
+    // the company threshold without a reply from the team.
+    const isUnattended = (lastDirection: MessageDirection | undefined, lastMessageAt: Date) =>
+        lastDirection === MessageDirection.INBOUND && lastMessageAt < unattendedBefore;
+    const unattendedCount = openConversations.filter(
+        c => isUnattended(c.messages[0]?.direction, c.lastMessageAt)
     ).length;
 
     // --- 2. Agent Status ---
@@ -52,11 +62,20 @@ export async function getAnalyticsData(heatmapDays: number = 7) {
     const allAgents = await prisma.user.findMany({
         where: {
             companyId,
-            role: { in: [Role.AGENT, Role.COMPANY_ADMIN] }
+            role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] }
         },
         include: {
             assignedConversations: {
-                where: { status: 'OPEN' }
+                where: { status: 'OPEN' },
+                select: {
+                    id: true,
+                    lastMessageAt: true,
+                    messages: {
+                        orderBy: { createdAt: 'desc' },
+                        take: 1,
+                        select: { direction: true },
+                    },
+                },
             }
         }
     });
@@ -112,7 +131,7 @@ export async function getAnalyticsData(heatmapDays: number = 7) {
     // --- 4. Conversaciones por agentes (Detailed) ---
     const conversationsByAgent = allAgents.map(agent => {
         const unattended = agent.assignedConversations.filter(
-            c => c.lastMessageAt < yesterday
+            c => isUnattended(c.messages[0]?.direction, c.lastMessageAt)
         ).length;
 
         return {

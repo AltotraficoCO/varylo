@@ -140,6 +140,10 @@ model Company {
   roundRobinLastUserId  String?
   excludedAgentIds      String[]           @default([])
 
+  // Minutes a customer's last (inbound) message can wait before the
+  // conversation is considered "unattended" (desatendido) in analytics.
+  unattendedThresholdMinutes Int @default(20)
+
   googleCalendarRefreshToken String?
   googleCalendarEmail        String?
   googleCalendarConnectedAt  DateTime?

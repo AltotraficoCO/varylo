@@ -16,20 +16,21 @@ import { Role, ChannelType } from '@prisma/client';
 import { getDictionary } from '@/lib/dictionary';
 import type { Locale } from '@/lib/dictionary';
 
-import { ConversationRightSidebar } from './conversation-right-sidebar';
+import { CollapsibleRightSidebar } from './collapsible-right-sidebar';
 import { ConversationsRealtimeWrapper } from './conversations-realtime-wrapper';
 import { WindowTimer } from './window-timer';
 import { ConversationList } from './conversation-list';
 import { NewConversationButton } from './new-conversation-button';
 import { ReopenBanner } from './reopen-banner';
 import { ScrollableTabs } from './scrollable-tabs';
+import { AgentFilter } from './agent-filter';
 
 // Server Component receiving searchParams
 export default async function ConversationsPage({
     searchParams,
     params: routeParams,
 }: {
-    searchParams: Promise<{ conversationId?: string; filter?: string; tag?: string }>;
+    searchParams: Promise<{ conversationId?: string; filter?: string; tag?: string; agent?: string }>;
     params: Promise<{ lang: string }>;
 }) {
     const session = await auth();
@@ -43,6 +44,8 @@ export default async function ConversationsPage({
     // Force 'mine' filter for agents if they try to access others, or default to 'mine'
     let filter = params?.filter || 'mine';
     const tag = params?.tag;
+    // Agent filter (admins & supervisors only): narrow the list to one agent's conversations.
+    const agentFilter = !isAgent ? params?.agent : undefined;
 
     if (isAgent && filter !== 'mine' && filter !== 'resolved') {
         filter = 'mine';
@@ -105,6 +108,13 @@ export default async function ConversationsPage({
                 id: tag
             }
         };
+    }
+
+    // When an admin/supervisor filters by a specific agent, scope the list to
+    // that agent's assigned conversations regardless of the mine/unassigned tab.
+    if (agentFilter) {
+        where.assignedAgents = { some: { id: agentFilter } };
+        delete where.handledByAiAgentId;
     }
 
     const conversations = await prisma.conversation.findMany({
@@ -262,7 +272,7 @@ export default async function ConversationsPage({
                 </div>
 
                 {/* Search */}
-                <div className="p-3 border-b bg-muted/50">
+                <div className="p-3 border-b bg-muted/50 space-y-2">
                     <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -271,6 +281,9 @@ export default async function ConversationsPage({
                             className="pl-8 h-9 bg-background"
                         />
                     </div>
+                    {!isAgent && companyAgents.length > 0 && (
+                        <AgentFilter agents={companyAgents} selected={agentFilter} />
+                    )}
                 </div>
 
                 <ConversationList
@@ -476,14 +489,13 @@ export default async function ConversationsPage({
                 )}
             </div>
 
-            {/* Context Sidebar */}
+            {/* Context Sidebar (collapsible) */}
             {
                 selectedConversation && (
-                    <ConversationRightSidebar
+                    <CollapsibleRightSidebar
                         conversation={selectedConversation}
                         companyTags={companyTags}
                         companyAgents={companyAgents}
-                        className="hidden lg:flex w-[320px] xl:w-[350px] shrink-0 border-l"
                         isAgent={isAgent}
                         insight={(selectedConversation as any).insights?.[0] || null}
                     />
