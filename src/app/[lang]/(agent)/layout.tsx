@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { StatusBanner } from '@/components/status-banner';
+import { PresenceHeartbeat } from '@/components/presence-heartbeat';
 
 const AGENT_ALLOWED_ROLES = new Set(['AGENT', 'COMPANY_ADMIN', 'SUPER_ADMIN']);
 
@@ -57,6 +58,7 @@ export default async function AgentLayout({
 
     return (
         <DictionaryProvider dictionary={dict}>
+            <PresenceHeartbeat />
             <div className="flex w-full h-screen overflow-hidden">
                 <div className="hidden lg:block shrink-0">
                     <Sidebar role="agent" lang={lang} dict={dict.dashboard.sidebar} />

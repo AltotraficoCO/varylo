@@ -8,6 +8,7 @@ import { AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { StatusBanner } from '@/components/status-banner';
+import { PresenceHeartbeat } from '@/components/presence-heartbeat';
 
 
 export default async function CompanyLayout({
@@ -90,6 +91,7 @@ export default async function CompanyLayout({
 
     return (
         <DictionaryProvider dictionary={dict}>
+            <PresenceHeartbeat />
             <div className="flex w-full h-screen overflow-hidden">
                 <div className="hidden lg:block shrink-0">
                     <Sidebar role={sidebarRole} lang={lang} tags={tags} dict={dict.dashboard.sidebar} />

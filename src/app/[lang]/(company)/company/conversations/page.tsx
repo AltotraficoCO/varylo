@@ -201,6 +201,7 @@ export default async function ConversationsPage({
         const qs = new URLSearchParams();
         if (filter) qs.set('filter', filter);
         if (tag) qs.set('tag', tag);
+        if (agentFilter) qs.set('agent', agentFilter);
         const query = qs.toString();
         return `/${lang}/company/conversations${query ? `?${query}` : ''}`;
     })();
@@ -291,6 +292,8 @@ export default async function ConversationsPage({
                     selectedId={selectedId}
                     filter={filter}
                     isAgent={isAgent}
+                    tag={tag}
+                    agent={agentFilter}
                 />
             </div>
 

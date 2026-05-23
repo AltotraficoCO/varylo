@@ -13,6 +13,11 @@ interface SendMessageOptions {
     mediaType?: string;  // image, video, audio, document
     mimeType?: string;
     fileName?: string;
+    /**
+     * Id of the human agent sending the message. Left undefined for AI/automation
+     * so analytics can attribute response times to people only.
+     */
+    senderId?: string;
 }
 
 /**
@@ -233,6 +238,7 @@ export async function sendChannelMessage({
     mediaType,
     mimeType,
     fileName,
+    senderId,
 }: SendMessageOptions) {
     const conversation = await prisma.conversation.findUnique({
         where: { id: conversationId },
@@ -392,6 +398,7 @@ export async function sendChannelMessage({
             mediaType,
             mimeType: mimeType?.split(';')[0], // Store clean mime without codec params
             fileName,
+            senderId,
         },
     });
 

@@ -3,6 +3,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { Role, MessageDirection } from '@prisma/client';
+import { getConnectedSecondsByUser } from '@/lib/presence';
 
 export async function getAnalyticsData(heatmapDays: number = 7) {
     const session = await auth();
@@ -107,12 +108,15 @@ export async function getAnalyticsData(heatmapDays: number = 7) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - heatmapDays);
 
+    // Fetch recent messages once, ordered by conversation + time, so we can build
+    // both the traffic heatmap and per-agent response times in a single pass.
     const recentMessages = await prisma.message.findMany({
         where: {
             companyId,
             createdAt: { gte: sevenDaysAgo }
         },
-        select: { createdAt: true }
+        select: { createdAt: true, conversationId: true, direction: true, senderId: true },
+        orderBy: [{ conversationId: 'asc' }, { createdAt: 'asc' }],
     });
 
     // Initialize 7x24 grid
@@ -127,12 +131,52 @@ export async function getAnalyticsData(heatmapDays: number = 7) {
         heatmap[key] = (heatmap[key] || 0) + 1;
     });
 
+    // --- Per-agent response time ---
+    // For each conversation, when the customer writes (INBOUND) the clock starts.
+    // The first human OUTBOUND reply (senderId set) stops it and the elapsed time
+    // is attributed to that agent. AI replies (no senderId) just clear the wait
+    // without being attributed to any person.
+    const responseAgg: Record<string, { totalMs: number; count: number }> = {};
+    let currentConvId: string | null = null;
+    let pendingInboundAt: Date | null = null;
+
+    for (const msg of recentMessages) {
+        if (msg.conversationId !== currentConvId) {
+            currentConvId = msg.conversationId;
+            pendingInboundAt = null;
+        }
+        if (msg.direction === MessageDirection.INBOUND) {
+            if (!pendingInboundAt) pendingInboundAt = msg.createdAt; // earliest unanswered
+        } else {
+            // OUTBOUND
+            if (pendingInboundAt) {
+                if (msg.senderId) {
+                    const elapsed = msg.createdAt.getTime() - pendingInboundAt.getTime();
+                    if (elapsed >= 0) {
+                        const agg = responseAgg[msg.senderId] || { totalMs: 0, count: 0 };
+                        agg.totalMs += elapsed;
+                        agg.count += 1;
+                        responseAgg[msg.senderId] = agg;
+                    }
+                }
+                pendingInboundAt = null; // answered (by human or AI)
+            }
+        }
+    }
+
+    // --- Per-agent connection time (from presence sessions) ---
+    const connectedByUser = await getConnectedSecondsByUser(companyId, sevenDaysAgo);
 
     // --- 4. Conversaciones por agentes (Detailed) ---
     const conversationsByAgent = allAgents.map(agent => {
         const unattended = agent.assignedConversations.filter(
             c => isUnattended(c.messages[0]?.direction, c.lastMessageAt)
         ).length;
+
+        const resp = responseAgg[agent.id];
+        const avgResponseSeconds = resp && resp.count > 0
+            ? Math.round(resp.totalMs / resp.count / 1000)
+            : null;
 
         return {
             id: agent.id,
@@ -143,6 +187,8 @@ export async function getAnalyticsData(heatmapDays: number = 7) {
             status: agent.status === 'ONLINE' ? 'active' : agent.status === 'BUSY' ? 'busy' : 'inactive',
             openCount: agent.assignedConversations.length,
             unattendedCount: unattended,
+            avgResponseSeconds,
+            connectedSeconds: connectedByUser[agent.id] || 0,
         };
     });
 

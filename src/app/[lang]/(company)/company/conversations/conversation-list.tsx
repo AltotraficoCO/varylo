@@ -25,11 +25,23 @@ interface ConversationListProps {
     selectedId?: string;
     filter: string;
     isAgent: boolean;
+    tag?: string;
+    agent?: string;
 }
 
-export function ConversationList({ conversations, selectedId, filter, isAgent }: ConversationListProps) {
+export function ConversationList({ conversations, selectedId, filter, isAgent, tag, agent }: ConversationListProps) {
     const dict = useDictionary();
     const t = dict.conversations || {};
+
+    // Preserve the active filters (tag, agent) when opening a conversation.
+    const buildHref = (conversationId: string) => {
+        const qs = new URLSearchParams();
+        if (filter) qs.set('filter', filter);
+        if (tag) qs.set('tag', tag);
+        if (agent) qs.set('agent', agent);
+        qs.set('conversationId', conversationId);
+        return `?${qs.toString()}`;
+    };
 
     return (
         <div className="flex-1 overflow-auto">
@@ -45,7 +57,7 @@ export function ConversationList({ conversations, selectedId, filter, isAgent }:
                     return (
                         <Link
                             key={conv.id}
-                            href={`?filter=${filter}&conversationId=${conv.id}`}
+                            href={buildHref(conv.id)}
                             className={cn(
                                 "relative group flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors border-b last:border-0",
                                 isActive && "bg-primary/5 border-l-4 border-l-primary pl-[13px]"

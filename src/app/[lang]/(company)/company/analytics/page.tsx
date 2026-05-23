@@ -74,10 +74,10 @@ export default function AnalyticsPage() {
         }
 
         lines.push(t.reportConvByAgent || 'CONVERSATIONS BY AGENT');
-        lines.push(t.reportAgentHeaders || 'Agent,Email,Status,Open,Unattended');
+        lines.push(t.reportAgentHeaders || 'Agent,Email,Status,Open,Unattended,Connected,AvgResponse');
         for (const agent of d.conversationsByAgent) {
             const status = agent.status === 'active' ? (tc.online || 'Online') : agent.status === 'busy' ? (tc.busy || 'Busy') : (tc.offline || 'Offline');
-            lines.push(`"${agent.name}","${agent.email}",${status},${agent.openCount},${agent.unattendedCount}`);
+            lines.push(`"${agent.name}","${agent.email}",${status},${agent.openCount},${agent.unattendedCount},${formatDuration(agent.connectedSeconds)},${formatDuration(agent.avgResponseSeconds)}`);
         }
         lines.push('');
 
@@ -110,6 +110,18 @@ export default function AnalyticsPage() {
 
     const dayNamesShort = t.dayNamesShort || ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const msgWord = (count: number) => count !== 1 ? (t.messages || 'messages') : (t.message || 'message');
+
+    // Human-friendly duration: "45s", "3m 20s", "2h 15m".
+    const formatDuration = (seconds: number | null | undefined) => {
+        if (seconds == null) return '—';
+        if (seconds <= 0) return '0s';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+        if (m > 0) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+        return `${s}s`;
+    };
 
     return (
         <div className="space-y-6">
@@ -266,14 +278,16 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="bg-white rounded-xl border border-[#E4E4E7] overflow-x-auto">
-              <div className="min-w-[560px]">
+              <div className="min-w-[760px]">
                 <div className="px-5 py-4">
                     <span className="text-[16px] font-semibold text-[#09090B]">{t.convByAgent || 'Conversations by agent'}</span>
                 </div>
                 <div className="flex items-center bg-[#F4F4F5] px-5 py-3">
-                    <div className="flex-1 min-w-[200px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">Agent</div>
-                    <div className="w-[120px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">{tc.open || 'Open'}</div>
-                    <div className="w-[120px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">{tc.unattended || 'Unattended'}</div>
+                    <div className="flex-1 min-w-[180px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">Agent</div>
+                    <div className="w-[90px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">{tc.open || 'Open'}</div>
+                    <div className="w-[110px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">{tc.unattended || 'Unattended'}</div>
+                    <div className="w-[150px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">{t.connectedTime || 'Tiempo conectado'}</div>
+                    <div className="w-[150px] text-[12px] font-semibold text-[#71717A] tracking-[0.3px]">{t.avgResponseTime || 'T. medio respuesta'}</div>
                 </div>
                 {data.conversationsByAgent.length === 0 ? (
                     <div className="py-8 text-center text-[#71717A] text-sm">{t.noActiveAgents || 'No active agents'}</div>
@@ -286,10 +300,12 @@ export default function AnalyticsPage() {
                                 </div>
                                 <span className="text-[14px] font-medium text-[#09090B] truncate">{agent.name}</span>
                             </div>
-                            <div className="w-[120px] text-[14px] font-medium text-[#09090B]">{agent.openCount}</div>
-                            <div className={`w-[120px] text-[14px] font-medium ${agent.unattendedCount > 0 ? 'text-[#EF4444]' : 'text-[#09090B]'}`}>
+                            <div className="w-[90px] text-[14px] font-medium text-[#09090B]">{agent.openCount}</div>
+                            <div className={`w-[110px] text-[14px] font-medium ${agent.unattendedCount > 0 ? 'text-[#EF4444]' : 'text-[#09090B]'}`}>
                                 {agent.unattendedCount}
                             </div>
+                            <div className="w-[150px] text-[14px] font-medium text-[#09090B]">{formatDuration(agent.connectedSeconds)}</div>
+                            <div className="w-[150px] text-[14px] font-medium text-[#09090B]">{formatDuration(agent.avgResponseSeconds)}</div>
                         </div>
                     ))
                 )}

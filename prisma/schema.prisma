@@ -117,6 +117,24 @@ model User {
   assignedDeals         Deal[]        @relation("DealAssignee")
   createdQuotes         Quote[]       @relation("QuoteCreator")
   createdQuickReplies   QuickReply[]  @relation("QuickReplyCreator")
+  presenceSessions      UserPresenceSession[]
+}
+
+// Tracks connected (online) intervals per user so analytics can report total
+// connection time. A session is opened/extended by a client heartbeat and
+// closed when heartbeats stop (by a cron or lazily when computing durations).
+model UserPresenceSession {
+  id              String    @id @default(cuid())
+  userId          String
+  companyId       String
+  startedAt       DateTime  @default(now())
+  lastHeartbeatAt DateTime  @default(now())
+  endedAt         DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, startedAt])
+  @@index([userId, endedAt])
 }
 
 model Company {

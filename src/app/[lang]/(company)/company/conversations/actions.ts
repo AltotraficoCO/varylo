@@ -116,6 +116,7 @@ export async function sendMessage(conversationId: string, content: string) {
             companyId: session.user.companyId,
             content,
             fromName: session.user.name || 'Agent',
+            senderId: session.user.id,
         });
 
         // Fire-and-forget AI analysis
@@ -159,6 +160,7 @@ export async function sendMediaMessage(
             mediaType,
             mimeType,
             fileName,
+            senderId: session.user.id,
         });
 
         revalidatePath('/[lang]/company/conversations', 'page');
