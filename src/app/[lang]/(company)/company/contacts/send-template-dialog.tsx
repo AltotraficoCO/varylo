@@ -226,7 +226,9 @@ export function SendTemplateDialog({
             templateName: selectedTemplate.name,
             templateLanguage: selectedTemplate.language,
             templateComponents: components,
-            templateBody: getPreviewText(selectedTemplate),
+            templateBody: [getHeaderPreviewText(selectedTemplate), getPreviewText(selectedTemplate)]
+                .filter(Boolean)
+                .join('\n\n'),
         });
 
         setSending(false);

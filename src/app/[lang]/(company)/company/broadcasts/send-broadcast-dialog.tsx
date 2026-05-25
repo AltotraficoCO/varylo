@@ -200,7 +200,9 @@ export function SendBroadcastDialog({
       templateName: selectedTemplate.name,
       templateLang: selectedTemplate.language,
       templateComponents: components,
-      templateBody: getPreviewText(selectedTemplate),
+      templateBody: [getHeaderPreviewText(selectedTemplate), getPreviewText(selectedTemplate)]
+        .filter(Boolean)
+        .join('\n\n'),
     });
 
     if (result.success && result.broadcastId) {
