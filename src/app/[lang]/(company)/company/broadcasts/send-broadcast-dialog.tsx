@@ -119,6 +119,17 @@ export function SendBroadcastDialog({
     return [...new Set(matches)].sort();
   };
 
+  const getHeaderParams = (template: Template): string[] => {
+    const header = template.components.find((c) => c.type === 'HEADER');
+    if (header?.format !== 'TEXT' || !header?.text) return [];
+    const matches = header.text.match(/\{\{(\d+)\}\}/g);
+    if (!matches) return [];
+    return [...new Set(matches)].sort();
+  };
+
+  const templateNeedsParams = (template: Template): boolean =>
+    getHeaderParams(template).length > 0 || getBodyParams(template).length > 0;
+
   const getPreviewText = (template: Template): string => {
     const body = template.components.find((c) => c.type === 'BODY');
     if (!body?.text) return '';
@@ -139,8 +150,7 @@ export function SendBroadcastDialog({
   const handleSelectTemplate = (t: Template) => {
     setSelectedTemplate(t);
     setParamValues({});
-    const params = getBodyParams(t);
-    if (params.length > 0) {
+    if (templateNeedsParams(t)) {
       setStep('params');
     } else {
       setStep('confirm');
@@ -152,8 +162,18 @@ export function SendBroadcastDialog({
 
     setSending(true);
 
-    const bodyParams = getBodyParams(selectedTemplate);
     const components: any[] = [];
+    const headerParams = getHeaderParams(selectedTemplate);
+    if (headerParams.length > 0) {
+      components.push({
+        type: 'header',
+        parameters: headerParams.map((p) => ({
+          type: 'text',
+          text: paramValues[`h${p.replace(/[{}]/g, '')}`] || '',
+        })),
+      });
+    }
+    const bodyParams = getBodyParams(selectedTemplate);
     if (bodyParams.length > 0) {
       components.push({
         type: 'body',
@@ -302,6 +322,22 @@ export function SendBroadcastDialog({
         {step === 'params' && selectedTemplate && (
           <div className="flex-1 overflow-hidden flex flex-col gap-4">
             <div className="space-y-3">
+              {getHeaderParams(selectedTemplate).map((p) => {
+                const idx = p.replace(/[{}]/g, '');
+                const key = `h${idx}`;
+                return (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-sm">Encabezado · Parámetro {idx}</Label>
+                    <Input
+                      placeholder={`Valor para ${p}`}
+                      value={paramValues[key] || ''}
+                      onChange={(e) =>
+                        setParamValues((prev) => ({ ...prev, [key]: e.target.value }))
+                      }
+                    />
+                  </div>
+                );
+              })}
               {getBodyParams(selectedTemplate).map((p) => {
                 const idx = p.replace(/[{}]/g, '');
                 return (
@@ -369,8 +405,7 @@ export function SendBroadcastDialog({
               variant="outline"
               onClick={() => {
                 if (step === 'confirm') {
-                  const params = getBodyParams(selectedTemplate!);
-                  setStep(params.length > 0 ? 'params' : 'template');
+                  setStep(templateNeedsParams(selectedTemplate!) ? 'params' : 'template');
                 } else if (step === 'params') setStep('template');
                 else setStep('list');
               }}

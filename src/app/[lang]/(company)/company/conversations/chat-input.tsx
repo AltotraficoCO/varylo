@@ -438,6 +438,17 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
         return [...new Set(matches)].sort();
     };
 
+    const getHeaderParams = (template: Template): string[] => {
+        const headerComponent = template.components.find((c) => c.type === 'HEADER');
+        if (headerComponent?.format !== 'TEXT' || !headerComponent?.text) return [];
+        const matches = headerComponent.text.match(/\{\{(\d+)\}\}/g);
+        if (!matches) return [];
+        return [...new Set(matches)].sort();
+    };
+
+    const templateNeedsParams = (template: Template): boolean =>
+        getHeaderParams(template).length > 0 || getBodyParams(template).length > 0;
+
     const getPreviewText = (template: Template): string => {
         const bodyComponent = template.components.find((c) => c.type === 'BODY');
         if (!bodyComponent?.text) return '';
@@ -454,8 +465,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
     const handleSelectTemplate = (tmpl: Template) => {
         setSelectedTemplate(tmpl);
         setParamValues({});
-        const params = getBodyParams(tmpl);
-        if (params.length > 0) {
+        if (templateNeedsParams(tmpl)) {
             setTemplateStep('params');
         }
     };
@@ -465,8 +475,18 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
 
         setSendingTemplate(true);
 
-        const bodyParams = getBodyParams(selectedTemplate);
         const components: any[] = [];
+        const headerParams = getHeaderParams(selectedTemplate);
+        if (headerParams.length > 0) {
+            components.push({
+                type: 'header',
+                parameters: headerParams.map((p) => ({
+                    type: 'text',
+                    text: paramValues[`h${p.replace(/[{}]/g, '')}`] || '',
+                })),
+            });
+        }
+        const bodyParams = getBodyParams(selectedTemplate);
         if (bodyParams.length > 0) {
             components.push({
                 type: 'body',
@@ -597,7 +617,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                                     </div>
                                 )}
 
-                                {selectedTemplate && getBodyParams(selectedTemplate).length === 0 && (
+                                {selectedTemplate && !templateNeedsParams(selectedTemplate) && (
                                     <Button onClick={handleSendTemplate} disabled={sendingTemplate} className="w-full">
                                         {sendingTemplate ? (
                                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -613,6 +633,23 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                         {templateStep === 'params' && selectedTemplate && (
                             <>
                                 <div className="space-y-2">
+                                    {getHeaderParams(selectedTemplate).map((p) => {
+                                        const idx = p.replace(/[{}]/g, '');
+                                        const key = `h${idx}`;
+                                        return (
+                                            <div key={key} className="space-y-1">
+                                                <Label className="text-xs">{t.header || 'Encabezado'} · {t.parameter} {idx}</Label>
+                                                <Input
+                                                    placeholder={`${t.valueFor} ${p}`}
+                                                    value={paramValues[key] || ''}
+                                                    onChange={(e) =>
+                                                        setParamValues((prev) => ({ ...prev, [key]: e.target.value }))
+                                                    }
+                                                    className="h-8 text-sm"
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                     {getBodyParams(selectedTemplate).map((p) => {
                                         const idx = p.replace(/[{}]/g, '');
                                         return (

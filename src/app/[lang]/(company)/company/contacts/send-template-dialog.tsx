@@ -134,6 +134,19 @@ export function SendTemplateDialog({
         return [...new Set(matches)].sort();
     };
 
+    // Extract header text param placeholders from selected template
+    const getHeaderParams = (template: Template): string[] => {
+        const headerComponent = template.components.find((c) => c.type === 'HEADER');
+        if (headerComponent?.format !== 'TEXT' || !headerComponent?.text) return [];
+        const matches = headerComponent.text.match(/\{\{(\d+)\}\}/g);
+        if (!matches) return [];
+        return [...new Set(matches)].sort();
+    };
+
+    // Whether the template needs any parameter input (header or body)
+    const templateNeedsParams = (template: Template): boolean =>
+        getHeaderParams(template).length > 0 || getBodyParams(template).length > 0;
+
     // Build preview text
     const getPreviewText = (template: Template): string => {
         const bodyComponent = template.components.find((c) => c.type === 'BODY');
@@ -160,8 +173,7 @@ export function SendTemplateDialog({
     const handleSelectTemplate = (t: Template) => {
         setSelectedTemplate(t);
         setParamValues({});
-        const params = getBodyParams(t);
-        if (params.length > 0) {
+        if (templateNeedsParams(t)) {
             setStep('params');
         }
         // If no params, user can send directly from template step
@@ -172,9 +184,19 @@ export function SendTemplateDialog({
 
         setSending(true);
 
-        // Build components array for Meta API
-        const bodyParams = getBodyParams(selectedTemplate);
+        // Build components array for Meta API (header params first, then body)
         const components: any[] = [];
+        const headerParams = getHeaderParams(selectedTemplate);
+        if (headerParams.length > 0) {
+            components.push({
+                type: 'header',
+                parameters: headerParams.map((p) => ({
+                    type: 'text',
+                    text: paramValues[`h${p.replace(/[{}]/g, '')}`] || '',
+                })),
+            });
+        }
+        const bodyParams = getBodyParams(selectedTemplate);
         if (bodyParams.length > 0) {
             components.push({
                 type: 'body',
@@ -356,6 +378,22 @@ export function SendTemplateDialog({
                 {step === 'params' && selectedTemplate && (
                     <div className="flex-1 overflow-hidden flex flex-col gap-4">
                         <div className="space-y-3">
+                            {getHeaderParams(selectedTemplate).map((p) => {
+                                const idx = p.replace(/[{}]/g, '');
+                                const key = `h${idx}`;
+                                return (
+                                    <div key={key} className="space-y-1">
+                                        <Label className="text-sm">Encabezado · Parámetro {idx}</Label>
+                                        <Input
+                                            placeholder={`Valor para ${p}`}
+                                            value={paramValues[key] || ''}
+                                            onChange={(e) =>
+                                                setParamValues((prev) => ({ ...prev, [key]: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+                                );
+                            })}
                             {getBodyParams(selectedTemplate).map((p) => {
                                 const idx = p.replace(/[{}]/g, '');
                                 return (
@@ -407,7 +445,7 @@ export function SendTemplateDialog({
                         </Button>
                     )}
 
-                    {step === 'template' && selectedTemplate && getBodyParams(selectedTemplate).length === 0 && (
+                    {step === 'template' && selectedTemplate && !templateNeedsParams(selectedTemplate) && (
                         <Button onClick={handleSend} disabled={sending}>
                             {sending ? (
                                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
