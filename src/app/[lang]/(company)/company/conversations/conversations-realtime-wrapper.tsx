@@ -78,13 +78,15 @@ export function ConversationsRealtimeWrapper({ children }: { children: React.Rea
                 setReadTimestamp(selectedId);
             }
 
-            // Compute unread map
+            // Compute unread map — only INBOUND activity counts as "unread".
+            // Using lastInboundAt (not lastMessageAt) prevents an agent's own
+            // outbound message from re-marking the conversation as unread.
             const readMap = getReadTimestamps();
             const newUnreadMap: Record<string, boolean> = {};
             for (const conv of newConversations) {
-                const lastMsg = new Date(conv.lastMessageAt).getTime();
+                const lastInbound = conv.lastInboundAt ? new Date(conv.lastInboundAt).getTime() : 0;
                 const readAt = readMap[conv.id] || 0;
-                if (lastMsg > readAt && conv.id !== selectedId) {
+                if (lastInbound > readAt && conv.id !== selectedId) {
                     newUnreadMap[conv.id] = true;
                 }
             }

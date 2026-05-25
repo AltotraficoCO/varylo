@@ -47,7 +47,7 @@ export default async function ConversationsPage({
     // Agent filter (admins & supervisors only): narrow the list to one agent's conversations.
     const agentFilter = !isAgent ? params?.agent : undefined;
 
-    if (isAgent && filter !== 'mine' && filter !== 'resolved') {
+    if (isAgent && filter !== 'mine' && filter !== 'resolved' && filter !== 'unanswered') {
         filter = 'mine';
     }
 
@@ -82,6 +82,21 @@ export default async function ConversationsPage({
             })
     ]);
 
+    // --- 1b. Count "unanswered" (last message is INBOUND, i.e. awaiting a reply) ---
+    // Determined by the direction of each conversation's most recent message.
+    const unansweredScope: any = { companyId: session.user.companyId, status: 'OPEN' };
+    if (isAgent) unansweredScope.assignedAgents = { some: { id: userId } };
+    const openForUnanswered = await prisma.conversation.findMany({
+        where: unansweredScope,
+        select: {
+            id: true,
+            messages: { orderBy: { createdAt: 'desc' }, take: 1, select: { direction: true } },
+        },
+    });
+    const unansweredCount = openForUnanswered.filter(
+        (c) => c.messages[0]?.direction === 'INBOUND'
+    ).length;
+
     // --- 2. Fetch Filtered Conversations ---
     const where: any = {
         companyId: session.user.companyId,
@@ -94,6 +109,10 @@ export default async function ConversationsPage({
         }
     } else if (filter === 'mine') {
         where.assignedAgents = { some: { id: userId } };
+    } else if (filter === 'unanswered') {
+        // Scope to the user's accessible OPEN conversations; the INBOUND-last
+        // filtering is applied below on the fetched results.
+        if (isAgent) where.assignedAgents = { some: { id: userId } };
     } else if (filter === 'unassigned' && !isAgent) {
         where.assignedAgents = { none: {} };
         where.handledByAiAgentId = null;
@@ -117,7 +136,7 @@ export default async function ConversationsPage({
         delete where.handledByAiAgentId;
     }
 
-    const conversations = await prisma.conversation.findMany({
+    let conversations = await prisma.conversation.findMany({
         where,
         include: {
             messages: {
@@ -133,6 +152,11 @@ export default async function ConversationsPage({
             updatedAt: 'desc'
         }
     });
+
+    // "Sin responder": keep only conversations whose last message is INBOUND.
+    if (filter === 'unanswered') {
+        conversations = conversations.filter((c) => c.messages[0]?.direction === 'INBOUND');
+    }
 
 
     // --- 3. Fetch Selected Conversation Data ---
@@ -236,6 +260,15 @@ export default async function ConversationsPage({
                             )}
                         >
                             {t.mine} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{mineCount}</Badge>
+                        </Link>
+                        <Link
+                            href={`?filter=unanswered`}
+                            className={cn(
+                                "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
+                                filter === 'unanswered' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
+                            )}
+                        >
+                            {t.unanswered || 'Sin responder'} <Badge variant="secondary" className={cn("px-1 py-0 h-4 min-w-[16px] justify-center text-[10px]", unansweredCount > 0 ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground")}>{unansweredCount}</Badge>
                         </Link>
                         {!isAgent && (
                             <>

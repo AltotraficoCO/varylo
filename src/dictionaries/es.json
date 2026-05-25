@@ -677,6 +677,7 @@
         "finished": "Finalizadas",
         "mine": "Mías",
         "all": "Todos",
+        "unanswered": "Sin responder",
         "welcomeAgent": "¡Hola, {name}!",
         "welcomeAgentDesc": "Bienvenido al panel. Selecciona una conversación de la izquierda para comenzar a responder a tus clientes. Las conversaciones asignadas a ti aparecerán aquí automáticamente.",
         "welcomeAdmin": "Buenas tardes, {name}. Bienvenido a Varylo.",

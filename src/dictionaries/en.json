@@ -677,6 +677,7 @@
         "finished": "Finished",
         "mine": "Mine",
         "all": "All",
+        "unanswered": "Unanswered",
         "welcomeAgent": "Hello, {name}!",
         "welcomeAgentDesc": "Welcome to the panel. Select a conversation on the left to start replying to your customers. Conversations assigned to you will appear here automatically.",
         "welcomeAdmin": "Good afternoon, {name}. Welcome to Varylo.",
