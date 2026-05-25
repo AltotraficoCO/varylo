@@ -130,6 +130,17 @@ export function SendBroadcastDialog({
   const templateNeedsParams = (template: Template): boolean =>
     getHeaderParams(template).length > 0 || getBodyParams(template).length > 0;
 
+  const getHeaderPreviewText = (template: Template): string => {
+    const header = template.components.find((c) => c.type === 'HEADER');
+    if (header?.format !== 'TEXT' || !header?.text) return '';
+    let text = header.text;
+    getHeaderParams(template).forEach((p) => {
+      const idx = p.replace(/[{}]/g, '');
+      text = text.replace(p, paramValues[`h${idx}`] || p);
+    });
+    return text;
+  };
+
   const getPreviewText = (template: Template): string => {
     const body = template.components.find((c) => c.type === 'BODY');
     if (!body?.text) return '';
@@ -356,6 +367,9 @@ export function SendBroadcastDialog({
             </div>
             <div className="border rounded-md p-3 bg-gray-50">
               <Label className="text-xs text-muted-foreground mb-1 block">{ui.description || 'Vista previa'}</Label>
+              {getHeaderPreviewText(selectedTemplate) && (
+                <p className="text-sm font-semibold whitespace-pre-wrap mb-1">{getHeaderPreviewText(selectedTemplate)}</p>
+              )}
               <p className="text-sm whitespace-pre-wrap">{getPreviewText(selectedTemplate)}</p>
             </div>
           </div>
@@ -385,6 +399,9 @@ export function SendBroadcastDialog({
 
             <div className="border rounded-md p-3 bg-gray-50">
               <Label className="text-xs text-muted-foreground mb-1 block">{ui.message || 'Mensaje'}</Label>
+              {getHeaderPreviewText(selectedTemplate) && (
+                <p className="text-sm font-semibold whitespace-pre-wrap mb-1">{getHeaderPreviewText(selectedTemplate)}</p>
+              )}
               <p className="text-sm whitespace-pre-wrap">{getPreviewText(selectedTemplate)}</p>
             </div>
 

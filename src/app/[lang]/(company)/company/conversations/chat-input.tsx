@@ -449,6 +449,17 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
     const templateNeedsParams = (template: Template): boolean =>
         getHeaderParams(template).length > 0 || getBodyParams(template).length > 0;
 
+    const getHeaderPreviewText = (template: Template): string => {
+        const headerComponent = template.components.find((c) => c.type === 'HEADER');
+        if (headerComponent?.format !== 'TEXT' || !headerComponent?.text) return '';
+        let text = headerComponent.text;
+        getHeaderParams(template).forEach((p) => {
+            const idx = p.replace(/[{}]/g, '');
+            text = text.replace(p, paramValues[`h${idx}`] || p);
+        });
+        return text;
+    };
+
     const getPreviewText = (template: Template): string => {
         const bodyComponent = template.components.find((c) => c.type === 'BODY');
         if (!bodyComponent?.text) return '';
@@ -670,6 +681,9 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
 
                                 <div className="border rounded-md p-2.5 bg-muted/50">
                                     <p className="text-xs text-muted-foreground mb-1">{t.preview}</p>
+                                    {getHeaderPreviewText(selectedTemplate) && (
+                                        <p className="text-sm font-semibold whitespace-pre-wrap mb-1">{getHeaderPreviewText(selectedTemplate)}</p>
+                                    )}
                                     <p className="text-sm whitespace-pre-wrap">{getPreviewText(selectedTemplate)}</p>
                                 </div>
 

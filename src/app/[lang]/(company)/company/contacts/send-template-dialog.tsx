@@ -147,7 +147,19 @@ export function SendTemplateDialog({
     const templateNeedsParams = (template: Template): boolean =>
         getHeaderParams(template).length > 0 || getBodyParams(template).length > 0;
 
-    // Build preview text
+    // Build preview text for the header (text variables substituted)
+    const getHeaderPreviewText = (template: Template): string => {
+        const headerComponent = template.components.find((c) => c.type === 'HEADER');
+        if (headerComponent?.format !== 'TEXT' || !headerComponent?.text) return '';
+        let text = headerComponent.text;
+        getHeaderParams(template).forEach((p) => {
+            const idx = p.replace(/[{}]/g, '');
+            text = text.replace(p, paramValues[`h${idx}`] || p);
+        });
+        return text;
+    };
+
+    // Build preview text (body, variables substituted)
     const getPreviewText = (template: Template): string => {
         const bodyComponent = template.components.find((c) => c.type === 'BODY');
         if (!bodyComponent?.text) return '';
@@ -414,6 +426,9 @@ export function SendTemplateDialog({
                         {/* Preview */}
                         <div className="border rounded-md p-3 bg-gray-50">
                             <Label className="text-xs text-muted-foreground mb-1 block">{ui.description || 'Vista previa'}</Label>
+                            {getHeaderPreviewText(selectedTemplate) && (
+                                <p className="text-sm font-semibold whitespace-pre-wrap mb-1">{getHeaderPreviewText(selectedTemplate)}</p>
+                            )}
                             <p className="text-sm whitespace-pre-wrap">{getPreviewText(selectedTemplate)}</p>
                         </div>
                     </div>
