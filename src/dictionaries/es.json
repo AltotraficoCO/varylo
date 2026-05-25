@@ -703,6 +703,10 @@
         "audioUnsupported": "Audio no compatible — toca para descargar",
         "documentLabel": "Documento",
         "fileLabel": "Archivo",
+        "transcribe": "Transcribir",
+        "transcribing": "Transcribiendo...",
+        "transcriptionError": "No se pudo transcribir el audio",
+        "transcriptionLabel": "Transcripción",
         "cannedReplyExample": "/saludo Hola, ¿cómo estás?",
         "tagSales": "#ventas",
         "tagSupport": "#soporte"

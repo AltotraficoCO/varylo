@@ -14,6 +14,7 @@ interface Message {
     mediaType?: string | null;
     mimeType?: string | null;
     fileName?: string | null;
+    transcription?: string | null;
 }
 
 /**
@@ -199,6 +200,82 @@ function AudioPlayer({ src, mimeType, isOutbound, audioUnsupportedLabel }: { src
                     {playing ? formatTime(progress) : formatTime(duration)}
                 </span>
             </div>
+        </div>
+    );
+}
+
+function AudioTranscription({
+    messageId,
+    initial,
+    isOutbound,
+    t,
+}: {
+    messageId: string;
+    initial?: string | null;
+    isOutbound: boolean;
+    t: Record<string, string>;
+}) {
+    const [text, setText] = useState<string | null>(initial ?? null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(false);
+
+    async function transcribe() {
+        setLoading(true);
+        setError(false);
+        try {
+            const res = await fetch('/api/transcribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messageId }),
+            });
+            const data = await res.json();
+            if (res.ok && typeof data.transcription === 'string') {
+                setText(data.transcription);
+            } else {
+                setError(true);
+            }
+        } catch {
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const subtle = isOutbound ? 'text-primary-foreground/70' : 'text-muted-foreground';
+
+    if (text) {
+        return (
+            <div className={cn('mt-1.5 border-t pt-1.5 text-sm', isOutbound ? 'border-primary-foreground/20' : 'border-border')}>
+                <span className={cn('text-[10px] font-medium uppercase tracking-wide', subtle)}>{t.transcriptionLabel}</span>
+                <p className="whitespace-pre-wrap">{text}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="mt-1.5">
+            <button
+                type="button"
+                onClick={transcribe}
+                disabled={loading}
+                className={cn(
+                    'flex items-center gap-1.5 text-[11px] font-medium transition-colors disabled:opacity-60',
+                    isOutbound ? 'text-primary-foreground/80 hover:text-primary-foreground' : 'text-primary hover:text-primary/80'
+                )}
+            >
+                {loading ? (
+                    <>
+                        <div className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        {t.transcribing}
+                    </>
+                ) : (
+                    <>
+                        <FileText className="h-3 w-3" />
+                        {t.transcribe}
+                    </>
+                )}
+            </button>
+            {error && <p className={cn('text-[10px] mt-0.5', subtle)}>{t.transcriptionError}</p>}
         </div>
     );
 }
@@ -408,6 +485,14 @@ export function MessageList({ messages }: { messages: Message[] }) {
                                 )}
                             >
                                 {hasMedia && <MediaContent msg={msg} t={t} />}
+                                {msg.mediaType === 'audio' && (
+                                    <AudioTranscription
+                                        messageId={msg.id}
+                                        initial={msg.transcription}
+                                        isOutbound={isOutbound}
+                                        t={t}
+                                    />
+                                )}
                                 {isTemplate && (
                                     <p className={cn("whitespace-pre-wrap italic opacity-90", hasMedia && "mt-1.5")}>
                                         {msg.content.slice(1, -1)}

@@ -703,6 +703,10 @@
         "audioUnsupported": "Unsupported audio — tap to download",
         "documentLabel": "Document",
         "fileLabel": "File",
+        "transcribe": "Transcribe",
+        "transcribing": "Transcribing...",
+        "transcriptionError": "Could not transcribe the audio",
+        "transcriptionLabel": "Transcription",
         "cannedReplyExample": "/greeting Hello, how are you?",
         "tagSales": "#sales",
         "tagSupport": "#support"
