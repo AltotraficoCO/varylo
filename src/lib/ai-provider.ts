@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getOpenAIForCompany } from '@/lib/openai';
 import { prisma } from '@/lib/prisma';
-import { decrypt } from '@/lib/encryption';
+import { decryptMaybe } from '@/lib/encryption';
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ export async function getAnthropicForCompany(companyId: string): Promise<{ clien
 
     if (company?.anthropicApiKey) {
         try {
-            const decryptedKey = decrypt(company.anthropicApiKey);
+            const decryptedKey = decryptMaybe(company.anthropicApiKey);
             const client = new Anthropic({ apiKey: decryptedKey });
             globalForAI.anthropicClients.set(companyId, { client, cachedAt: Date.now() });
             return { client, usesOwnKey: true };
@@ -109,7 +109,7 @@ export async function getGeminiKeyForCompany(companyId: string): Promise<{ key: 
 
     if (company?.geminiApiKey) {
         try {
-            const decryptedKey = decrypt(company.geminiApiKey);
+            const decryptedKey = decryptMaybe(company.geminiApiKey);
             globalForAI.geminiKeys.set(companyId, { key: decryptedKey, cachedAt: Date.now() });
             return { key: decryptedKey, usesOwnKey: true };
         } catch {

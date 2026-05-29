@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
-import { decrypt } from '@/lib/encryption';
+import { decryptMaybe } from '@/lib/encryption';
 
 const globalForOpenAI = globalThis as unknown as {
     openai: OpenAI | undefined;
@@ -35,7 +35,7 @@ export async function getOpenAIForCompany(companyId: string): Promise<{ client: 
 
     if (company?.openaiApiKey) {
         try {
-            const decryptedKey = decrypt(company.openaiApiKey);
+            const decryptedKey = decryptMaybe(company.openaiApiKey);
             const client = new OpenAI({ apiKey: decryptedKey });
             globalForOpenAI.companyClients.set(companyId, { client, cachedAt: Date.now() });
             return { client, usesOwnKey: true };

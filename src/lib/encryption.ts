@@ -26,6 +26,31 @@ export function encrypt(text: string): string {
     return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted}`;
 }
 
+/**
+ * True if the value has the `iv:tag:ciphertext` shape produced by `encrypt()`.
+ * Used to distinguish encrypted values from legacy plaintext secrets stored
+ * before encryption was introduced.
+ */
+export function isEncrypted(value: string): boolean {
+    const parts = value.split(':');
+    return (
+        parts.length === 3 &&
+        parts[0].length === IV_LENGTH * 2 &&
+        parts[1].length === TAG_LENGTH * 2 &&
+        /^[0-9a-f]+$/i.test(parts[0]) &&
+        /^[0-9a-f]+$/i.test(parts[1])
+    );
+}
+
+/**
+ * Decrypt a value that may be encrypted or stored as legacy plaintext (saved
+ * before encryption was introduced). Plaintext is returned unchanged, so a
+ * client's previously-registered API key keeps working without re-saving it.
+ */
+export function decryptMaybe(value: string): string {
+    return isEncrypted(value) ? decrypt(value) : value;
+}
+
 export function decrypt(encryptedText: string): string {
     const key = getEncryptionKey();
     const parts = encryptedText.split(':');
