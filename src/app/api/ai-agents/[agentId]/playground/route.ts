@@ -4,11 +4,24 @@ import { prisma } from '@/lib/prisma';
 import { MessageDirection } from '@prisma/client';
 import { handleAiAgentResponse } from '@/jobs/ai-agent';
 import { startPlaygroundConversation } from '@/lib/playground';
+import { uploadDataUrlToStorage, buildMediaPath } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const MAX_MESSAGE_LENGTH = 4096;
+// Keep under Vercel's ~4.5MB request body limit (base64 inflates ~33%).
+const MAX_FILE_BYTES = 3 * 1024 * 1024;
+
+type IncomingMedia = { dataUrl: string; fileName?: string; mimeType?: string };
+
+/** Map a MIME type to the engine's mediaType buckets. */
+function mediaTypeFromMime(mime: string): string {
+    if (mime.startsWith('image/')) return 'image';
+    if (mime.startsWith('audio/')) return 'audio';
+    if (mime.startsWith('video/')) return 'video';
+    return 'document';
+}
 
 /**
  * POST /api/ai-agents/[agentId]/playground
@@ -39,16 +52,34 @@ export async function POST(
         return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
-    let body: { conversationId?: string | null; content?: string };
+    let body: { conversationId?: string | null; content?: string; media?: IncomingMedia };
     try {
         body = await req.json();
     } catch {
         return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
     }
 
-    const content = body.content?.trim();
-    if (!content || typeof content !== 'string' || content.length > MAX_MESSAGE_LENGTH) {
+    const content = (body.content || '').trim();
+    const media = body.media;
+
+    if (content.length > MAX_MESSAGE_LENGTH) {
         return NextResponse.json({ error: 'Invalid content' }, { status: 400 });
+    }
+    // Require either text or an attachment.
+    if (!content && !media?.dataUrl) {
+        return NextResponse.json({ error: 'Envía un mensaje o adjunta un archivo' }, { status: 400 });
+    }
+
+    // Validate attachment size up front (base64 length → byte estimate).
+    if (media?.dataUrl) {
+        const base64 = media.dataUrl.split(',')[1] || '';
+        const approxBytes = Math.floor(base64.length * 0.75);
+        if (approxBytes > MAX_FILE_BYTES) {
+            return NextResponse.json(
+                { error: 'El archivo es muy grande para la prueba (máx. 3 MB).' },
+                { status: 413 },
+            );
+        }
     }
 
     // Resolve the test conversation: reuse if provided + valid, else start fresh
@@ -64,6 +95,23 @@ export async function POST(
         conversationId = await startPlaygroundConversation(companyId, agentId);
     }
 
+    // Upload the attachment (if any) to storage so the engine's tools
+    // (analyze_file / save_document) can fetch it just like a real channel.
+    let mediaUrl: string | undefined;
+    let mediaType: string | undefined;
+    let mimeType: string | undefined;
+    let fileName: string | undefined;
+    if (media?.dataUrl) {
+        mimeType = (media.mimeType || media.dataUrl.match(/^data:([^;,]+)/)?.[1] || 'application/octet-stream').split(';')[0];
+        mediaType = mediaTypeFromMime(mimeType);
+        fileName = media.fileName || `adjunto.${mimeType.split('/')[1] || 'bin'}`;
+        const stored = await uploadDataUrlToStorage(media.dataUrl, buildMediaPath(companyId, fileName), mimeType);
+        if (!stored) {
+            return NextResponse.json({ error: 'No se pudo subir el archivo.' }, { status: 500 });
+        }
+        mediaUrl = stored;
+    }
+
     // Save the inbound (simulated customer) message
     const inbound = await prisma.message.create({
         data: {
@@ -73,6 +121,10 @@ export async function POST(
             from: 'Prueba',
             to: 'playground',
             content,
+            mediaUrl,
+            mediaType,
+            mimeType,
+            fileName,
         },
     });
 
