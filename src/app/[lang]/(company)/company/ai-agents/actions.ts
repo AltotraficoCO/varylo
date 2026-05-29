@@ -51,8 +51,13 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const systemPrompt = formData.get('systemPrompt') as string;
     const contextInfo = formData.get('contextInfo') as string;
     const allowedModels = [
+        // current (2026)
+        'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano',
+        'claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001',
+        'gemini-3.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash',
+        // previous (still selectable)
         'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
-        'claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20251030', 'claude-sonnet-4-6', 'claude-opus-4-6',
+        'claude-sonnet-4-5-20251030', 'claude-opus-4-6',
         // legacy aliases — kept so existing agents can still be edited without forced model change
         'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
         'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash',
@@ -141,8 +146,13 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const systemPrompt = formData.get('systemPrompt') as string;
     const contextInfo = formData.get('contextInfo') as string;
     const allowedModels = [
+        // current (2026)
+        'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano',
+        'claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001',
+        'gemini-3.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash',
+        // previous (still selectable)
         'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
-        'claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20251030', 'claude-sonnet-4-6', 'claude-opus-4-6',
+        'claude-sonnet-4-5-20251030', 'claude-opus-4-6',
         // legacy aliases — kept so existing agents can still be edited without forced model change
         'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
         'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash',

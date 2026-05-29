@@ -3,7 +3,12 @@ import { CreditTransactionType } from '@prisma/client';
 
 // Pricing per 1M tokens in COP (with ~2x margin over API cost)
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-    // OpenAI
+    // OpenAI (2026)
+    'gpt-5.5': { input: 42000, output: 252000 },
+    'gpt-5.4': { input: 21000, output: 126000 },
+    'gpt-5.4-mini': { input: 6300, output: 37800 },
+    'gpt-5.4-nano': { input: 1680, output: 10500 },
+    // OpenAI (anteriores)
     'gpt-4o-mini': { input: 1260, output: 5040 },
     'gpt-4o': { input: 21000, output: 84000 },
     'gpt-4-turbo': { input: 84000, output: 252000 },
@@ -12,13 +17,18 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
     'claude-haiku-4-5-20251001': { input: 6300, output: 25200 },
     'claude-sonnet-4-5-20251030': { input: 25200, output: 126000 },
     'claude-sonnet-4-6': { input: 25200, output: 126000 },
+    'claude-opus-4-8': { input: 126000, output: 630000 },
     'claude-opus-4-6': { input: 126000, output: 630000 },
     // Anthropic legacy aliases (for agents already configured)
     'claude-3-5-haiku-20241022': { input: 6300, output: 25200 },
     'claude-3-5-sonnet-20241022': { input: 25200, output: 126000 },
     'claude-3-7-sonnet-20250219': { input: 25200, output: 126000 },
     'claude-opus-4-5': { input: 126000, output: 630000 },
-    // Google Gemini
+    // Google Gemini (2026)
+    'gemini-3.5-flash': { input: 12600, output: 75600 },
+    'gemini-2.5-pro': { input: 10500, output: 84000 },
+    'gemini-2.5-flash': { input: 2520, output: 21000 },
+    // Google Gemini (anteriores)
     'gemini-2.0-flash': { input: 1260, output: 5040 },
     'gemini-2.0-flash-lite': { input: 630, output: 2520 },
     'gemini-1.5-pro': { input: 25200, output: 75600 },

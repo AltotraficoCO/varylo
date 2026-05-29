@@ -332,17 +332,24 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                     className="w-full h-10 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[14px] text-[#09090B]"
                                 >
                                     <optgroup label="OpenAI">
-                                        <option value="gpt-4o-mini">GPT-4o Mini — Rápido y económico</option>
-                                        <option value="gpt-4o">GPT-4o — Más inteligente</option>
+                                        <option value="gpt-5.4-mini">GPT-5.4 Mini — Rápido y económico</option>
+                                        <option value="gpt-5.4">GPT-5.4 — Equilibrado</option>
+                                        <option value="gpt-5.5">GPT-5.5 — Más inteligente</option>
+                                        <option value="gpt-4o-mini">GPT-4o Mini — Anterior</option>
+                                        <option value="gpt-4o">GPT-4o — Anterior</option>
                                     </optgroup>
                                     <optgroup label="Anthropic Claude">
                                         <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Rápido</option>
                                         <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Equilibrado</option>
-                                        <option value="claude-opus-4-6">Claude Opus 4.6 — Avanzado</option>
+                                        <option value="claude-opus-4-8">Claude Opus 4.8 — Más avanzado</option>
+                                        <option value="claude-opus-4-6">Claude Opus 4.6 — Anterior</option>
                                     </optgroup>
                                     <optgroup label="Google Gemini">
-                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash — Rápido y económico</option>
-                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro — Avanzado</option>
+                                        <option value="gemini-3.5-flash">Gemini 3.5 Flash — Más reciente</option>
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro — Avanzado</option>
+                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash — Rápido y económico</option>
+                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash — Anterior</option>
+                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro — Anterior</option>
                                     </optgroup>
                                 </select>
                             </div>
