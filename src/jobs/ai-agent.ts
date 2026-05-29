@@ -419,8 +419,30 @@ export async function handleAiAgentResponse(
             replyContent = completion.content;
             break;
         }
+        // Nudge: if the agent ran tools (or hit the iteration cap) but never
+        // produced a user-facing message, ask once more WITHOUT tools so it
+        // doesn't stay silent. This converts most "empty response" cases into
+        // a real reply.
         if (!replyContent) {
-            console.warn(`[AI Agent] Hit MAX_TOOL_ITERATIONS (${MAX_TOOL_ITERATIONS}) without final response`);
+            console.warn(`[AI Agent] No final text after loop — nudging for ${conversationId}`);
+            try {
+                const nudge = await callAIProvider({
+                    model: aiAgent.model,
+                    temperature: aiAgent.temperature,
+                    messages,
+                    tools: [],
+                    companyId: conversation.companyId,
+                });
+                totalPromptTokens += nudge.usage.promptTokens;
+                totalCompletionTokens += nudge.usage.completionTokens;
+                totalTokens += nudge.usage.totalTokens;
+                usesOwnKey = nudge.usesOwnKey;
+                if (nudge.content && nudge.content.trim()) {
+                    replyContent = nudge.content;
+                }
+            } catch (err) {
+                console.error('[AI Agent] Nudge call failed:', err);
+            }
         }
 
         // Track usage (accumulated across all iterations)
