@@ -266,6 +266,7 @@ model Conversation {
 
   // assignedAgentId removed
   status          ConversationStatus @default(OPEN)
+  isTest          Boolean            @default(false)
   lastMessageAt   DateTime           @default(now())
   lastInboundAt   DateTime?
   createdAt       DateTime           @default(now())

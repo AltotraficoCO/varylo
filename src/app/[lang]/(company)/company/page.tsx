@@ -46,12 +46,12 @@ export default async function CompanyDashboard({
         recentConversations,
         hasSubscription,
     ] = await Promise.all([
-        prisma.conversation.count({ where: { companyId, status: 'OPEN' } }),
-        prisma.conversation.count({ where: { companyId, status: 'OPEN', assignedAgents: { none: {} } } }),
+        prisma.conversation.count({ where: { companyId, isTest: false, status: 'OPEN' } }),
+        prisma.conversation.count({ where: { companyId, isTest: false, status: 'OPEN', assignedAgents: { none: {} } } }),
         prisma.user.count({ where: { companyId, role: Role.AGENT, status: 'ONLINE' } }),
         prisma.user.count({ where: { companyId, role: { in: [Role.AGENT, Role.COMPANY_ADMIN] } } }),
         prisma.conversation.findMany({
-            where: { companyId },
+            where: { companyId, isTest: false },
             orderBy: { updatedAt: 'desc' },
             take: 5,
             include: {

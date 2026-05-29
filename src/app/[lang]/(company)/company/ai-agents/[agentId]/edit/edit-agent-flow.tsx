@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { updateAiAgent } from '../../actions';
 import { useDictionary } from '@/lib/i18n-context';
+import { PlaygroundPanel } from './playground-panel';
 
 type Channel = { id: string; type: string };
 
@@ -332,6 +333,9 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                     </Button>
                 </div>
             </form>
+
+            {/* Test the agent with a simulated conversation */}
+            <PlaygroundPanel agentId={agent.id} />
         </div>
     );
 }

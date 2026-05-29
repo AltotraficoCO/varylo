@@ -39,6 +39,7 @@ export async function getContacts(search?: string, filter?: string, channel?: st
 
     const where: any = {
         companyId: session.user.companyId,
+        phone: { not: '__playground__' },
         ...(conditions.length > 0 ? { AND: conditions } : {}),
     };
 

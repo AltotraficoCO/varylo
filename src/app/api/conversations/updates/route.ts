@@ -14,6 +14,7 @@ export async function GET() {
     const conversations = await prisma.conversation.findMany({
         where: {
             companyId: session.user.companyId,
+            isTest: false,
             status: 'OPEN',
         },
         select: {

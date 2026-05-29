@@ -212,7 +212,7 @@ export async function getCompanyContacts() {
   if (!session?.user?.companyId) return [];
 
   return prisma.contact.findMany({
-    where: { companyId: session.user.companyId },
+    where: { companyId: session.user.companyId, phone: { not: '__playground__' } },
     select: { id: true, name: true, phone: true, email: true, originChannel: true },
     orderBy: { name: 'asc' },
   });

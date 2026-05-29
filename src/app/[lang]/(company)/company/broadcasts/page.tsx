@@ -33,7 +33,7 @@ export default async function BroadcastsPage({
         orderBy: { createdAt: 'desc' },
       }),
       prisma.contact.findMany({
-        where: { companyId: session.user.companyId },
+        where: { companyId: session.user.companyId, phone: { not: '__playground__' } },
         select: { id: true, name: true, phone: true, email: true, originChannel: true },
         orderBy: { name: 'asc' },
       }),

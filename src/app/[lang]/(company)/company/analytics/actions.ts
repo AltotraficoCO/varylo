@@ -22,18 +22,18 @@ export async function getAnalyticsData(heatmapDays: number = 7) {
     // --- 1. Conversations Summary ---
     // Abrir: Total conversations with status OPEN
     const openCount = await prisma.conversation.count({
-        where: { companyId, status: 'OPEN' }
+        where: { companyId, isTest: false, status: 'OPEN' }
     });
 
     // Sin asignar: OPEN and no assigned agents
     const unassignedCount = await prisma.conversation.count({
-        where: { companyId, status: 'OPEN', assignedAgents: { none: {} } }
+        where: { companyId, isTest: false, status: 'OPEN', assignedAgents: { none: {} } }
     });
 
     // Fetch all OPEN conversations once (with last message direction + timestamp)
     // so both "pending" and "unattended" reflect who is actually waiting.
     const openConversations = await prisma.conversation.findMany({
-        where: { companyId, status: 'OPEN' },
+        where: { companyId, isTest: false, status: 'OPEN' },
         select: {
             id: true,
             lastMessageAt: true,

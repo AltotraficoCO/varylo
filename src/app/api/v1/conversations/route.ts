@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '20', 10) || 20, 50);
     const cursor = url.searchParams.get('cursor');
 
-    const where: any = { companyId };
+    const where: any = { companyId, isTest: false };
 
     if (phone) {
         where.contact = { phone };

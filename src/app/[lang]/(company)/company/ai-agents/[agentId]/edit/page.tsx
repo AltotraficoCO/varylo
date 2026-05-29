@@ -14,7 +14,10 @@ export default async function EditAgentPage({ params }: { params: Promise<{ lang
             include: { channels: { select: { id: true } } },
         }),
         prisma.channel.findMany({
-            where: { companyId: session.user.companyId },
+            where: {
+                companyId: session.user.companyId,
+                NOT: { configJson: { path: ['isPlayground'], equals: true } },
+            },
             select: { id: true, type: true },
         }),
         prisma.company.findUnique({

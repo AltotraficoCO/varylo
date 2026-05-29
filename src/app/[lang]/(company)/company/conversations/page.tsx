@@ -65,26 +65,26 @@ export default async function ConversationsPage({
     // Efficiently fetch counts using Promise.all
     const [mineCount, unassignedCount, allCount, resolvedCount] = await Promise.all([
         prisma.conversation.count({
-            where: { companyId: session.user.companyId, assignedAgents: { some: { id: userId } }, status: 'OPEN' }
+            where: { companyId: session.user.companyId, isTest: false, assignedAgents: { some: { id: userId } }, status: 'OPEN' }
         }),
         !isAgent ? prisma.conversation.count({
-            where: { companyId: session.user.companyId, assignedAgents: { none: {} }, handledByAiAgentId: null, status: 'OPEN' }
+            where: { companyId: session.user.companyId, isTest: false, assignedAgents: { none: {} }, handledByAiAgentId: null, status: 'OPEN' }
         }) : Promise.resolve(0),
         !isAgent ? prisma.conversation.count({
-            where: { companyId: session.user.companyId, status: 'OPEN' }
+            where: { companyId: session.user.companyId, isTest: false, status: 'OPEN' }
         }) : Promise.resolve(0),
         isAgent
             ? prisma.conversation.count({
-                where: { companyId: session.user.companyId, assignedAgents: { some: { id: userId } }, status: 'RESOLVED' }
+                where: { companyId: session.user.companyId, isTest: false, assignedAgents: { some: { id: userId } }, status: 'RESOLVED' }
             })
             : prisma.conversation.count({
-                where: { companyId: session.user.companyId, status: 'RESOLVED' }
+                where: { companyId: session.user.companyId, isTest: false, status: 'RESOLVED' }
             })
     ]);
 
     // --- 1b. Count "unanswered" (last message is INBOUND, i.e. awaiting a reply) ---
     // Determined by the direction of each conversation's most recent message.
-    const unansweredScope: any = { companyId: session.user.companyId, status: 'OPEN' };
+    const unansweredScope: any = { companyId: session.user.companyId, isTest: false, status: 'OPEN' };
     if (isAgent) unansweredScope.assignedAgents = { some: { id: userId } };
     const openForUnanswered = await prisma.conversation.findMany({
         where: unansweredScope,
@@ -100,6 +100,7 @@ export default async function ConversationsPage({
     // --- 2. Fetch Filtered Conversations ---
     const where: any = {
         companyId: session.user.companyId,
+        isTest: false,
         status: filter === 'resolved' ? 'RESOLVED' : 'OPEN'
     };
 
@@ -173,7 +174,7 @@ export default async function ConversationsPage({
 
     // Fetch contacts for "New conversation" button
     const contactsForTemplate = await prisma.contact.findMany({
-        where: { companyId: session.user.companyId },
+        where: { companyId: session.user.companyId, phone: { not: '__playground__' } },
         select: { id: true, name: true, phone: true },
         orderBy: { name: 'asc' },
         take: 200,

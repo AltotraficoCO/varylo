@@ -75,7 +75,7 @@ export default async function SettingsPage(props: {
             },
         }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WHATSAPP } }),
-        prisma.channel.findFirst({ where: { companyId, type: ChannelType.WEB_CHAT } }),
+        prisma.channel.findFirst({ where: { companyId, type: ChannelType.WEB_CHAT, NOT: { configJson: { path: ['isPlayground'], equals: true } } } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.INSTAGRAM } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.MESSENGER } }),
         prisma.tag.findMany({

@@ -9,7 +9,10 @@ export default async function NewAgentPage({ params }: { params: Promise<{ lang:
 
     const [channels, company, ecommerceStores] = await Promise.all([
         prisma.channel.findMany({
-            where: { companyId: session.user.companyId },
+            where: {
+                companyId: session.user.companyId,
+                NOT: { configJson: { path: ['isPlayground'], equals: true } },
+            },
             select: { id: true, type: true },
         }),
         prisma.company.findUnique({

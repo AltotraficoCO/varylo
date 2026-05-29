@@ -109,7 +109,11 @@ function legacyToNormalizedTool(t: LegacyFunctionTool): NormalizedTool {
 
 // ── Main handler ────────────────────────────────────────────────────
 
-export async function handleAiAgentResponse(conversationId: string, inboundMessage: string): Promise<AiAgentResult> {
+export async function handleAiAgentResponse(
+    conversationId: string,
+    inboundMessage: string,
+    opts?: { ignoreActiveCheck?: boolean },
+): Promise<AiAgentResult> {
     try {
         const conversation = await prisma.conversation.findUnique({
             where: { id: conversationId },
@@ -163,7 +167,7 @@ export async function handleAiAgentResponse(conversationId: string, inboundMessa
             });
         }
 
-        if (!aiAgent.active) {
+        if (!aiAgent.active && !opts?.ignoreActiveCheck) {
             return { handled: false };
         }
 
