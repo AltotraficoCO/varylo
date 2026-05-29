@@ -16,6 +16,29 @@ import { readChannelSecret } from '@/lib/channel-config';
 interface AiAgentResult {
     handled: boolean;
     transferredToHuman?: boolean;
+    /** Diagnostic reason code when handled=false (used by the playground UI). */
+    error?: string;
+    /** Short, redacted error detail for debugging (never contains secrets). */
+    errorDetail?: string;
+}
+
+/** Strip anything that looks like an API key/token before surfacing a message. */
+function redactSecrets(text: string): string {
+    return text
+        .replace(/sk-[A-Za-z0-9_\-]{6,}/g, 'sk-***')
+        .replace(/AIza[A-Za-z0-9_\-]{6,}/g, 'AIza***')
+        .replace(/\b[A-Za-z0-9_\-]{40,}\b/g, '***');
+}
+
+/** Classify an engine error into a stable code for the playground. */
+function classifyAiError(error: unknown): { code: string; detail: string } {
+    const msg = error instanceof Error ? error.message : String(error);
+    const detail = redactSecrets(msg).slice(0, 200);
+    if (/decrypt|unable to authenticate data|invalid encrypted/i.test(msg)) return { code: 'decrypt_failed', detail };
+    if (/api[\s_-]?key|authentication|x-api-key|401|credential|missing/i.test(msg)) return { code: 'provider_auth', detail };
+    if (/429|rate[\s_-]?limit|overloaded|\b529\b/i.test(msg)) return { code: 'rate_limited', detail };
+    if (/model|not[\s_-]?found|404|does not exist/i.test(msg)) return { code: 'model_error', detail };
+    return { code: 'engine_error', detail };
 }
 
 const MAX_TOOL_ITERATIONS = 20;
@@ -231,7 +254,7 @@ export async function handleAiAgentResponse(
         // Credit check: if not using own key, must have credits
         if (!creditResult.usesOwnKey && !creditResult.hasCredits) {
             console.log(`[AI Agent] Company ${conversation.companyId} has no credits, skipping AI`);
-            return { handled: false };
+            return { handled: false, error: 'no_credits_or_key' };
         }
 
         // Build chat history
@@ -424,7 +447,7 @@ export async function handleAiAgentResponse(
         }
 
         if (!replyContent) {
-            return { handled: false };
+            return { handled: false, error: 'empty_response' };
         }
 
         // Check if AI wants to transfer
@@ -470,7 +493,8 @@ export async function handleAiAgentResponse(
         return { handled: true };
     } catch (error) {
         console.error(`[AI Agent] Error handling conversation ${conversationId}:`, error);
-        return { handled: false };
+        const { code, detail } = classifyAiError(error);
+        return { handled: false, error: code, errorDetail: detail };
     }
 }
 

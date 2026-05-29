@@ -83,8 +83,9 @@ export async function POST(
 
     // Run the real reply engine (tools, data capture, credits — all as in production).
     // ignoreActiveCheck lets the user test agents that aren't activated yet.
+    let result;
     try {
-        await handleAiAgentResponse(conversationId, content, { ignoreActiveCheck: true });
+        result = await handleAiAgentResponse(conversationId, content, { ignoreActiveCheck: true });
     } catch (err) {
         console.error('[Playground] Engine error:', err);
         return NextResponse.json(
@@ -100,5 +101,35 @@ export async function POST(
         select: { id: true, direction: true, content: true, from: true, createdAt: true },
     });
 
-    return NextResponse.json({ conversationId, responses });
+    // If the engine didn't produce a reply, surface a specific reason so the
+    // user knows whether it's credits, the API key, decryption, etc.
+    let error: string | undefined;
+    if (responses.filter(r => r.direction === 'OUTBOUND').length === 0) {
+        error = reasonMessage(result.error, result.errorDetail);
+    }
+
+    return NextResponse.json({ conversationId, responses, error });
+}
+
+/** Map an engine error code to an actionable Spanish message for the playground. */
+function reasonMessage(code?: string, detail?: string): string {
+    const tail = detail ? ` (detalle: ${detail})` : '';
+    switch (code) {
+        case 'no_credits_or_key':
+            return 'La empresa no tiene créditos ni una API key propia configurada para el proveedor de este modelo. Agrega créditos o una API key en Integraciones.';
+        case 'decrypt_failed':
+            return `No se pudo descifrar la API key guardada (el ENCRYPTION_KEY del entorno no coincide con el que la cifró). Vuelve a guardar la API key en Integraciones.${tail}`;
+        case 'provider_auth':
+            return `El proveedor rechazó la autenticación: la API key no se pudo usar (inválida, expirada, o no se pudo descifrar y no hay key global). Vuelve a guardar una API key válida en Integraciones.${tail}`;
+        case 'rate_limited':
+            return `El proveedor está saturado o limitó la tasa de peticiones. Intenta de nuevo en unos segundos.${tail}`;
+        case 'model_error':
+            return `El modelo configurado del agente no está disponible o no existe para esta API key. Revisa el modelo seleccionado.${tail}`;
+        case 'empty_response':
+            return 'El proveedor respondió sin contenido. Revisa el prompt del agente e inténtalo de nuevo.';
+        case 'engine_error':
+            return `Ocurrió un error al generar la respuesta.${tail}`;
+        default:
+            return 'El agente no generó respuesta. Verifica el prompt, los créditos o las API keys.';
+    }
 }
