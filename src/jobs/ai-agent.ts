@@ -86,7 +86,7 @@ const DOCUMENT_CAPTURE_TOOLS: NormalizedTool[] = [
 const FILE_ANALYSIS_TOOLS: NormalizedTool[] = [
     {
         name: 'analyze_file',
-        description: 'Lee y transcribe el contenido de una imagen enviada por el cliente usando visión por computadora (OCR). Úsala para leer documentos, facturas, formularios, fotos de productos u otras imágenes con texto.',
+        description: 'Lee y transcribe el contenido de una imagen (JPG, PNG) o un archivo PDF enviado por el cliente usando visión por computadora (OCR). Úsala para leer hojas de vida, cédulas, licencias, facturas, formularios u otros documentos en imagen o PDF.',
         parameters: {
             type: 'object',
             properties: {
@@ -280,9 +280,15 @@ export async function handleAiAgentResponse(
             // agent is forced to call analyze_file (which uses detail:high) instead of
             // attempting OCR from a low-res inline image and hallucinating failures.
             if (msg.direction === 'INBOUND' && msg.mediaUrl) {
-                const label = msg.mediaType === 'image'
-                    ? '[imagen recibida — usa analyze_file para leer su contenido]'
-                    : `[archivo recibido: ${msg.mediaType || 'documento'} — usa save_document para guardarlo]`;
+                const isPdfMsg = (msg.mimeType || '').includes('pdf') || (msg.fileName || '').toLowerCase().endsWith('.pdf');
+                let label: string;
+                if (msg.mediaType === 'image') {
+                    label = '[imagen recibida — usa analyze_file para leer su contenido]';
+                } else if (isPdfMsg) {
+                    label = '[PDF recibido — usa analyze_file para leer su contenido]';
+                } else {
+                    label = `[archivo recibido: ${msg.mediaType || 'documento'} — usa save_document para guardarlo]`;
+                }
                 messages.push({ role: 'user', content: label });
             } else {
                 messages.push({ role, content: msg.content || '' });
@@ -650,22 +656,30 @@ async function handleAnalyzeFile(
 ): Promise<string> {
     console.log(`[analyze_file] called | field="${args.field_name}" | instruction="${args.instruction}"`);
     try {
+        const isAnalyzable = (m: MediaMessage) =>
+            m.mediaType === 'image' ||
+            (m.mimeType || '').includes('pdf') ||
+            (m.fileName || '').toLowerCase().endsWith('.pdf');
+
         const lastMediaMessage = [...conversationMessages]
             .reverse()
-            .find(m => m.direction === 'INBOUND' && m.mediaUrl && m.mediaType === 'image');
+            .find(m => m.direction === 'INBOUND' && m.mediaUrl && isAnalyzable(m));
 
         if (!lastMediaMessage?.mediaUrl) {
             const allMedia = conversationMessages
                 .filter(m => m.direction === 'INBOUND' && m.mediaUrl)
                 .map(m => `${m.mediaType}:${m.mediaUrl}`);
-            console.error(`[analyze_file] No image found. All inbound media: ${JSON.stringify(allMedia)}`);
+            console.error(`[analyze_file] No image/PDF found. All inbound media: ${JSON.stringify(allMedia)}`);
             return JSON.stringify({
                 success: false,
-                message: 'No se encontró ninguna imagen en los mensajes recientes. Solo puedo analizar imágenes (JPG, PNG, etc.). Para archivos PDF u otros documentos, usa save_document.',
+                message: 'No se encontró ninguna imagen ni PDF en los mensajes recientes. Puedo leer imágenes (JPG, PNG) y archivos PDF.',
             });
         }
 
-        console.log(`[analyze_file] Found image | mediaType=${lastMediaMessage.mediaType} | mimeType=${lastMediaMessage.mimeType} | url=${lastMediaMessage.mediaUrl}`);
+        const isPdf = (lastMediaMessage.mimeType || '').includes('pdf') ||
+            (lastMediaMessage.fileName || '').toLowerCase().endsWith('.pdf');
+
+        console.log(`[analyze_file] Found ${isPdf ? 'PDF' : 'image'} | mediaType=${lastMediaMessage.mediaType} | mimeType=${lastMediaMessage.mimeType} | url=${lastMediaMessage.mediaUrl}`);
 
         // Build a URL OpenAI can access: generate a short-lived Supabase signed URL
         // so OpenAI fetches the image directly without base64 overhead or MIME issues.
@@ -712,7 +726,7 @@ async function handleAnalyzeFile(
 
         // Also download image bytes now — needed for Gemini fallback
         let imageBuffer: Buffer | null = null;
-        let imageMime = lastMediaMessage.mimeType || 'image/jpeg';
+        let imageMime = lastMediaMessage.mimeType || (isPdf ? 'application/pdf' : 'image/jpeg');
         try {
             const dlHeaders: Record<string, string> = {};
             if (lastMediaMessage.mediaUrl.includes('supabase') && SUPABASE_KEY) {
@@ -722,7 +736,7 @@ async function handleAnalyzeFile(
             if (dlRes.ok) {
                 imageBuffer = Buffer.from(await dlRes.arrayBuffer());
                 const ct = dlRes.headers.get('content-type')?.split(';')[0];
-                if (ct?.startsWith('image/')) imageMime = ct;
+                if (ct && (ct.startsWith('image/') || ct === 'application/pdf')) imageMime = ct;
             }
         } catch { /* non-critical */ }
 
@@ -787,19 +801,19 @@ async function handleAnalyzeFile(
             const { client: anthropicClient, usesOwnKey: usesAnthropicKey } = await getAnthropicForCompany(companyId);
             if (usesAnthropicKey) {
                 try {
-                    console.log('[analyze_file] Calling Claude vision...');
+                    console.log(`[analyze_file] Calling Claude ${isPdf ? 'PDF' : 'vision'}...`);
+                    const mediaBlock = isPdf
+                        ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: imageBuffer.toString('base64') } }
+                        : { type: 'image' as const, source: { type: 'base64' as const, media_type: imageMime as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: imageBuffer.toString('base64') } };
                     const claudeRes = await anthropicClient.messages.create({
                         model: 'claude-haiku-4-5-20251001',
-                        max_tokens: 2048,
-                        system: 'You are a professional OCR service. Accurately read and transcribe all visible text from images exactly as it appears. Reproduce every character without interpreting, summarizing, or omitting anything.',
+                        max_tokens: 4096,
+                        system: 'You are a professional OCR service. Accurately read and transcribe all visible text from the provided image or PDF exactly as it appears. Reproduce every character without interpreting, summarizing, or omitting anything.',
                         messages: [{
                             role: 'user',
                             content: [
                                 { type: 'text', text: args.instruction },
-                                {
-                                    type: 'image',
-                                    source: { type: 'base64', media_type: imageMime as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: imageBuffer.toString('base64') },
-                                },
+                                mediaBlock,
                             ],
                         }],
                     });
@@ -815,8 +829,8 @@ async function handleAnalyzeFile(
             }
         }
 
-        // ── 3. gpt-4o vision (company OpenAI key only) ───────────────
-        if (!analysisText.trim()) {
+        // ── 3. gpt-4o vision (company OpenAI key only; images only — not PDF) ──
+        if (!analysisText.trim() && !isPdf) {
             const { client: openaiClient, usesOwnKey: usesOpenAIKey } = await getOpenAIForCompany(companyId);
             if (usesOpenAIKey) {
                 try {
@@ -858,7 +872,9 @@ async function handleAnalyzeFile(
             console.error('[analyze_file] All vision providers failed or no key configured');
             return JSON.stringify({
                 success: false,
-                message: 'No se pudo analizar la imagen. Configura una API Key de Gemini, Claude u OpenAI en Integraciones.',
+                message: isPdf
+                    ? 'No se pudo leer el PDF. Para leer PDFs se necesita una API Key de Claude (Anthropic) o Gemini en Integraciones. También puedes pedir al cliente que envíe fotos.'
+                    : 'No se pudo analizar la imagen. Configura una API Key de Gemini, Claude u OpenAI en Integraciones.',
             });
         }
 
@@ -1043,7 +1059,7 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
             prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
         }
         prompt += '\n\nTambién tienes la herramienta save_document para guardar archivos adjuntos que envíe el cliente (hojas de vida, documentos, fotos, etc.). Cuando el cliente envíe un archivo, usa save_document con un nombre descriptivo.';
-        prompt += '\n\nTienes la herramienta analyze_file para leer y transcribir el contenido de imágenes (OCR). Cuando el cliente envíe una imagen, usa analyze_file con una instrucción de TRANSCRIPCIÓN (no de "extracción"). Ejemplos de instrucciones correctas: "Transcribe todo el texto visible campo por campo", "Lee y transcribe todos los datos del documento". IMPORTANTE: cuando analyze_file devuelva success:true, comparte los datos transcritos TEXTUALMENTE con el usuario, sin parafrasear ni resumir. Si la herramienta falla, pide al usuario una foto más nítida. Para archivos PDF u otros documentos no visuales, usa save_document en su lugar.';
+        prompt += '\n\nTienes la herramienta analyze_file para leer y transcribir el contenido de imágenes (JPG, PNG) Y archivos PDF (OCR). Cuando el cliente envíe una imagen o un PDF, usa analyze_file con una instrucción de TRANSCRIPCIÓN (no de "extracción"). Ejemplos de instrucciones correctas: "Transcribe todo el texto visible campo por campo", "Lee y transcribe todos los datos del documento". IMPORTANTE: cuando analyze_file devuelva success:true, comparte los datos transcritos TEXTUALMENTE con el usuario, sin parafrasear ni resumir. Si la herramienta falla, pide al usuario una foto/archivo más nítido. Para otros tipos de archivo no legibles (audio, video, etc.), usa save_document en su lugar.';
 
         if (opts.webhookEnabled) {
             prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. IMPORTANTE: Debes llamar send_to_webhook SIEMPRE al concluir la recopilación de datos del cliente. Cuando hayas terminado de capturar toda la información necesaria (datos personales, documentos, etc.), usa send_to_webhook para enviar todo. No olvides confirmar al cliente que sus datos fueron enviados exitosamente.';
