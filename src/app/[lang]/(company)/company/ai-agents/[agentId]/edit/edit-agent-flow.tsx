@@ -137,11 +137,11 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[13px] font-medium text-[#3F3F46]">{t.systemPromptLabel}</Label>
-                            <Textarea name="systemPrompt" value={systemPrompt} onChange={e => setSystemPrompt(e.target.value)} rows={8} className="rounded-lg border-[#E4E4E7] text-[14px] resize-none" required />
+                            <Textarea name="systemPrompt" value={systemPrompt} onChange={e => setSystemPrompt(e.target.value)} rows={8} className="rounded-lg border-[#E4E4E7] text-[14px] resize-none [field-sizing:fixed] max-h-80 overflow-y-auto" required />
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[13px] font-medium text-[#3F3F46]">{t.additionalContext}</Label>
-                            <Textarea name="contextInfo" value={contextInfo} onChange={e => setContextInfo(e.target.value)} rows={3} className="rounded-lg border-[#E4E4E7] text-[14px] resize-none" />
+                            <Textarea name="contextInfo" value={contextInfo} onChange={e => setContextInfo(e.target.value)} rows={3} className="rounded-lg border-[#E4E4E7] text-[14px] resize-none [field-sizing:fixed] max-h-48 overflow-y-auto" />
                         </div>
                     </div>
                 </div>
