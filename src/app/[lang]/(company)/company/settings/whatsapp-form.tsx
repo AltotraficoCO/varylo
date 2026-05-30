@@ -42,6 +42,7 @@ export function WhatsAppConnectionForm({
     tokenStatus,
     tokenExpiresAt,
     initialLabel,
+    isAdditional,
 }: {
     initialPhoneNumberId?: string,
     initialVerifyToken?: string,
@@ -54,6 +55,7 @@ export function WhatsAppConnectionForm({
     tokenStatus?: string | null,
     tokenExpiresAt?: string | null,
     initialLabel?: string,
+    isAdditional?: boolean,
 }) {
     const searchParams = useSearchParams();
     const waResult = searchParams.get('wa');
@@ -74,6 +76,7 @@ export function WhatsAppConnectionForm({
     const [label, setLabel] = useState(initialLabel || '');
     const [savingLabel, setSavingLabel] = useState(false);
     const [labelSaved, setLabelSaved] = useState(false);
+    const [expanded, setExpanded] = useState(false);
 
     const handleRequestVerification = async (method: 'SMS' | 'VOICE') => {
         setVerifyLoading('request');
@@ -171,7 +174,6 @@ export function WhatsAppConnectionForm({
     // ----- Connected state -----
     if (isConnected) {
         const phoneText = phoneDisplay || initialPhoneNumberId || 'Cuenta conectada';
-        const headerSubtitle = label.trim() ? `${label.trim()} · ${phoneText}` : phoneText;
         const statusBadge = status === 'EXPIRED'
             ? { label: 'Conexión expirada', className: 'bg-[#FEF2F2] text-[#EF4444]' }
             : status === 'WARNING' && daysLeft !== null
@@ -180,20 +182,38 @@ export function WhatsAppConnectionForm({
                     ? { label: `${daysLeft} día${daysLeft === 1 ? '' : 's'} restantes`, className: 'bg-[#ECFDF5] text-[#10B981]' }
                     : null;
 
+        const needsAttention = status === 'EXPIRED' || status === 'WARNING';
+        const open = expanded || needsAttention;
+        const titleText = label.trim() || 'WhatsApp Business';
+
         return (
-            <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-[#ECFDF5] flex items-center justify-center">
+            <div className="bg-white rounded-2xl border border-[#E4E4E7] overflow-hidden">
+                {/* Compact header row — click to expand settings */}
+                <button
+                    type="button"
+                    onClick={() => setExpanded((v) => !v)}
+                    className="w-full flex items-center gap-3 p-4 text-left hover:bg-[#FAFAFA] transition-colors"
+                >
+                    <div className="h-10 w-10 rounded-lg bg-[#ECFDF5] flex items-center justify-center shrink-0">
                         <WhatsAppLogo className="h-6 w-6" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <h3 className="text-[15px] font-semibold text-[#09090B]">WhatsApp Business conectado</h3>
-                            <CheckCircle2 className="h-4 w-4 text-[#10B981]" />
+                        <div className="flex items-center gap-1.5">
+                            <h3 className="text-[15px] font-semibold text-[#09090B] truncate">{titleText}</h3>
+                            <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0" />
                         </div>
-                        <p className="text-[13px] text-[#71717A] truncate">{headerSubtitle}</p>
+                        <p className="text-[13px] text-[#71717A] truncate">{phoneText}</p>
                     </div>
-                </div>
+                    {statusBadge && (
+                        <span className={`hidden sm:inline-block text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${statusBadge.className}`}>
+                            {statusBadge.label}
+                        </span>
+                    )}
+                    <ChevronDown className={`h-4 w-4 text-[#A1A1AA] shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+                </button>
+
+                {!open ? null : (
+                <div className="px-4 pb-4 space-y-5 border-t border-[#F4F4F5] pt-4">
 
                 {statusBadge && (
                     <div className={`text-[13px] px-3 py-2 rounded-lg ${statusBadge.className}`}>
@@ -353,11 +373,28 @@ export function WhatsAppConnectionForm({
                         {isDisconnecting ? 'Desconectando...' : 'Desconectar'}
                     </Button>
                 </div>
+                </div>
+                )}
             </div>
         );
     }
 
     // ----- Not connected -----
+    // When adding an extra number (there's already at least one), collapse the
+    // whole connect card behind a compact dashed button so the list stays clean.
+    if (isAdditional && !expanded) {
+        return (
+            <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl border border-dashed border-[#D4D4D8] bg-white py-3.5 text-[14px] font-medium text-[#3F3F46] hover:border-[#10B981] hover:text-[#10B981] transition-colors"
+            >
+                <WhatsAppLogo className="h-4 w-4" />
+                Agregar otro número
+            </button>
+        );
+    }
+
     return (
         <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 space-y-5">
             <div className="flex items-center gap-3">

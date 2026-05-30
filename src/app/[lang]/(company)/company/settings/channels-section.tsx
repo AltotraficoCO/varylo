@@ -95,35 +95,37 @@ export function ChannelsSection({ whatsappNumbers, webchatConfig, instagramConfi
                     Conecta hasta {WHATSAPP_NUMBER_LIMIT} números. Cada número tiene su propia bandeja de entrada.
                 </p>
 
-                <div className="grid gap-5 lg:grid-cols-3">
-                    {whatsappNumbers.map((wa) => (
-                        <WhatsAppConnectionForm
-                            key={wa.channelId}
-                            initialPhoneNumberId={wa.phoneNumberId}
-                            initialVerifyToken={wa.verifyToken}
-                            initialWabaId={wa.wabaId}
-                            hasAccessToken={wa.hasAccessToken}
-                            channelId={wa.channelId}
-                            automationPriority={wa.automationPriority}
-                            phoneDisplay={wa.phoneDisplay}
-                            connectionMode={wa.connectionMode}
-                            tokenStatus={wa.tokenStatus}
-                            tokenExpiresAt={wa.tokenExpiresAt}
-                            initialLabel={wa.label}
-                        />
-                    ))}
+                {/* Connected numbers — compact, collapsible rows in a single column */}
+                {whatsappNumbers.length > 0 && (
+                    <div className="space-y-3">
+                        {whatsappNumbers.map((wa) => (
+                            <WhatsAppConnectionForm
+                                key={wa.channelId}
+                                initialPhoneNumberId={wa.phoneNumberId}
+                                initialVerifyToken={wa.verifyToken}
+                                initialWabaId={wa.wabaId}
+                                hasAccessToken={wa.hasAccessToken}
+                                channelId={wa.channelId}
+                                automationPriority={wa.automationPriority}
+                                phoneDisplay={wa.phoneDisplay}
+                                connectionMode={wa.connectionMode}
+                                tokenStatus={wa.tokenStatus}
+                                tokenExpiresAt={wa.tokenExpiresAt}
+                                initialLabel={wa.label}
+                            />
+                        ))}
+                    </div>
+                )}
 
-                    {/* Add a new number (empty channelId → create on save) */}
-                    {canAddWhatsApp && (
-                        <WhatsAppConnectionForm
-                            key="__add__"
-                            channelId={null}
-                            hasAccessToken={false}
-                        />
-                    )}
-                </div>
-
-                {!canAddWhatsApp && (
+                {/* Add a new number (empty channelId → create on save) */}
+                {canAddWhatsApp ? (
+                    <WhatsAppConnectionForm
+                        key="__add__"
+                        channelId={null}
+                        hasAccessToken={false}
+                        isAdditional={whatsappNumbers.length > 0}
+                    />
+                ) : (
                     <p className="text-[12px] text-[#A1A1AA]">
                         Alcanzaste el límite de {WHATSAPP_NUMBER_LIMIT} números. Desconecta uno para agregar otro.
                     </p>
