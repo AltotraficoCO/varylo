@@ -27,18 +27,20 @@ interface ConversationListProps {
     isAgent: boolean;
     tag?: string;
     agent?: string;
+    channel?: string;
 }
 
-export function ConversationList({ conversations, selectedId, filter, isAgent, tag, agent }: ConversationListProps) {
+export function ConversationList({ conversations, selectedId, filter, isAgent, tag, agent, channel }: ConversationListProps) {
     const dict = useDictionary();
     const t = dict.conversations || {};
 
-    // Preserve the active filters (tag, agent) when opening a conversation.
+    // Preserve the active filters (tag, agent, number) when opening a conversation.
     const buildHref = (conversationId: string) => {
         const qs = new URLSearchParams();
         if (filter) qs.set('filter', filter);
         if (tag) qs.set('tag', tag);
         if (agent) qs.set('agent', agent);
+        if (channel) qs.set('channel', channel);
         qs.set('conversationId', conversationId);
         return `?${qs.toString()}`;
     };

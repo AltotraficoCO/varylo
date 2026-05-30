@@ -235,9 +235,20 @@ export default async function ConversationsPage({
         if (filter) qs.set('filter', filter);
         if (tag) qs.set('tag', tag);
         if (agentFilter) qs.set('agent', agentFilter);
+        if (channelFilter) qs.set('channel', channelFilter);
         const query = qs.toString();
         return `/${lang}/company/conversations${query ? `?${query}` : ''}`;
     })();
+
+    // Build a tab href that keeps the active number (channel) and tag filters,
+    // so switching tabs never reverts to "all numbers".
+    const tabHref = (f: string) => {
+        const qs = new URLSearchParams();
+        qs.set('filter', f);
+        if (tag) qs.set('tag', tag);
+        if (channelFilter) qs.set('channel', channelFilter);
+        return `?${qs.toString()}`;
+    };
 
     return (
         <SubscriptionGate featureName="Conversaciones">
@@ -262,7 +273,7 @@ export default async function ConversationsPage({
                     {/* Tabs */}
                     <ScrollableTabs>
                         <Link
-                            href={`?filter=mine`}
+                            href={tabHref('mine')}
                             className={cn(
                                 "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
                                 filter === 'mine' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
@@ -271,7 +282,7 @@ export default async function ConversationsPage({
                             {t.mine} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{mineCount}</Badge>
                         </Link>
                         <Link
-                            href={`?filter=unanswered`}
+                            href={tabHref('unanswered')}
                             className={cn(
                                 "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
                                 filter === 'unanswered' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
@@ -282,7 +293,7 @@ export default async function ConversationsPage({
                         {!isAgent && (
                             <>
                                 <Link
-                                    href={`?filter=unassigned`}
+                                    href={tabHref('unassigned')}
                                     className={cn(
                                         "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
                                         filter === 'unassigned' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
@@ -291,7 +302,7 @@ export default async function ConversationsPage({
                                     {t.unassigned} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{unassignedCount}</Badge>
                                 </Link>
                                 <Link
-                                    href={`?filter=all`}
+                                    href={tabHref('all')}
                                     className={cn(
                                         "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
                                         filter === 'all' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
@@ -302,7 +313,7 @@ export default async function ConversationsPage({
                             </>
                         )}
                         <Link
-                            href={`?filter=resolved`}
+                            href={tabHref('resolved')}
                             className={cn(
                                 "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
                                 filter === 'resolved' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
@@ -336,6 +347,7 @@ export default async function ConversationsPage({
                     isAgent={isAgent}
                     tag={tag}
                     agent={agentFilter}
+                    channel={channelFilter}
                 />
             </div>
 
