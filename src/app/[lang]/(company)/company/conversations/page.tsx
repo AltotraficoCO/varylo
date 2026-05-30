@@ -30,7 +30,7 @@ export default async function ConversationsPage({
     searchParams,
     params: routeParams,
 }: {
-    searchParams: Promise<{ conversationId?: string; filter?: string; tag?: string; agent?: string }>;
+    searchParams: Promise<{ conversationId?: string; filter?: string; tag?: string; agent?: string; channel?: string }>;
     params: Promise<{ lang: string }>;
 }) {
     const session = await auth();
@@ -44,6 +44,8 @@ export default async function ConversationsPage({
     // Force 'mine' filter for agents if they try to access others, or default to 'mine'
     let filter = params?.filter || 'mine';
     const tag = params?.tag;
+    // Channel filter: narrow the inbox to a single WhatsApp number.
+    const channelFilter = params?.channel;
     // Agent filter (admins & supervisors only): narrow the list to one agent's conversations.
     const agentFilter = !isAgent ? params?.agent : undefined;
 
@@ -128,6 +130,12 @@ export default async function ConversationsPage({
                 id: tag
             }
         };
+    }
+
+    // Number-divided inbox: only show conversations on the selected WhatsApp
+    // number. `where` already scopes by companyId, so a foreign channelId is safe.
+    if (channelFilter) {
+        where.channelId = channelFilter;
     }
 
     // When an admin/supervisor filters by a specific agent, scope the list to

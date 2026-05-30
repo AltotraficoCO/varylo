@@ -112,124 +112,130 @@ export async function GET(req: NextRequest) {
         }
         console.log('[WhatsApp OAuth] step3 wabaId=', wabaId);
 
-        // Get phone numbers from WABA (this is the REAL phone number ID)
-        let phoneNumberId: string | null = null;
+        // Get ALL phone numbers from the WABA. A company can connect up to 10
+        // numbers; each phone number becomes its own Channel (its own inbox).
         const phonesRes = await fetch(
             `${META_GRAPH}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${accessToken}`
         );
         const phonesData = await phonesRes.json();
         console.log('[WhatsApp OAuth] phone_numbers:', JSON.stringify(phonesData));
 
-        if (phonesData.data?.length > 0) {
-            phoneNumberId = phonesData.data[0].id;
-        }
+        const phones: { id?: string; display_phone_number?: string; verified_name?: string }[] =
+            Array.isArray(phonesData.data) ? phonesData.data : [];
 
-        if (!phoneNumberId) {
+        if (phones.length === 0) {
             console.error('[WhatsApp OAuth] no_phone: WABA has no phone numbers attached');
             return NextResponse.redirect(`${settingsUrl}&wa=error&reason=no_phone`);
         }
-        console.log('[WhatsApp OAuth] step4 phoneNumberId=', phoneNumberId);
 
-        // Step 6: Get phone display name
-        let phoneDisplay = '';
-        if (phoneNumberId) {
-            try {
-                const phoneRes = await fetch(
-                    `${META_GRAPH}/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${accessToken}`
-                );
-                const phoneInfo = await phoneRes.json();
-                phoneDisplay = phoneInfo.display_phone_number || phoneInfo.verified_name || '';
-            } catch { /* ignore */ }
-        }
-
-        // Step 6.5: Register the phone number with Cloud API (required to send)
+        // Subscribe the WABA to webhooks once (covers all of its numbers).
         try {
-            const regRes = await fetch(`${META_GRAPH}/${phoneNumberId}/register`, {
+            const subRes = await fetch(`${META_GRAPH}/${wabaId}/subscribed_apps`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messaging_product: 'whatsapp',
-                    pin: '123456',
-                    access_token: accessToken,
-                }),
+                body: JSON.stringify({ access_token: accessToken }),
             });
-            const regData = await regRes.json();
-            console.log('[WhatsApp OAuth] register phone:', JSON.stringify(regData));
+            console.log('[WhatsApp OAuth] subscribed_apps:', JSON.stringify(await subRes.json()));
         } catch (err) {
-            console.warn('[WhatsApp OAuth] register failed:', err instanceof Error ? err.message : 'unknown');
+            console.warn('[WhatsApp OAuth] subscribe failed:', err instanceof Error ? err.message : 'unknown');
         }
 
-        // Step 7: Subscribe WABA to webhooks
-        if (wabaId) {
-            try {
-                const subRes = await fetch(`${META_GRAPH}/${wabaId}/subscribed_apps`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ access_token: accessToken }),
-                });
-                const subData = await subRes.json();
-                console.log('[WhatsApp OAuth] subscribed_apps:', JSON.stringify(subData));
-            } catch (err) {
-                console.warn('[WhatsApp OAuth] subscribe failed:', err instanceof Error ? err.message : 'unknown');
-            }
-        }
+        const WHATSAPP_NUMBER_LIMIT = 10;
+        let connectedCount = 0;
+        let skippedForLimit = 0;
+        let lastPhoneDisplay = '';
 
-        // Step 8: Generate verify token and save
-        const verifyToken = 'varylo_' + crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+        for (const phone of phones) {
+            const phoneNumberId = phone.id;
+            if (!phoneNumberId) continue;
 
-        // Look up existing channel by wabaId (reconexión) or fall back to companyId+WHATSAPP
-        const existingByWaba = await prisma.channel.findFirst({
-            where: {
-                companyId,
-                type: ChannelType.WHATSAPP,
-                configJson: { path: ['wabaId'], equals: wabaId },
-            },
-        });
-        const existingChannel = existingByWaba ?? await prisma.channel.findFirst({
-            where: { companyId, type: ChannelType.WHATSAPP },
-        });
-
-        // Preserve verifyToken on reconnection so the webhook subscription URL stays stable
-        const existingConfig = (existingChannel?.configJson as Record<string, unknown> | null) ?? null;
-        const preservedVerifyToken = (existingConfig?.verifyToken as string | undefined) || verifyToken;
-
-        const configJson = {
-            phoneNumberId,
-            accessToken,
-            appSecret,
-            verifyToken: preservedVerifyToken,
-            wabaId,
-            phoneDisplay,
-            connectionMode: 'oauth',
-            connectedAt: existingConfig?.connectedAt || new Date().toISOString(),
-            reconnectedAt: existingChannel ? new Date().toISOString() : undefined,
-            connectedBy: session.user.email,
-        };
-
-        if (existingChannel) {
-            await prisma.channel.update({
-                where: { id: existingChannel.id },
-                data: {
-                    status: 'CONNECTED',
-                    configJson,
-                    tokenExpiresAt,
-                    tokenStatus: 'ACTIVE',
-                },
-            });
-        } else {
-            await prisma.channel.create({
-                data: {
+            // Dedupe by phoneNumberId: each number maps to exactly one channel
+            // (so a second OAuth connection ADDS a number instead of overwriting).
+            const existingChannel = await prisma.channel.findFirst({
+                where: {
                     companyId,
                     type: ChannelType.WHATSAPP,
-                    status: 'CONNECTED',
-                    configJson,
-                    tokenExpiresAt,
-                    tokenStatus: 'ACTIVE',
+                    configJson: { path: ['phoneNumberId'], equals: phoneNumberId },
                 },
             });
+
+            // Enforce the per-company limit for *new* numbers only.
+            if (!existingChannel) {
+                const count = await prisma.channel.count({
+                    where: { companyId, type: ChannelType.WHATSAPP, status: 'CONNECTED' },
+                });
+                if (count >= WHATSAPP_NUMBER_LIMIT) {
+                    skippedForLimit++;
+                    continue;
+                }
+            }
+
+            // Phone display name
+            let phoneDisplay = phone.display_phone_number || phone.verified_name || '';
+            if (!phoneDisplay) {
+                try {
+                    const phoneRes = await fetch(
+                        `${META_GRAPH}/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${accessToken}`
+                    );
+                    const phoneInfo = await phoneRes.json();
+                    phoneDisplay = phoneInfo.display_phone_number || phoneInfo.verified_name || '';
+                } catch { /* ignore */ }
+            }
+
+            // Register the phone number with Cloud API (required to send)
+            try {
+                const regRes = await fetch(`${META_GRAPH}/${phoneNumberId}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messaging_product: 'whatsapp', pin: '123456', access_token: accessToken }),
+                });
+                console.log('[WhatsApp OAuth] register phone:', JSON.stringify(await regRes.json()));
+            } catch (err) {
+                console.warn('[WhatsApp OAuth] register failed:', err instanceof Error ? err.message : 'unknown');
+            }
+
+            // Preserve verifyToken/label/connectedAt on reconnection so the
+            // webhook subscription URL and inbox label stay stable.
+            const existingConfig = (existingChannel?.configJson as Record<string, unknown> | null) ?? null;
+            const verifyToken = (existingConfig?.verifyToken as string | undefined)
+                || ('varylo_' + crypto.randomUUID().replace(/-/g, '').slice(0, 24));
+
+            const configJson: Record<string, unknown> = {
+                phoneNumberId,
+                accessToken,
+                appSecret,
+                verifyToken,
+                wabaId,
+                phoneDisplay,
+                connectionMode: 'oauth',
+                connectedAt: existingConfig?.connectedAt || new Date().toISOString(),
+                reconnectedAt: existingChannel ? new Date().toISOString() : undefined,
+                connectedBy: session.user.email,
+            };
+            if (existingConfig?.label) configJson.label = existingConfig.label;
+
+            if (existingChannel) {
+                await prisma.channel.update({
+                    where: { id: existingChannel.id },
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    data: { status: 'CONNECTED', configJson: configJson as any, tokenExpiresAt, tokenStatus: 'ACTIVE' },
+                });
+            } else {
+                await prisma.channel.create({
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    data: { companyId, type: ChannelType.WHATSAPP, status: 'CONNECTED', configJson: configJson as any, tokenExpiresAt, tokenStatus: 'ACTIVE' },
+                });
+            }
+
+            connectedCount++;
+            lastPhoneDisplay = phoneDisplay || lastPhoneDisplay;
         }
 
-        return NextResponse.redirect(`${settingsUrl}&wa=connected&phone=${encodeURIComponent(phoneDisplay)}`);
+        if (connectedCount === 0 && skippedForLimit > 0) {
+            return NextResponse.redirect(`${settingsUrl}&wa=error&reason=limit`);
+        }
+
+        return NextResponse.redirect(`${settingsUrl}&wa=connected&phone=${encodeURIComponent(lastPhoneDisplay)}`);
     } catch (err) {
         console.error('[WhatsApp OAuth] Error:', err);
         return NextResponse.redirect(`${settingsUrl}&wa=error&reason=internal`);

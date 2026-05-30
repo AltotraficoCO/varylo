@@ -14,7 +14,7 @@ interface ConversationItem {
     id: string;
     status: string;
     contact: { name: string | null; phone: string } | null;
-    channel: { type: string } | null;
+    channel: { type: string; configJson?: { label?: string; phoneDisplay?: string } | null } | null;
     messages: { content: string; createdAt: string | Date }[];
     assignedAgents: { id: string; name: string | null }[];
     handledByAiAgent?: { id: string; name: string } | null;
@@ -87,8 +87,9 @@ export function ConversationList({ conversations, selectedId, filter, isAgent, t
                                             <Instagram className="h-3 w-3" /> Instagram
                                         </Badge>
                                     ) : conv.channel?.type === 'WHATSAPP' ? (
-                                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-green-200 text-green-600 bg-green-50 font-normal flex items-center gap-1">
-                                            <Phone className="h-3 w-3" /> WhatsApp
+                                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-green-200 text-green-600 bg-green-50 font-normal flex items-center gap-1 max-w-[160px]">
+                                            <Phone className="h-3 w-3 shrink-0" />
+                                            <span className="truncate">{conv.channel.configJson?.label?.trim() || conv.channel.configJson?.phoneDisplay || 'WhatsApp'}</span>
                                         </Badge>
                                     ) : conv.channel?.type === 'WEB_CHAT' ? (
                                         <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-blue-200 text-blue-600 bg-blue-50 font-normal flex items-center gap-1">

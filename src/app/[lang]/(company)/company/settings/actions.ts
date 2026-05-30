@@ -9,6 +9,25 @@ import { writeChannelSecret, readChannelSecret } from '@/lib/channel-config';
 import { getGoogleAuthUrl } from '@/lib/google-calendar';
 import OpenAI from 'openai';
 
+/** Maximum WhatsApp numbers a single company can connect at once. */
+export const WHATSAPP_NUMBER_LIMIT = 10;
+
+/**
+ * Resolve a WhatsApp channel for the company. When `channelId` is provided it is
+ * scoped to the company (so a user can only touch their own numbers); otherwise
+ * the first/only WhatsApp channel is returned (single-number backwards compat).
+ */
+async function findWhatsAppChannel(companyId: string, channelId?: string | null) {
+    if (channelId) {
+        return prisma.channel.findFirst({
+            where: { id: channelId, companyId, type: ChannelType.WHATSAPP },
+        });
+    }
+    return prisma.channel.findFirst({
+        where: { companyId, type: ChannelType.WHATSAPP },
+    });
+}
+
 export async function saveWhatsAppCredentials(prevState: string | undefined, formData: FormData) {
     const session = await auth();
 
@@ -17,27 +36,41 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
     }
 
     const companyId = session.user.companyId;
+    const channelId = (formData.get('channelId') as string) || '';
     const phoneNumberId = formData.get('phoneNumberId') as string;
     const accessToken = formData.get('accessToken') as string;
     const verifyToken = formData.get('verifyToken') as string;
     const appSecret = formData.get('appSecret') as string;
     const wabaId = formData.get('wabaId') as string;
+    const label = ((formData.get('label') as string) || '').trim();
 
     if (!phoneNumberId || !accessToken || !verifyToken || !appSecret) {
         return 'Error: All fields are required.';
     }
 
     try {
-        // Upsert the channel: look for existing WHATSAPP channel for this company
-        // Since schema doesn't have unique constraint on [companyId, type], we findFirst then update or create.
-        // Or we can assume one channel per type per company for now.
+        // A company can connect multiple WhatsApp numbers (one Channel each).
+        // When channelId is provided we edit that number; otherwise we create a
+        // new one (subject to the per-company limit and phoneNumberId uniqueness).
+        const existingChannel = channelId
+            ? await prisma.channel.findFirst({
+                where: { id: channelId, companyId, type: ChannelType.WHATSAPP },
+            })
+            : null;
 
-        const existingChannel = await prisma.channel.findFirst({
+        // Reject a phoneNumberId already used by a *different* channel in this company.
+        const duplicate = await prisma.channel.findFirst({
             where: {
                 companyId,
                 type: ChannelType.WHATSAPP,
+                configJson: { path: ['phoneNumberId'], equals: phoneNumberId },
+                ...(existingChannel ? { NOT: { id: existingChannel.id } } : {}),
             },
+            select: { id: true },
         });
+        if (duplicate) {
+            return 'Error: Ese número (phoneNumberId) ya está conectado en otro canal.';
+        }
 
         const configJson = {
             phoneNumberId,
@@ -45,6 +78,7 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
             verifyToken,
             appSecret: writeChannelSecret(appSecret),
             connectionMode: 'manual' as const,
+            ...(label ? { label } : {}),
             ...(wabaId ? { wabaId } : {}),
         };
 
@@ -59,6 +93,14 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
                 },
             });
         } else {
+            // Enforce the per-company limit before creating a new number
+            // (only connected numbers occupy a slot).
+            const count = await prisma.channel.count({
+                where: { companyId, type: ChannelType.WHATSAPP, status: ChannelStatus.CONNECTED },
+            });
+            if (count >= WHATSAPP_NUMBER_LIMIT) {
+                return `Error: Límite de ${WHATSAPP_NUMBER_LIMIT} números de WhatsApp alcanzado.`;
+            }
             await prisma.channel.create({
                 data: {
                     companyId,
@@ -86,19 +128,14 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
     }
 }
 
-export async function testWhatsAppConnection() {
+export async function testWhatsAppConnection(channelId?: string) {
     const session = await auth();
     if (!session?.user?.companyId) {
         return { success: false, message: 'No authorized session.' };
     }
 
     try {
-        const channel = await prisma.channel.findFirst({
-            where: {
-                companyId: session.user.companyId,
-                type: ChannelType.WHATSAPP,
-            },
-        });
+        const channel = await findWhatsAppChannel(session.user.companyId, channelId);
 
         if (!channel || !channel.configJson) {
             return { success: false, message: 'No WhatsApp configuration found.' };
@@ -143,13 +180,11 @@ export async function testWhatsAppConnection() {
  * Útil cuando code_verification_status === 'EXPIRED'.
  * Solicita SMS o llamada con un código de 6 dígitos.
  */
-export async function requestWhatsAppVerification(method: 'SMS' | 'VOICE' = 'SMS') {
+export async function requestWhatsAppVerification(channelId?: string, method: 'SMS' | 'VOICE' = 'SMS') {
     const session = await auth();
     if (!session?.user?.companyId) return { success: false, message: 'No authorized session.' };
 
-    const channel = await prisma.channel.findFirst({
-        where: { companyId: session.user.companyId, type: ChannelType.WHATSAPP },
-    });
+    const channel = await findWhatsAppChannel(session.user.companyId, channelId);
     if (!channel?.configJson) return { success: false, message: 'No WhatsApp configuration found.' };
 
     const config = channel.configJson as { phoneNumberId?: string; accessToken?: string };
@@ -184,16 +219,14 @@ export async function requestWhatsAppVerification(method: 'SMS' | 'VOICE' = 'SMS
 /**
  * TEMPORAL: confirmar el código de verificación de 6 dígitos.
  */
-export async function verifyWhatsAppCode(code: string) {
+export async function verifyWhatsAppCode(channelId: string | undefined, code: string) {
     const session = await auth();
     if (!session?.user?.companyId) return { success: false, message: 'No authorized session.' };
 
     const cleaned = code.replace(/\D/g, '');
     if (cleaned.length !== 6) return { success: false, message: 'El código debe tener 6 dígitos.' };
 
-    const channel = await prisma.channel.findFirst({
-        where: { companyId: session.user.companyId, type: ChannelType.WHATSAPP },
-    });
+    const channel = await findWhatsAppChannel(session.user.companyId, channelId);
     if (!channel?.configJson) return { success: false, message: 'No WhatsApp configuration found.' };
 
     const config = channel.configJson as { phoneNumberId?: string; accessToken?: string };
@@ -233,28 +266,33 @@ export async function verifyWhatsAppCode(code: string) {
     }
 }
 
-export async function disconnectWhatsApp() {
+export async function disconnectWhatsApp(channelId?: string) {
     const session = await auth();
     if (!session?.user?.companyId) {
         return { success: false, message: 'No authorized session.' };
     }
 
     try {
-        const channel = await prisma.channel.findFirst({
-            where: {
-                companyId: session.user.companyId,
-                type: ChannelType.WHATSAPP,
-            },
-        });
+        const channel = await findWhatsAppChannel(session.user.companyId, channelId);
 
         if (channel) {
-            await prisma.channel.update({
-                where: { id: channel.id },
-                data: {
-                    status: ChannelStatus.DISCONNECTED,
-                    configJson: {}, // Clear credentials
-                },
-            });
+            // Free the slot by removing the channel. If it still has conversation
+            // history (FK would block the delete), keep the row but mark it
+            // DISCONNECTED and clear credentials so it no longer counts/shows.
+            const convCount = await prisma.conversation.count({ where: { channelId: channel.id } });
+            if (convCount === 0) {
+                await prisma.channel.delete({ where: { id: channel.id } });
+            } else {
+                await prisma.channel.update({
+                    where: { id: channel.id },
+                    data: {
+                        status: ChannelStatus.DISCONNECTED,
+                        configJson: {}, // Clear credentials
+                        tokenStatus: null,
+                        tokenExpiresAt: null,
+                    },
+                });
+            }
         }
 
         revalidatePath('/[lang]/company/settings', 'page');
@@ -263,6 +301,31 @@ export async function disconnectWhatsApp() {
         console.error('Disconnect failed:', error);
         return { success: false, message: 'Failed to disconnect.' };
     }
+}
+
+/** Update only the display label of a WhatsApp number (used to divide inboxes). */
+export async function updateWhatsAppLabel(channelId: string, label: string) {
+    const session = await auth();
+    if (!session?.user?.companyId) return { success: false, message: 'No authorized session.' };
+
+    const channel = await findWhatsAppChannel(session.user.companyId, channelId);
+    if (!channel) return { success: false, message: 'No WhatsApp configuration found.' };
+
+    const config = (channel.configJson as Record<string, unknown>) || {};
+    const next: Record<string, unknown> = { ...config };
+    const clean = label.trim();
+    if (clean) next.label = clean;
+    else delete next.label;
+
+    await prisma.channel.update({
+        where: { id: channel.id },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: { configJson: next as any },
+    });
+
+    revalidatePath('/[lang]/company/settings', 'page');
+    revalidatePath('/[lang]/company/conversations', 'page');
+    return { success: true };
 }
 
 // INSTAGRAM ACTIONS

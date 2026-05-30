@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { StatusBanner } from '@/components/status-banner';
 import { PresenceHeartbeat } from '@/components/presence-heartbeat';
+import { ImpersonationBanner } from '@/components/impersonation-banner';
 
 
 export default async function CompanyLayout({
@@ -38,10 +39,25 @@ export default async function CompanyLayout({
     let tags: any[] = [];
     let userStatus: 'ONLINE' | 'BUSY' | 'OFFLINE' = 'OFFLINE';
     let subscriptionExpired = false;
+    let impersonatingCompanyName: string | null = null;
+    let channelInboxes: { id: string; label: string }[] = [];
+
+    // SUPER_ADMIN viewing the app as a company: resolve the name for the banner.
+    if (session.user.isImpersonating && session.user.companyId) {
+        try {
+            const company = await prisma.company.findUnique({
+                where: { id: session.user.companyId },
+                select: { name: true },
+            });
+            impersonatingCompanyName = company?.name ?? 'Empresa';
+        } catch {
+            impersonatingCompanyName = 'Empresa';
+        }
+    }
 
     if (session?.user?.companyId) {
         try {
-            const [fetchedTags, user, activeSub] = await Promise.all([
+            const [fetchedTags, user, activeSub, waChannels] = await Promise.all([
                 prisma.tag.findMany({
                     where: {
                         companyId: session.user.companyId,
@@ -57,9 +73,20 @@ export default async function CompanyLayout({
                     where: { companyId: session.user.companyId, status: { in: ['ACTIVE', 'TRIAL'] } },
                     select: { currentPeriodEnd: true },
                 }),
+                prisma.channel.findMany({
+                    where: { companyId: session.user.companyId, type: 'WHATSAPP', status: 'CONNECTED' },
+                    orderBy: { createdAt: 'asc' },
+                    select: { id: true, configJson: true },
+                }),
             ]);
             tags = fetchedTags;
             userStatus = (user?.status as typeof userStatus) || 'OFFLINE';
+
+            // WhatsApp numbers for the per-number inbox entries in the sidebar.
+            channelInboxes = waChannels.map((ch) => {
+                const cfg = (ch.configJson || {}) as { label?: string; phoneDisplay?: string };
+                return { id: ch.id, label: cfg.label?.trim() || cfg.phoneDisplay || 'WhatsApp' };
+            });
 
             // Check if subscription is expired
             if (activeSub && activeSub.currentPeriodEnd < new Date()) {
@@ -94,15 +121,19 @@ export default async function CompanyLayout({
             <PresenceHeartbeat />
             <div className="flex w-full h-screen overflow-hidden">
                 <div className="hidden lg:block shrink-0">
-                    <Sidebar role={sidebarRole} lang={lang} tags={tags} dict={dict.dashboard.sidebar} />
+                    <Sidebar role={sidebarRole} lang={lang} tags={tags} channels={channelInboxes} dict={dict.dashboard.sidebar} />
                 </div>
                 <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+                    {impersonatingCompanyName && (
+                        <ImpersonationBanner companyName={impersonatingCompanyName} lang={lang} />
+                    )}
                     <StatusBanner />
                     <DashboardHeader
                         title={dict.dashboard.companyTitle}
                         lang={lang}
                         role={sidebarRole}
                         tags={tags}
+                        channels={channelInboxes}
                         userStatus={userStatus}
                         userName={session?.user?.name || undefined}
                         userEmail={session?.user?.email || undefined}

@@ -19,6 +19,7 @@ const OAUTH_ERROR_MESSAGE: Record<string, string> = {
     no_phone: 'Tu cuenta de WhatsApp Business no tiene un número asignado. Agrégalo desde Meta Business Suite.',
     internal: 'Ocurrió un error interno. Revisa los logs.',
     access_denied: 'Cancelaste el acceso desde Facebook.',
+    limit: 'Alcanzaste el límite de 10 números de WhatsApp. Desconecta uno para agregar otro.',
 };
 
 type TokenStatus = 'ACTIVE' | 'WARNING' | 'EXPIRED';
@@ -40,6 +41,7 @@ export function WhatsAppConnectionForm({
     connectionMode,
     tokenStatus,
     tokenExpiresAt,
+    initialLabel,
 }: {
     initialPhoneNumberId?: string,
     initialVerifyToken?: string,
@@ -51,6 +53,7 @@ export function WhatsAppConnectionForm({
     connectionMode?: 'oauth' | 'manual',
     tokenStatus?: string | null,
     tokenExpiresAt?: string | null,
+    initialLabel?: string,
 }) {
     const searchParams = useSearchParams();
     const waResult = searchParams.get('wa');
@@ -68,12 +71,16 @@ export function WhatsAppConnectionForm({
     const [verifyMsg, setVerifyMsg] = useState<{ success: boolean; message: string } | null>(null);
     const [verifyLoading, setVerifyLoading] = useState<'request' | 'confirm' | null>(null);
 
+    const [label, setLabel] = useState(initialLabel || '');
+    const [savingLabel, setSavingLabel] = useState(false);
+    const [labelSaved, setLabelSaved] = useState(false);
+
     const handleRequestVerification = async (method: 'SMS' | 'VOICE') => {
         setVerifyLoading('request');
         setVerifyMsg(null);
         try {
             const { requestWhatsAppVerification } = await import('./actions');
-            const result = await requestWhatsAppVerification(method);
+            const result = await requestWhatsAppVerification(channelId || undefined, method);
             setVerifyMsg(result);
         } catch {
             setVerifyMsg({ success: false, message: 'Error al solicitar código' });
@@ -87,13 +94,29 @@ export function WhatsAppConnectionForm({
         setVerifyMsg(null);
         try {
             const { verifyWhatsAppCode } = await import('./actions');
-            const result = await verifyWhatsAppCode(verifyCode);
+            const result = await verifyWhatsAppCode(channelId || undefined, verifyCode);
             setVerifyMsg(result);
             if (result.success) setVerifyCode('');
         } catch {
             setVerifyMsg({ success: false, message: 'Error al confirmar código' });
         } finally {
             setVerifyLoading(null);
+        }
+    };
+
+    const handleSaveLabel = async () => {
+        if (!channelId) return;
+        setSavingLabel(true);
+        setLabelSaved(false);
+        try {
+            const { updateWhatsAppLabel } = await import('./actions');
+            await updateWhatsAppLabel(channelId, label.trim());
+            setLabelSaved(true);
+            setTimeout(() => setLabelSaved(false), 2000);
+        } catch {
+            /* noop */
+        } finally {
+            setSavingLabel(false);
         }
     };
 
@@ -109,7 +132,7 @@ export function WhatsAppConnectionForm({
         setTestResult(null);
         try {
             const { testWhatsAppConnection } = await import('./actions');
-            const result = await testWhatsAppConnection();
+            const result = await testWhatsAppConnection(channelId || undefined);
             setTestResult(result);
         } catch {
             setTestResult({ success: false, message: 'Failed to run test.' });
@@ -137,7 +160,7 @@ export function WhatsAppConnectionForm({
         setIsDisconnecting(true);
         try {
             const { disconnectWhatsApp } = await import('./actions');
-            await disconnectWhatsApp();
+            await disconnectWhatsApp(channelId || undefined);
         } catch {
             alert('Error al desconectar.');
         } finally {
@@ -147,7 +170,8 @@ export function WhatsAppConnectionForm({
 
     // ----- Connected state -----
     if (isConnected) {
-        const headerSubtitle = phoneDisplay || initialPhoneNumberId || 'Cuenta conectada';
+        const phoneText = phoneDisplay || initialPhoneNumberId || 'Cuenta conectada';
+        const headerSubtitle = label.trim() ? `${label.trim()} · ${phoneText}` : phoneText;
         const statusBadge = status === 'EXPIRED'
             ? { label: 'Conexión expirada', className: 'bg-[#FEF2F2] text-[#EF4444]' }
             : status === 'WARNING' && daysLeft !== null
@@ -176,6 +200,32 @@ export function WhatsAppConnectionForm({
                         {statusBadge.label}
                         {status === 'EXPIRED' && ' — reconecta para seguir enviando mensajes.'}
                         {status === 'WARNING' && ' — reconecta pronto para no perder el servicio.'}
+                    </div>
+                )}
+
+                {channelId && (
+                    <div className="space-y-1.5">
+                        <Label className="text-xs text-[#71717A]">Nombre de la bandeja (etiqueta)</Label>
+                        <div className="flex gap-2">
+                            <Input
+                                value={label}
+                                onChange={(e) => setLabel(e.target.value)}
+                                placeholder="Ej. Ventas, Soporte…"
+                                maxLength={40}
+                                className="rounded-lg flex-1"
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleSaveLabel}
+                                disabled={savingLabel}
+                                className="rounded-lg shrink-0"
+                            >
+                                {savingLabel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : labelSaved ? <CheckCircle2 className="h-3.5 w-3.5 text-[#10B981]" /> : 'Guardar'}
+                            </Button>
+                        </div>
+                        <p className="text-[11px] text-[#A1A1AA]">Se usa para separar la bandeja por número en el menú lateral.</p>
                     </div>
                 )}
 
@@ -388,6 +438,18 @@ export function WhatsAppConnectionForm({
                 </summary>
 
                 <form action={action} className="flex flex-col gap-4 mt-4">
+                    <input type="hidden" name="channelId" value={channelId || ''} />
+                    <div className="space-y-1.5">
+                        <Label htmlFor="label" className="text-xs text-[#71717A]">Nombre de la bandeja (opcional)</Label>
+                        <Input
+                            id="label"
+                            name="label"
+                            placeholder="Ej. Ventas, Soporte…"
+                            defaultValue={initialLabel}
+                            maxLength={40}
+                            className="rounded-lg"
+                        />
+                    </div>
                     <div className="space-y-1.5">
                         <Label htmlFor="phoneNumberId" className="text-xs text-[#71717A]">Phone Number ID</Label>
                         <Input

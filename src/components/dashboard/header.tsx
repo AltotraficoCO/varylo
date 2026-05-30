@@ -14,7 +14,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Sidebar, TagData, SidebarDict } from './sidebar';
+import { Sidebar, TagData, SidebarDict, ChannelInboxData } from './sidebar';
 import { StatusSelector } from './status-selector';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useState } from 'react';
@@ -31,6 +31,7 @@ interface DashboardHeaderProps {
     lang: string;
     role: 'super-admin' | 'company' | 'supervisor' | 'agent';
     tags?: TagData[];
+    channels?: ChannelInboxData[];
     userStatus?: 'ONLINE' | 'BUSY' | 'OFFLINE';
     userName?: string;
     userEmail?: string;
@@ -44,7 +45,7 @@ const defaultDict: HeaderDict = {
     signOut: 'Cerrar sesión',
 };
 
-export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OFFLINE', userName, userEmail, dict, sidebarDict }: DashboardHeaderProps) {
+export function DashboardHeader({ title, lang, role, tags = [], channels = [], userStatus = 'OFFLINE', userName, userEmail, dict, sidebarDict }: DashboardHeaderProps) {
     const [open, setOpen] = useState(false);
     const initial = userName ? userName.charAt(0).toUpperCase() : null;
     const t = dict || defaultDict;
@@ -67,6 +68,7 @@ export function DashboardHeader({ title, lang, role, tags = [], userStatus = 'OF
                         role={role}
                         lang={lang}
                         tags={tags}
+                        channels={channels}
                         className="border-none w-full"
                         onLinkClick={() => setOpen(false)}
                         dict={sidebarDict}

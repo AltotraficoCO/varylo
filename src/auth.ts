@@ -12,7 +12,7 @@ async function verifyPassword(plain: string, hashed: string | null) {
     return await bcrypt.compare(plain, hashed);
 }
 
-export const { auth, signIn, signOut, handlers } = NextAuth({
+export const { auth, signIn, signOut, handlers, unstable_update } = NextAuth({
     ...authConfig,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     adapter: PrismaAdapter(prisma) as any,

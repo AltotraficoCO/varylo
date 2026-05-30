@@ -19,8 +19,22 @@ export const authConfig = {
         async session({ session, token }) {
             if (token && session.user) {
                 session.user.role = token.role as any;
-                session.user.companyId = token.companyId as string | null;
                 session.user.id = token.id as string;
+
+                // SUPER_ADMIN impersonation: when `actingCompanyId` is set, every
+                // company-scoped view (which reads `session.user.companyId`) is
+                // transparently scoped to the impersonated company. The real role
+                // stays SUPER_ADMIN so both panels remain accessible.
+                const acting = token.actingCompanyId as string | null | undefined;
+                if (token.role === 'SUPER_ADMIN' && acting) {
+                    session.user.companyId = acting;
+                    session.user.actingCompanyId = acting;
+                    session.user.isImpersonating = true;
+                } else {
+                    session.user.companyId = token.companyId as string | null;
+                    session.user.actingCompanyId = null;
+                    session.user.isImpersonating = false;
+                }
             }
             return session;
         },

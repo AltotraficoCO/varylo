@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { Badge } from "@/components/ui/badge"
 import { Building2, Users, CheckCircle2, UserCircle2 } from "lucide-react"
 import { EditCompanyDialog } from './edit-company-dialog';
+import { EnterCompanyButton } from './enter-company-button';
 import { CreateCompanyDialog } from './create-company-dialog';
 import { ensureTablesExist } from './actions';
 import { getDictionary, Locale } from '@/lib/dictionary';
@@ -195,7 +196,10 @@ export default async function CompaniesPage({ params }: { params: Promise<{ lang
                                     </div>
 
                                     {/* Action */}
-                                    <div className="flex justify-end w-24">
+                                    <div className="flex items-center justify-end gap-1">
+                                        {company.status === 'ACTIVE' && (
+                                            <EnterCompanyButton companyId={company.id} companyName={company.name} />
+                                        )}
                                         <EditCompanyDialog company={company} />
                                     </div>
                                 </div>

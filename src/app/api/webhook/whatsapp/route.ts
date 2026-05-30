@@ -251,11 +251,14 @@ export async function POST(req: NextRequest) {
                     });
                 }
 
-                // Find or create Conversation
+                // Find or create Conversation. Scope by channelId so the same
+                // contact writing to two different company WhatsApp numbers gets
+                // a separate thread per number (number-divided inboxes).
                 let conversation = await prisma.conversation.findFirst({
                     where: {
                         companyId,
                         contactId: contact.id,
+                        channelId: channel.id,
                         status: 'OPEN'
                     }
                 });

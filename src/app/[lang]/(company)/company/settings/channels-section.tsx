@@ -9,19 +9,24 @@ import { MessengerForm } from './messenger-form';
 import Link from 'next/link';
 import { useDictionary } from '@/lib/i18n-context';
 
+const WHATSAPP_NUMBER_LIMIT = 10;
+
+type WhatsAppNumber = {
+    channelId: string;
+    phoneNumberId?: string;
+    verifyToken?: string;
+    wabaId?: string;
+    hasAccessToken: boolean;
+    automationPriority: string;
+    phoneDisplay?: string;
+    connectionMode?: 'oauth' | 'manual';
+    tokenStatus?: string | null;
+    tokenExpiresAt?: string | null;
+    label?: string;
+};
+
 type ChannelsSectionProps = {
-    whatsappConfig: {
-        phoneNumberId?: string;
-        verifyToken?: string;
-        wabaId?: string;
-        hasAccessToken: boolean;
-        channelId: string | null;
-        automationPriority: string;
-        phoneDisplay?: string;
-        connectionMode?: 'oauth' | 'manual';
-        tokenStatus?: string | null;
-        tokenExpiresAt?: string | null;
-    };
+    whatsappNumbers: WhatsAppNumber[];
     webchatConfig: {
         isActive: boolean;
         apiKey: string | null;
@@ -45,7 +50,7 @@ type ChannelsSectionProps = {
     hasActiveSubscription: boolean;
 };
 
-export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig, messengerConfig, hasActiveSubscription }: ChannelsSectionProps) {
+export function ChannelsSection({ whatsappNumbers, webchatConfig, instagramConfig, messengerConfig, hasActiveSubscription }: ChannelsSectionProps) {
     const dict = useDictionary();
     const t = dict.settingsUI?.channelsSection || {};
 
@@ -71,28 +76,66 @@ export function ChannelsSection({ whatsappConfig, webchatConfig, instagramConfig
         );
     }
 
+    const canAddWhatsApp = whatsappNumbers.length < WHATSAPP_NUMBER_LIMIT;
+
     return (
-        <div className="space-y-5">
+        <div className="space-y-8">
+            {/* WhatsApp numbers (up to 10) */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-[#10B981]" />
+                        <h3 className="text-[15px] font-semibold text-[#09090B]">Números de WhatsApp</h3>
+                    </div>
+                    <Badge variant="secondary" className="rounded-full">
+                        {whatsappNumbers.length}/{WHATSAPP_NUMBER_LIMIT}
+                    </Badge>
+                </div>
+                <p className="text-[13px] text-[#71717A]">
+                    Conecta hasta {WHATSAPP_NUMBER_LIMIT} números. Cada número tiene su propia bandeja de entrada.
+                </p>
+
+                <div className="grid gap-5 lg:grid-cols-3">
+                    {whatsappNumbers.map((wa) => (
+                        <WhatsAppConnectionForm
+                            key={wa.channelId}
+                            initialPhoneNumberId={wa.phoneNumberId}
+                            initialVerifyToken={wa.verifyToken}
+                            initialWabaId={wa.wabaId}
+                            hasAccessToken={wa.hasAccessToken}
+                            channelId={wa.channelId}
+                            automationPriority={wa.automationPriority}
+                            phoneDisplay={wa.phoneDisplay}
+                            connectionMode={wa.connectionMode}
+                            tokenStatus={wa.tokenStatus}
+                            tokenExpiresAt={wa.tokenExpiresAt}
+                            initialLabel={wa.label}
+                        />
+                    ))}
+
+                    {/* Add a new number (empty channelId → create on save) */}
+                    {canAddWhatsApp && (
+                        <WhatsAppConnectionForm
+                            key="__add__"
+                            channelId={null}
+                            hasAccessToken={false}
+                        />
+                    )}
+                </div>
+
+                {!canAddWhatsApp && (
+                    <p className="text-[12px] text-[#A1A1AA]">
+                        Alcanzaste el límite de {WHATSAPP_NUMBER_LIMIT} números. Desconecta uno para agregar otro.
+                    </p>
+                )}
+            </div>
+
             <p className="text-[14px] text-[#71717A]">
-                {t.connectedChannelsDesc || 'Canales conectados. Selecciona un canal para configurarlo.'}
+                {t.connectedChannelsDesc || 'Otros canales. Selecciona un canal para configurarlo.'}
             </p>
 
-            {/* All channels inline - no drill-down views */}
+            {/* Other channels inline - no drill-down views */}
             <div className="grid gap-5 lg:grid-cols-3">
-                {/* WhatsApp */}
-                <WhatsAppConnectionForm
-                    initialPhoneNumberId={whatsappConfig.phoneNumberId}
-                    initialVerifyToken={whatsappConfig.verifyToken}
-                    initialWabaId={whatsappConfig.wabaId}
-                    hasAccessToken={whatsappConfig.hasAccessToken}
-                    channelId={whatsappConfig.channelId}
-                    automationPriority={whatsappConfig.automationPriority}
-                    phoneDisplay={whatsappConfig.phoneDisplay}
-                    connectionMode={whatsappConfig.connectionMode}
-                    tokenStatus={whatsappConfig.tokenStatus}
-                    tokenExpiresAt={whatsappConfig.tokenExpiresAt}
-                />
-
                 {/* Instagram */}
                 <InstagramDMForm
                     initialPageId={instagramConfig.pageId}

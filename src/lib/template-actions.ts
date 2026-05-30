@@ -21,13 +21,15 @@ export interface WhatsAppTemplate {
     components: TemplateComponent[];
 }
 
-async function getWhatsAppChannelConfig(companyId: string) {
+async function getWhatsAppChannelConfig(companyId: string, channelId?: string) {
     const channel = await prisma.channel.findFirst({
         where: {
             companyId,
             type: ChannelType.WHATSAPP,
             status: 'CONNECTED',
+            ...(channelId ? { id: channelId } : {}),
         },
+        orderBy: { createdAt: 'asc' },
     });
 
     if (!channel?.configJson) {
@@ -53,8 +55,26 @@ async function getWhatsAppChannelConfig(companyId: string) {
     return { channel, config };
 }
 
+/** List the company's connected WhatsApp numbers (for choosing which to send from). */
+export async function getWhatsAppNumbers(): Promise<{ id: string; label: string }[]> {
+    const session = await auth();
+    if (!session?.user?.companyId) return [];
+
+    const channels = await prisma.channel.findMany({
+        where: { companyId: session.user.companyId, type: ChannelType.WHATSAPP, status: 'CONNECTED' },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, configJson: true },
+    });
+
+    return channels.map((ch) => {
+        const cfg = (ch.configJson || {}) as { label?: string; phoneDisplay?: string };
+        return { id: ch.id, label: cfg.label?.trim() || cfg.phoneDisplay || 'WhatsApp' };
+    });
+}
+
 export async function getWhatsAppTemplates(
-    statusFilter: 'APPROVED' | 'ALL' = 'APPROVED'
+    statusFilter: 'APPROVED' | 'ALL' = 'APPROVED',
+    channelId?: string
 ): Promise<{
     success: boolean;
     templates?: WhatsAppTemplate[];
@@ -65,7 +85,7 @@ export async function getWhatsAppTemplates(
         return { success: false, error: 'No autorizado.' };
     }
 
-    const result = await getWhatsAppChannelConfig(session.user.companyId);
+    const result = await getWhatsAppChannelConfig(session.user.companyId, channelId);
     if ('error' in result) {
         return { success: false, error: result.error };
     }
@@ -117,6 +137,7 @@ export async function sendTemplateMessage(params: {
     templateLanguage: string;
     templateComponents: any[];
     templateBody?: string;
+    channelId?: string;
 }): Promise<{ success: boolean; conversationId?: string; error?: string }> {
     const session = await auth();
     if (!session?.user?.companyId || !session?.user?.id) {
@@ -126,7 +147,7 @@ export async function sendTemplateMessage(params: {
     const companyId = session.user.companyId;
     const userId = session.user.id;
 
-    const result = await getWhatsAppChannelConfig(companyId);
+    const result = await getWhatsAppChannelConfig(companyId, params.channelId);
     if ('error' in result) {
         return { success: false, error: result.error };
     }

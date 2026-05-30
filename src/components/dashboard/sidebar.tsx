@@ -22,6 +22,7 @@ import {
     Puzzle,
     CalendarDays,
     Activity,
+    Phone,
 } from 'lucide-react';
 import { SidebarUnreadBadge } from './unread-badge';
 
@@ -43,6 +44,53 @@ export interface TagData {
     name: string;
     color: string;
     showInSidebar: boolean;
+}
+
+export interface ChannelInboxData {
+    id: string;
+    label: string;
+}
+
+/**
+ * Build the "Conversaciones" sub-entries: "Todos" + one per WhatsApp number
+ * (only when there are 2+ numbers, so single-number companies stay clean) +
+ * the sidebar tags. Returns null when there's nothing to nest.
+ */
+function buildConversationChildren(t: SidebarDict, channels?: ChannelInboxData[], tags?: TagData[]): NavItem[] | null {
+    const numbers = (channels ?? []);
+    const sidebarTags = (tags ?? []).filter(tg => tg.showInSidebar);
+    const showNumbers = numbers.length >= 2;
+
+    if (!showNumbers && sidebarTags.length === 0) return null;
+
+    const children: NavItem[] = [
+        { title: t.all, href: '/company/conversations', icon: MessageSquare },
+    ];
+
+    if (showNumbers) {
+        for (const ch of numbers) {
+            children.push({
+                title: ch.label,
+                href: `/company/conversations?channel=${ch.id}`,
+                icon: Phone,
+            });
+        }
+    }
+
+    for (const tag of sidebarTags) {
+        children.push({
+            title: tag.name,
+            href: `/company/conversations?filter=all&tag=${tag.id}`,
+            icon: ({ className }: { className?: string }) => (
+                <div
+                    className={className}
+                    style={{ backgroundColor: tag.color, borderRadius: '50%', border: '1px solid rgba(0,0,0,0.1)' }}
+                />
+            ),
+        });
+    }
+
+    return children;
 }
 
 export interface SidebarDict {
@@ -76,12 +124,13 @@ interface SidebarProps {
     role: SidebarRole;
     lang: string;
     tags?: TagData[];
+    channels?: ChannelInboxData[];
     className?: string;
     onLinkClick?: () => void;
     dict?: SidebarDict;
 }
 
-function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[]): { sections: SectionGroup[]; bottomItems: NavItem[] } {
+function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[], channels?: ChannelInboxData[]): { sections: SectionGroup[]; bottomItems: NavItem[] } {
     let sections: SectionGroup[] = [];
     let bottomItems: NavItem[] = [];
 
@@ -110,28 +159,12 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[]): { s
                 { title: t.contacts, href: '/company/contacts', icon: Contact },
                 { title: t.broadcasts, href: '/company/broadcasts', icon: Megaphone },
             ];
-            if (tags && tags.length > 0) {
-                const sidebarTags = tags.filter(tg => tg.showInSidebar);
-                if (sidebarTags.length > 0) {
+            {
+                const convChildren = buildConversationChildren(t, channels, tags);
+                if (convChildren) {
                     const convIndex = commItems.findIndex(i => i.href === '/company/conversations');
                     if (convIndex !== -1) {
-                        const baseItem = commItems[convIndex];
-                        commItems[convIndex] = {
-                            ...baseItem,
-                            children: [
-                                { title: t.all, href: '/company/conversations', icon: MessageSquare },
-                                ...sidebarTags.map(tag => ({
-                                    title: tag.name,
-                                    href: `/company/conversations?filter=all&tag=${tag.id}`,
-                                    icon: ({ className }: { className?: string }) => (
-                                        <div
-                                            className={className}
-                                            style={{ backgroundColor: tag.color, borderRadius: '50%', border: '1px solid rgba(0,0,0,0.1)' }}
-                                        />
-                                    )
-                                }))
-                            ]
-                        };
+                        commItems[convIndex] = { ...commItems[convIndex], children: convChildren };
                     }
                 }
             }
@@ -159,25 +192,10 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[]): { s
             const commItems: NavItem[] = [
                 { title: t.conversations, href: '/company/conversations', icon: MessageSquare, unreadBadge: true },
             ];
-            if (tags && tags.length > 0) {
-                const sidebarTags = tags.filter(tg => tg.showInSidebar);
-                if (sidebarTags.length > 0) {
-                    commItems[0] = {
-                        ...commItems[0],
-                        children: [
-                            { title: t.all, href: '/company/conversations', icon: MessageSquare },
-                            ...sidebarTags.map(tag => ({
-                                title: tag.name,
-                                href: `/company/conversations?filter=all&tag=${tag.id}`,
-                                icon: ({ className }: { className?: string }) => (
-                                    <div
-                                        className={className}
-                                        style={{ backgroundColor: tag.color, borderRadius: '50%', border: '1px solid rgba(0,0,0,0.1)' }}
-                                    />
-                                )
-                            }))
-                        ]
-                    };
+            {
+                const convChildren = buildConversationChildren(t, channels, tags);
+                if (convChildren) {
+                    commItems[0] = { ...commItems[0], children: convChildren };
                 }
             }
             sections = [
@@ -227,10 +245,10 @@ const defaultDict: SidebarDict = {
     footer: 'Desarrollado con IA y con ❤️',
 };
 
-export function Sidebar({ role, lang, tags, className, onLinkClick, dict }: SidebarProps) {
+export function Sidebar({ role, lang, tags, channels, className, onLinkClick, dict }: SidebarProps) {
     const pathname = usePathname();
     const t = dict || defaultDict;
-    const { sections, bottomItems } = buildSections(role, t, tags);
+    const { sections, bottomItems } = buildSections(role, t, tags, channels);
 
     return (
         <div className={clsx("border-r bg-sidebar w-[240px] flex flex-col h-screen sticky top-0", className)}>

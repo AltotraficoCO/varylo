@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Plan, CompanyStatus, CreditTransactionType, Role, SubscriptionStatus } from '@prisma/client';
 import { addCredits } from '@/lib/credits';
-import { auth } from '@/auth';
+import { auth, unstable_update } from '@/auth';
 
 /** Verify caller is authenticated SUPER_ADMIN */
 async function requireSuperAdmin() {
@@ -21,6 +21,41 @@ async function requireSuperAdmin() {
         throw new Error('Forbidden: Super admin access required');
     }
     return session;
+}
+
+/**
+ * Start impersonating a company as SUPER_ADMIN. Stores the target company id in
+ * the JWT (`actingCompanyId`); the session callback then scopes every company
+ * view to it, so the super admin gets the full company experience without
+ * becoming a member of the company.
+ */
+export async function enterCompanyAsAdmin(companyId: string) {
+    await requireSuperAdmin();
+
+    const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { id: true, name: true, status: true },
+    });
+    if (!company) {
+        return { success: false, error: 'Empresa no encontrada' };
+    }
+
+    // Persist into the JWT via the `update` trigger in the jwt callback.
+    await unstable_update({ actingCompanyId: company.id });
+
+    return { success: true, companyName: company.name };
+}
+
+/** Stop impersonating and return to the super admin panel. */
+export async function exitCompanyImpersonation() {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { success: false, error: 'Unauthorized' };
+    }
+
+    await unstable_update({ actingCompanyId: null });
+
+    return { success: true };
 }
 
 const createCompanySchema = z.object({

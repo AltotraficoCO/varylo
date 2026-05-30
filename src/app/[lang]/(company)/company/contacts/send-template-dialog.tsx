@@ -26,8 +26,9 @@ import {
     User,
     Phone,
 } from 'lucide-react';
-import { getWhatsAppTemplates, sendTemplateMessage } from '@/lib/template-actions';
+import { getWhatsAppTemplates, sendTemplateMessage, getWhatsAppNumbers } from '@/lib/template-actions';
 import { useDictionary } from '@/lib/i18n-context';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Contact {
     id: string;
@@ -78,6 +79,10 @@ export function SendTemplateDialog({
     const [newName, setNewName] = useState('');
     const [contactSearch, setContactSearch] = useState('');
 
+    // WhatsApp number (which number to send from)
+    const [numbers, setNumbers] = useState<{ id: string; label: string }[]>([]);
+    const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>(undefined);
+
     // Template state
     const [templates, setTemplates] = useState<Template[]>([]);
     const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -103,18 +108,36 @@ export function SendTemplateDialog({
         }
     }, [open]);
 
-    // Load templates when entering step 2
+    // Templates are WABA-specific: reset them when the chosen number changes.
+    useEffect(() => {
+        setTemplates([]);
+        setSelectedTemplate(null);
+    }, [selectedChannelId]);
+
+    // Load the company's WhatsApp numbers when the dialog opens.
+    useEffect(() => {
+        if (!open) return;
+        let cancelled = false;
+        getWhatsAppNumbers().then((nums) => {
+            if (cancelled) return;
+            setNumbers(nums);
+            setSelectedChannelId((prev) => prev ?? nums[0]?.id);
+        });
+        return () => { cancelled = true; };
+    }, [open]);
+
+    // Load templates for the selected number when entering step 2
     const loadTemplates = useCallback(async () => {
         setLoadingTemplates(true);
         setTemplateError('');
-        const result = await getWhatsAppTemplates();
+        const result = await getWhatsAppTemplates('APPROVED', selectedChannelId);
         if (result.success && result.templates) {
             setTemplates(result.templates);
         } else {
             setTemplateError(result.error || ui.unknown || 'Error desconocido');
         }
         setLoadingTemplates(false);
-    }, []);
+    }, [selectedChannelId, ui.unknown]);
 
     const filteredContacts = contacts.filter((c) => {
         if (!contactSearch) return true;
@@ -229,6 +252,7 @@ export function SendTemplateDialog({
             templateBody: [getHeaderPreviewText(selectedTemplate), getPreviewText(selectedTemplate)]
                 .filter(Boolean)
                 .join('\n\n'),
+            channelId: selectedChannelId,
         });
 
         setSending(false);
@@ -263,6 +287,25 @@ export function SendTemplateDialog({
                 {/* Step 1: Recipient */}
                 {step === 'recipient' && (
                     <div className="flex-1 overflow-hidden flex flex-col gap-4">
+                        {/* Choose which WhatsApp number to send from (when >1) */}
+                        {numbers.length > 1 && (
+                            <div>
+                                <Label className="text-xs text-muted-foreground mb-1.5 block">Enviar desde</Label>
+                                <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
+                                    <SelectTrigger>
+                                        <span className="flex items-center gap-2 min-w-0">
+                                            <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                            <SelectValue placeholder="Selecciona un número" />
+                                        </span>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {numbers.map((n) => (
+                                            <SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                         {/* Existing contact search */}
                         <div>
                             <Label className="text-xs text-muted-foreground mb-1.5 block">{t.contactDetails || 'Contacto existente'}</Label>

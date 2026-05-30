@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { ChannelType } from '@prisma/client';
+import { ChannelType, ChannelStatus } from '@prisma/client';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Building2, Plug, Coins, Tag, FileText, CreditCard, Key, Puzzle, Zap } from "lucide-react";
@@ -53,7 +53,7 @@ export default async function SettingsPage(props: {
         n8nWebhooks = [];
     }
 
-    const [company, whatsappChannel, webchatChannel, instagramChannel, messengerChannel, tags, companyAgents, ecommerceStoresRaw, activeSubscription] = await Promise.all([
+    const [company, whatsappChannels, webchatChannel, instagramChannel, messengerChannel, tags, companyAgents, ecommerceStoresRaw, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -74,7 +74,7 @@ export default async function SettingsPage(props: {
                 unattendedThresholdMinutes: true,
             },
         }),
-        prisma.channel.findFirst({ where: { companyId, type: ChannelType.WHATSAPP } }),
+        prisma.channel.findMany({ where: { companyId, type: ChannelType.WHATSAPP, status: ChannelStatus.CONNECTED }, orderBy: { createdAt: 'asc' } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.WEB_CHAT, NOT: { configJson: { path: ['isPlayground'], equals: true } } } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.INSTAGRAM } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.MESSENGER } }),
@@ -114,8 +114,23 @@ export default async function SettingsPage(props: {
     const googleCalendarEmail = company?.googleCalendarEmail || null;
     const googleCalendarConnectedAt = company?.googleCalendarConnectedAt?.toISOString() || null;
 
-    // WhatsApp config
-    const whatsappConfig = whatsappChannel?.configJson as { phoneNumberId?: string; verifyToken?: string; accessToken?: string; appSecret?: string; wabaId?: string; phoneDisplay?: string; connectionMode?: 'oauth' | 'manual' } | null;
+    // WhatsApp numbers (up to 10 per company). Each Channel = one number.
+    const whatsappNumbers = whatsappChannels.map((ch) => {
+        const cfg = (ch.configJson || {}) as { phoneNumberId?: string; verifyToken?: string; accessToken?: string; appSecret?: string; wabaId?: string; phoneDisplay?: string; connectionMode?: 'oauth' | 'manual'; label?: string };
+        return {
+            channelId: ch.id,
+            phoneNumberId: cfg.phoneNumberId,
+            verifyToken: cfg.verifyToken,
+            wabaId: cfg.wabaId,
+            hasAccessToken: !!cfg.accessToken,
+            automationPriority: ch.automationPriority || 'CHATBOT_FIRST',
+            phoneDisplay: cfg.phoneDisplay,
+            connectionMode: cfg.connectionMode || 'manual',
+            tokenStatus: ch.tokenStatus || null,
+            tokenExpiresAt: ch.tokenExpiresAt?.toISOString() || null,
+            label: cfg.label || '',
+        };
+    });
 
     // WebChat config
     const webchatActive = webchatChannel?.status === 'CONNECTED';
@@ -204,18 +219,7 @@ export default async function SettingsPage(props: {
 
                     {activeTab === 'channels' && (
                         <ChannelsSection
-                            whatsappConfig={{
-                                phoneNumberId: whatsappConfig?.phoneNumberId,
-                                verifyToken: whatsappConfig?.verifyToken,
-                                wabaId: whatsappConfig?.wabaId,
-                                hasAccessToken: !!whatsappConfig?.accessToken,
-                                channelId: whatsappChannel?.id || null,
-                                automationPriority: whatsappChannel?.automationPriority || 'CHATBOT_FIRST',
-                                phoneDisplay: whatsappConfig?.phoneDisplay,
-                                connectionMode: whatsappConfig?.connectionMode || 'manual',
-                                tokenStatus: whatsappChannel?.tokenStatus || null,
-                                tokenExpiresAt: whatsappChannel?.tokenExpiresAt?.toISOString() || null,
-                            }}
+                            whatsappNumbers={whatsappNumbers}
                             webchatConfig={{
                                 isActive: webchatActive,
                                 apiKey: webchatConfig?.apiKey || null,
