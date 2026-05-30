@@ -10,7 +10,7 @@ import { getGoogleAuthUrl } from '@/lib/google-calendar';
 import OpenAI from 'openai';
 
 /** Maximum WhatsApp numbers a single company can connect at once. */
-export const WHATSAPP_NUMBER_LIMIT = 10;
+const WHATSAPP_NUMBER_LIMIT = 10;
 
 /**
  * Resolve a WhatsApp channel for the company. When `channelId` is provided it is
