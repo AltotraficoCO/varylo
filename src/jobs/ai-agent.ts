@@ -303,6 +303,16 @@ export async function handleAiAgentResponse(
             },
         ];
 
+        // Manual "resume": tell the agent to catch up on everything the customer
+        // sent while it was inactive and continue from there, without repeating
+        // questions the customer already answered.
+        if (opts?.regenerateLast) {
+            messages.push({
+                role: 'system',
+                content: 'Estás retomando esta conversación tras una pausa. Revisa TODOS los mensajes recientes del cliente que quedaron sin responder, ten en cuenta la información que ya dio, y continúa el proceso desde donde se quedó. No repitas preguntas que el cliente ya respondió ni vuelvas a empezar; responde de forma natural integrando todo lo que escribió.',
+            });
+        }
+
         // Messages were fetched newest-first; restore chronological order.
         const history = [...conversation.messages].reverse();
         // Manual "resume": drop trailing agent messages so the context ends on the
