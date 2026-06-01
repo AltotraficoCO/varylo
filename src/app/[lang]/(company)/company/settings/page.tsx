@@ -53,7 +53,7 @@ export default async function SettingsPage(props: {
         n8nWebhooks = [];
     }
 
-    const [company, whatsappChannels, webchatChannel, instagramChannel, messengerChannel, tags, companyAgents, ecommerceStoresRaw, activeSubscription] = await Promise.all([
+    const [company, whatsappChannels, webchatChannels, instagramChannel, messengerChannel, tags, companyAgents, ecommerceStoresRaw, activeSubscription] = await Promise.all([
         prisma.company.findUnique({
             where: { id: companyId },
             select: {
@@ -75,7 +75,7 @@ export default async function SettingsPage(props: {
             },
         }),
         prisma.channel.findMany({ where: { companyId, type: ChannelType.WHATSAPP, status: ChannelStatus.CONNECTED }, orderBy: { createdAt: 'asc' } }),
-        prisma.channel.findFirst({ where: { companyId, type: ChannelType.WEB_CHAT, NOT: { configJson: { path: ['isPlayground'], equals: true } } } }),
+        prisma.channel.findMany({ where: { companyId, type: ChannelType.WEB_CHAT }, orderBy: { createdAt: 'asc' } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.INSTAGRAM } }),
         prisma.channel.findFirst({ where: { companyId, type: ChannelType.MESSENGER } }),
         prisma.tag.findMany({
@@ -98,6 +98,8 @@ export default async function SettingsPage(props: {
             select: { id: true },
         }).catch(() => null),
     ]);
+
+    const webchatChannel = webchatChannels.find(c => !(c.configJson as { isPlayground?: boolean } | null)?.isPlayground) ?? null;
 
     const ecommerceStores = Array.isArray(ecommerceStoresRaw) ? ecommerceStoresRaw : [];
 

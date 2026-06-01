@@ -9,11 +9,8 @@ export default async function NewAgentPage({ params }: { params: Promise<{ lang:
 
     const [channels, company, ecommerceStores] = await Promise.all([
         prisma.channel.findMany({
-            where: {
-                companyId: session.user.companyId,
-                NOT: { configJson: { path: ['isPlayground'], equals: true } },
-            },
-            select: { id: true, type: true },
+            where: { companyId: session.user.companyId },
+            select: { id: true, type: true, configJson: true },
         }),
         prisma.company.findUnique({
             where: { id: session.user.companyId },
@@ -28,7 +25,9 @@ export default async function NewAgentPage({ params }: { params: Promise<{ lang:
     return (
         <NewAgentFlow
             lang={lang}
-            channels={channels.map(c => ({ id: c.id, type: c.type }))}
+            channels={channels
+                .filter(c => !(c.configJson as { isPlayground?: boolean } | null)?.isPlayground)
+                .map(c => ({ id: c.id, type: c.type }))}
             hasGoogleCalendar={!!company?.googleCalendarRefreshToken}
             hasShopify={ecommerceStores.some(s => s.platform === 'shopify')}
             hasWooCommerce={ecommerceStores.some(s => s.platform === 'woocommerce')}
