@@ -172,6 +172,41 @@ export async function resumeAiAgent(conversationId: string) {
     };
 }
 
+/**
+ * Hand the conversation to a human: remove the AI and assign a human agent so
+ * the AI stops replying (the takeover condition needs an assigned human).
+ */
+export async function transferToHumanAgent(conversationId: string) {
+    const session = await auth();
+    if (!session?.user?.id || !session?.user?.companyId) {
+        throw new Error("Unauthorized");
+    }
+
+    const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId, companyId: session.user.companyId },
+        select: { id: true },
+    });
+    if (!conversation) {
+        return { success: false, message: "Conversation not found" };
+    }
+
+    const { findLeastBusyAgent } = await import('@/lib/assign-agent');
+    // Prefer the least-busy human; fall back to whoever clicked the button.
+    const agentId = (await findLeastBusyAgent(session.user.companyId)) || session.user.id;
+
+    await prisma.conversation.update({
+        where: { id: conversationId, companyId: session.user.companyId },
+        data: {
+            handledByAiAgentId: null,
+            assignedAgents: { connect: { id: agentId } },
+        },
+    });
+
+    revalidatePath('/[lang]/company/conversations', 'page');
+    revalidatePath('/[lang]/agent', 'page');
+    return { success: true };
+}
+
 export async function updatePriority(conversationId: string, priority: 'LOW' | 'MEDIUM' | 'HIGH') {
     const session = await auth();
     if (!session?.user?.companyId) {

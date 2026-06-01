@@ -6,7 +6,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Pin, Trash2, StickyNote, Phone, Building, RefreshCw, Loader2, Sparkles, TriangleAlert, CheckCircle2, Bot, RotateCcw, FileInput } from "lucide-react";
+import { MessageSquare, Pin, Trash2, StickyNote, Phone, Building, RefreshCw, Loader2, Sparkles, TriangleAlert, CheckCircle2, Bot, RotateCcw, FileInput, UserRound } from "lucide-react";
 import { AgentSelector } from "./agent-selector";
 import { TagSelector } from "./tag-selector";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,7 @@ interface ConversationRightSidebarProps {
 }
 
 import { useRouter, useParams } from "next/navigation";
-import { deleteConversation, closeConversation, reopenConversation, updatePriority, reanalyzeConversation, resumeAiAgent } from "./actions";
+import { deleteConversation, closeConversation, reopenConversation, updatePriority, reanalyzeConversation, resumeAiAgent, transferToHumanAgent } from "./actions";
 
 export function ConversationRightSidebar({ conversation, companyTags, companyAgents, className, isAgent, insight }: ConversationRightSidebarProps) {
     const contact = conversation.contact || {};
@@ -127,6 +127,25 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
             toast.error(t.resumeAiError || 'No se pudo retomar con la IA.');
         } finally {
             setResumingAi(false);
+        }
+    };
+
+    const [transferringHuman, setTransferringHuman] = React.useState(false);
+
+    const handleTransferHuman = async () => {
+        setTransferringHuman(true);
+        try {
+            const result = await transferToHumanAgent(conversation.id);
+            router.refresh();
+            if (result?.success) {
+                toast.success(t.transferHumanSuccess || 'Conversación transferida a un agente humano. La IA dejó de responder.');
+            } else {
+                toast.error(result?.message || t.transferHumanError || 'No se pudo transferir.');
+            }
+        } catch (e) {
+            toast.error(t.transferHumanError || 'No se pudo transferir.');
+        } finally {
+            setTransferringHuman(false);
         }
     };
 
@@ -361,16 +380,30 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
                                     )}
 
                                     {conversation.status === 'OPEN' && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleResumeAi}
-                                            disabled={resumingAi}
-                                            className="w-full gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800"
-                                        >
-                                            {resumingAi ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
-                                            {t.resumeAiButton || 'Retomar con la IA'}
-                                        </Button>
+                                        <div className="flex flex-col gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleResumeAi}
+                                                disabled={resumingAi || transferringHuman}
+                                                className="w-full gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800"
+                                            >
+                                                {resumingAi ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+                                                {t.resumeAiButton || 'Retomar con la IA'}
+                                            </Button>
+                                            {conversation.handledByAiAgent && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleTransferHuman}
+                                                    disabled={transferringHuman || resumingAi}
+                                                    className="w-full gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                                >
+                                                    {transferringHuman ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserRound className="h-3.5 w-3.5" />}
+                                                    {t.transferHumanButton || 'Transferir a agente humano'}
+                                                </Button>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </AccordionContent>
