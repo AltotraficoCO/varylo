@@ -64,29 +64,32 @@ export default async function ConversationsPage({
     });
 
     // --- 1. Fetch Counts for Tabs ---
+    // Number-divided inbox: tab counts must respect the selected WhatsApp number
+    // too, otherwise they show totals across all numbers.
+    const channelScope = channelFilter ? { channelId: channelFilter } : {};
     // Efficiently fetch counts using Promise.all
     const [mineCount, unassignedCount, allCount, resolvedCount] = await Promise.all([
         prisma.conversation.count({
-            where: { companyId: session.user.companyId, isTest: false, assignedAgents: { some: { id: userId } }, status: 'OPEN' }
+            where: { companyId: session.user.companyId, isTest: false, assignedAgents: { some: { id: userId } }, status: 'OPEN', ...channelScope }
         }),
         !isAgent ? prisma.conversation.count({
-            where: { companyId: session.user.companyId, isTest: false, assignedAgents: { none: {} }, handledByAiAgentId: null, status: 'OPEN' }
+            where: { companyId: session.user.companyId, isTest: false, assignedAgents: { none: {} }, handledByAiAgentId: null, status: 'OPEN', ...channelScope }
         }) : Promise.resolve(0),
         !isAgent ? prisma.conversation.count({
-            where: { companyId: session.user.companyId, isTest: false, status: 'OPEN' }
+            where: { companyId: session.user.companyId, isTest: false, status: 'OPEN', ...channelScope }
         }) : Promise.resolve(0),
         isAgent
             ? prisma.conversation.count({
-                where: { companyId: session.user.companyId, isTest: false, assignedAgents: { some: { id: userId } }, status: 'RESOLVED' }
+                where: { companyId: session.user.companyId, isTest: false, assignedAgents: { some: { id: userId } }, status: 'RESOLVED', ...channelScope }
             })
             : prisma.conversation.count({
-                where: { companyId: session.user.companyId, isTest: false, status: 'RESOLVED' }
+                where: { companyId: session.user.companyId, isTest: false, status: 'RESOLVED', ...channelScope }
             })
     ]);
 
     // --- 1b. Count "unanswered" (last message is INBOUND, i.e. awaiting a reply) ---
     // Determined by the direction of each conversation's most recent message.
-    const unansweredScope: any = { companyId: session.user.companyId, isTest: false, status: 'OPEN' };
+    const unansweredScope: any = { companyId: session.user.companyId, isTest: false, status: 'OPEN', ...channelScope };
     if (isAgent) unansweredScope.assignedAgents = { some: { id: userId } };
     const openForUnanswered = await prisma.conversation.findMany({
         where: unansweredScope,
