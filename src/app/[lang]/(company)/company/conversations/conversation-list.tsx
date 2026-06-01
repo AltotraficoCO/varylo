@@ -61,8 +61,8 @@ export function ConversationList({ conversations, selectedId, filter, isAgent, t
                             key={conv.id}
                             href={buildHref(conv.id)}
                             className={cn(
-                                "relative group flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors border-b last:border-0",
-                                isActive && "bg-primary/5 border-l-4 border-l-primary pl-[13px]"
+                                "relative group flex items-start gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors border-b border-[#F4F4F5] last:border-0",
+                                isActive && "bg-[#ECFDF5] hover:bg-[#ECFDF5] border-l-[3px] border-l-primary pl-[13px]"
                             )}
                         >
                             <UnreadDot conversationId={conv.id} />

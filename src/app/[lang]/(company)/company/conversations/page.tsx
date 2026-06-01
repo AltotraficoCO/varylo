@@ -264,10 +264,10 @@ export default async function ConversationsPage({
             )}>
                 {/* Header & Tabs */}
                 <div className="border-b">
-                    <div className="px-4 py-3 flex items-center justify-between">
-                        <h2 className="font-semibold flex items-center gap-2">
+                    <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+                        <h2 className="text-[17px] font-bold text-foreground flex items-center gap-2">
                             {t.title}
-                            <Badge variant="secondary" className="bg-muted text-muted-foreground font-normal border-none text-[10px] h-5 px-1.5">
+                            <Badge variant="secondary" className="bg-[#ECFDF5] text-primary font-medium border-none text-[10px] h-5 px-2 rounded-full">
                                 {filter === 'resolved' ? t.finished : t.opened}
                             </Badge>
                         </h2>
@@ -278,8 +278,8 @@ export default async function ConversationsPage({
                         <Link
                             href={tabHref('mine')}
                             className={cn(
-                                "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
-                                filter === 'mine' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
+                                "px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 transition-colors",
+                                filter === 'mine' ? "bg-white text-primary shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             {t.mine} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{mineCount}</Badge>
@@ -287,8 +287,8 @@ export default async function ConversationsPage({
                         <Link
                             href={tabHref('unanswered')}
                             className={cn(
-                                "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
-                                filter === 'unanswered' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
+                                "px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 transition-colors",
+                                filter === 'unanswered' ? "bg-white text-primary shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             {t.unanswered || 'Sin responder'} <Badge variant="secondary" className={cn("px-1 py-0 h-4 min-w-[16px] justify-center text-[10px]", unansweredCount > 0 ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground")}>{unansweredCount}</Badge>
@@ -298,8 +298,8 @@ export default async function ConversationsPage({
                                 <Link
                                     href={tabHref('unassigned')}
                                     className={cn(
-                                        "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
-                                        filter === 'unassigned' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
+                                        "px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 transition-colors",
+                                        filter === 'unassigned' ? "bg-white text-primary shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
                                     {t.unassigned} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{unassignedCount}</Badge>
@@ -307,8 +307,8 @@ export default async function ConversationsPage({
                                 <Link
                                     href={tabHref('all')}
                                     className={cn(
-                                        "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
-                                        filter === 'all' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
+                                        "px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 transition-colors",
+                                        filter === 'all' ? "bg-white text-primary shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
                                     {t.all} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{allCount}</Badge>
@@ -318,8 +318,8 @@ export default async function ConversationsPage({
                         <Link
                             href={tabHref('resolved')}
                             className={cn(
-                                "pb-3 border-b-2 px-1 transition-colors whitespace-nowrap flex items-center gap-1.5",
-                                filter === 'resolved' ? "border-primary text-primary" : "border-transparent hover:text-primary/80"
+                                "px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 transition-colors",
+                                filter === 'resolved' ? "bg-white text-primary shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -329,13 +329,13 @@ export default async function ConversationsPage({
                 </div>
 
                 {/* Search */}
-                <div className="p-3 border-b bg-muted/50 space-y-2">
+                <div className="px-4 pb-3 border-b border-[#F4F4F5] space-y-2">
                     <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             type="search"
                             placeholder={t.searchPlaceholder}
-                            className="pl-8 h-9 bg-background"
+                            className="pl-9 h-10 rounded-lg bg-[#F7F7F7] border-transparent focus-visible:bg-background"
                         />
                     </div>
                     {!isAgent && companyAgents.length > 0 && (

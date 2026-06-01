@@ -447,7 +447,7 @@ export function MessageList({ messages }: { messages: Message[] }) {
     let lastDateKey = '';
 
     return (
-        <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/30">
+        <div ref={containerRef} className="flex-1 overflow-y-auto px-6 py-5 space-y-3 bg-white dark:bg-background">
             {messages.map((msg) => {
                 const isOutbound = msg.direction === 'OUTBOUND';
                 const hasMedia = msg.mediaUrl && msg.mediaType;
@@ -462,12 +462,10 @@ export function MessageList({ messages }: { messages: Message[] }) {
                 return (
                     <div key={msg.id}>
                         {showDivider && (
-                            <div className="flex items-center gap-3 my-5">
-                                <div className="flex-1 h-px bg-border" />
-                                <span className="bg-white dark:bg-zinc-800 text-muted-foreground text-[11px] font-medium px-3 py-1 rounded-md shadow-sm border capitalize">
+                            <div className="flex items-center justify-center my-5">
+                                <span className="bg-[#F4F4F5] dark:bg-zinc-800 text-muted-foreground text-[11px] font-medium px-3.5 py-1 rounded-full capitalize">
                                     {formatDateDivider(msgDate, t)}
                                 </span>
-                                <div className="flex-1 h-px bg-border" />
                             </div>
                         )}
                         <div
@@ -478,10 +476,10 @@ export function MessageList({ messages }: { messages: Message[] }) {
                         >
                             <div
                                 className={cn(
-                                    "max-w-[70%] rounded-2xl px-4 py-2.5 text-sm shadow-sm",
+                                    "max-w-[72%] rounded-xl px-3.5 py-2.5 text-sm",
                                     isOutbound
-                                        ? "bg-primary text-primary-foreground rounded-br-none"
-                                        : "bg-card border rounded-bl-none text-foreground"
+                                        ? "bg-primary text-primary-foreground rounded-tr-sm shadow-[0_1px_2px_rgba(16,185,129,0.25)]"
+                                        : "bg-white border border-[#E5E5E5] rounded-tl-sm text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
                                 )}
                             >
                                 {hasMedia && <MediaContent msg={msg} t={t} />}

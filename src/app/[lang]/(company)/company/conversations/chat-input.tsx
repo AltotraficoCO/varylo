@@ -790,7 +790,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
                     onChange={(e) => handleChange(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleSend(e); } }}
                     placeholder={selectedFile ? t.addOptionalMessage : t.typeMessage}
-                    className="flex-1 bg-[#FAFAFA] border border-[#E4E4E7] rounded-lg py-2.5 px-3.5 text-[14px] text-[#09090B] placeholder:text-[#A1A1AA] outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]/20 transition-colors disabled:opacity-50"
+                    className="flex-1 bg-[#F7F7F7] border border-[#E4E4E7] rounded-xl py-2.5 px-3.5 text-[14px] text-[#09090B] placeholder:text-[#A1A1AA] outline-none focus:border-[#10B981] focus:bg-white focus:ring-1 focus:ring-[#10B981]/20 transition-colors disabled:opacity-50"
                     disabled={isSending || isRecording}
                 />
 
