@@ -67,6 +67,8 @@ export async function createAiAgent(prevState: string | undefined, formData: For
         : 'gpt-4o-mini';
     const rawTemp = parseFloat(formData.get('temperature') as string);
     const temperature = isNaN(rawTemp) ? 0.7 : Math.min(2.0, Math.max(0, rawTemp));
+    const rawBuffer = parseInt(formData.get('bufferSeconds') as string, 10);
+    const bufferSeconds = isNaN(rawBuffer) ? 0 : Math.min(30, Math.max(0, rawBuffer));
     const transferKeywordsRaw = formData.get('transferKeywords') as string;
     const channelIds = formData.getAll('channelIds') as string[];
     const dataCaptureEnabled = formData.get('dataCaptureEnabled') !== 'off';
@@ -114,6 +116,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
                 contextInfo: contextInfo || null,
                 model,
                 temperature,
+                bufferSeconds,
                 transferKeywords,
                 dataCaptureEnabled,
                 captureFields: captureFields ?? Prisma.JsonNull,
@@ -162,6 +165,8 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
         : 'gpt-4o-mini';
     const rawTemp = parseFloat(formData.get('temperature') as string);
     const temperature = isNaN(rawTemp) ? 0.7 : Math.min(2.0, Math.max(0, rawTemp));
+    const rawBuffer = parseInt(formData.get('bufferSeconds') as string, 10);
+    const bufferSeconds = isNaN(rawBuffer) ? 0 : Math.min(30, Math.max(0, rawBuffer));
     const transferKeywordsRaw = formData.get('transferKeywords') as string;
     const channelIds = formData.getAll('channelIds') as string[];
     const dataCaptureEnabled = formData.get('dataCaptureEnabled') !== 'off';
@@ -202,6 +207,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
                 contextInfo: contextInfo || null,
                 model,
                 temperature,
+                bufferSeconds,
                 transferKeywords,
                 dataCaptureEnabled,
                 captureFields: captureFields ?? Prisma.JsonNull,

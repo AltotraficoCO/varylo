@@ -372,6 +372,9 @@ model AiAgent {
   active             Boolean   @default(true)
   model              String    @default("gpt-4o-mini")
   temperature        Float     @default(0.7)
+  // Seconds to wait for additional inbound messages before replying (debounce).
+  // 0 = reply immediately. Lets the agent group rapid, fragmented messages.
+  bufferSeconds      Int       @default(0)
   transferKeywords   String[]  @default(["humano", "agente", "persona"])
   dataCaptureEnabled Boolean   @default(true)
   captureFields      Json?     // [{ key: "nombre", label: "Nombre", required: true }, ...]

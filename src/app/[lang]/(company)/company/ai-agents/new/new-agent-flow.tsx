@@ -50,6 +50,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
     const [contextInfo, setContextInfo] = useState('');
     const [model, setModel] = useState('gpt-4o-mini');
     const [temperature, setTemperature] = useState('0.7');
+    const [bufferSeconds, setBufferSeconds] = useState('0');
     const [transferKeywords, setTransferKeywords] = useState('humano, agente, persona');
     const [dataCaptureEnabled, setDataCaptureEnabled] = useState(true);
     const [captureFields, setCaptureFields] = useState<{ key: string; label: string; required: boolean }[]>([
@@ -259,6 +260,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                 <input type="hidden" name="agentType" value={selectedType || 'CUSTOM'} />
                 <input type="hidden" name="model" value={model} />
                 <input type="hidden" name="temperature" value={temperature} />
+                <input type="hidden" name="bufferSeconds" value={bufferSeconds} />
                 <input type="hidden" name="transferKeywords" value={transferKeywords} />
                 <input type="hidden" name="dataCaptureEnabled" value={dataCaptureEnabled ? 'on' : 'off'} />
                 <input type="hidden" name="captureFields" value={JSON.stringify(captureFields)} />
@@ -383,6 +385,21 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                 className="h-10 rounded-lg border-[#E4E4E7] text-[14px]"
                             />
                             <p className="text-[12px] text-[#A1A1AA]">{t.transferToHumanWordsHint}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[13px] font-medium text-[#3F3F46]">Agrupar mensajes (segundos de espera)</Label>
+                            <select
+                                value={bufferSeconds}
+                                onChange={e => setBufferSeconds(e.target.value)}
+                                className="w-full h-10 rounded-lg border border-[#E4E4E7] text-[14px] px-3 bg-white"
+                            >
+                                <option value="0">Responder de inmediato</option>
+                                <option value="5">Esperar 5 segundos</option>
+                                <option value="8">Esperar 8 segundos</option>
+                                <option value="10">Esperar 10 segundos</option>
+                                <option value="15">Esperar 15 segundos</option>
+                            </select>
+                            <p className="text-[12px] text-[#A1A1AA]">Si el cliente envía varios mensajes seguidos, el agente espera este tiempo y responde a todos juntos en vez de contestar cada fragmento por separado.</p>
                         </div>
                     </div>
                 </div>

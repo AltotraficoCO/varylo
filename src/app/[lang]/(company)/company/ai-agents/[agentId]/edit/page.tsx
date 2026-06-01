@@ -40,6 +40,7 @@ export default async function EditAgentPage({ params }: { params: Promise<{ lang
                 contextInfo: agent.contextInfo || '',
                 model: agent.model,
                 temperature: agent.temperature,
+                bufferSeconds: agent.bufferSeconds,
                 transferKeywords: agent.transferKeywords.join(', '),
                 dataCaptureEnabled: agent.dataCaptureEnabled,
                 captureFields: agent.captureFields as any[] | null,

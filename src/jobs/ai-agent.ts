@@ -135,7 +135,7 @@ function legacyToNormalizedTool(t: LegacyFunctionTool): NormalizedTool {
 export async function handleAiAgentResponse(
     conversationId: string,
     inboundMessage: string,
-    opts?: { ignoreActiveCheck?: boolean },
+    opts?: { ignoreActiveCheck?: boolean; skipBuffer?: boolean },
 ): Promise<AiAgentResult> {
     try {
         const conversation = await prisma.conversation.findUnique({
@@ -148,8 +148,11 @@ export async function handleAiAgentResponse(
                 channel: true,
                 contact: true,
                 messages: {
-                    orderBy: { createdAt: 'asc' },
-                    take: 20,
+                    // Most recent messages, not the oldest — otherwise once a
+                    // conversation passes the limit the agent is frozen in the past
+                    // and keeps repeating itself. Reversed to chronological below.
+                    orderBy: { createdAt: 'desc' },
+                    take: 30,
                 },
             },
         });
@@ -196,6 +199,32 @@ export async function handleAiAgentResponse(
 
         console.log(`[AI Agent] ${aiAgent.name} | model: ${aiAgent.model}`);
 
+        // Message buffering (debounce): wait for the customer to finish a burst of
+        // rapid messages before replying, so the agent answers the full thought
+        // instead of firing one (often duplicate) reply per fragment.
+        const bufferSeconds = Math.min(30, Math.max(0, aiAgent.bufferSeconds ?? 0));
+        if (bufferSeconds > 0 && !opts?.skipBuffer) {
+            const triggerLatestId = conversation.messages.find(m => m.direction === 'INBOUND')?.id;
+            await new Promise(r => setTimeout(r, bufferSeconds * 1000));
+            const latestInbound = await prisma.message.findFirst({
+                where: { conversationId, direction: 'INBOUND' },
+                orderBy: { createdAt: 'desc' },
+                select: { id: true },
+            });
+            // A newer message arrived during the wait → let that message's run reply
+            // (it will do its own wait and pick up the full, latest context).
+            if (latestInbound && latestInbound.id !== triggerLatestId) {
+                return { handled: true };
+            }
+            // Reload history so the reply includes everything sent during the wait.
+            const refreshed = await prisma.message.findMany({
+                where: { conversationId },
+                orderBy: { createdAt: 'desc' },
+                take: 30,
+            });
+            conversation.messages = refreshed as typeof conversation.messages;
+        }
+
         // Check for transfer keywords
         const lowerMessage = inboundMessage.toLowerCase().trim();
         const shouldTransfer = aiAgent.transferKeywords.some(keyword =>
@@ -217,7 +246,8 @@ export async function handleAiAgentResponse(
         if (conversation.channel?.type === 'WHATSAPP') {
             const config = conversation.channel.configJson as { phoneNumberId?: string; accessToken?: string } | null;
             const waToken = readChannelSecret(config?.accessToken);
-            const lastInbound = [...conversation.messages].reverse().find(m => m.direction === 'INBOUND');
+            // messages are newest-first, so the first INBOUND is the most recent one
+            const lastInbound = conversation.messages.find(m => m.direction === 'INBOUND');
             if (config?.phoneNumberId && waToken && lastInbound?.providerMessageId) {
                 sendWhatsAppTypingIndicator(
                     config.phoneNumberId,
@@ -273,7 +303,9 @@ export async function handleAiAgentResponse(
             },
         ];
 
-        for (const msg of conversation.messages) {
+        // Messages were fetched newest-first; restore chronological order.
+        const history = [...conversation.messages].reverse();
+        for (const msg of history) {
             const role = msg.direction === 'INBOUND' ? 'user' : 'assistant';
 
             // For inbound media messages, replace content with a placeholder so the
@@ -606,9 +638,7 @@ async function handleSaveDocument(
 ): Promise<string> {
     try {
         // Find the last inbound message with media
-        const lastMediaMessage = [...conversationMessages]
-            .reverse()
-            .find(m => m.direction === 'INBOUND' && m.mediaUrl);
+        const lastMediaMessage = findLatestInboundMedia(conversationMessages, () => true);
 
         if (!lastMediaMessage?.mediaUrl) {
             return JSON.stringify({
@@ -644,7 +674,14 @@ async function handleSaveDocument(
     }
 }
 
-type MediaMessage = { direction: string; mediaUrl: string | null; mediaType: string | null; mimeType: string | null; fileName: string | null };
+type MediaMessage = { direction: string; mediaUrl: string | null; mediaType: string | null; mimeType: string | null; fileName: string | null; createdAt: Date };
+
+// Newest inbound media message, independent of the input array's order.
+function findLatestInboundMedia(messages: MediaMessage[], predicate: (m: MediaMessage) => boolean): MediaMessage | undefined {
+    return [...messages]
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .find(m => m.direction === 'INBOUND' && !!m.mediaUrl && predicate(m));
+}
 
 async function handleAnalyzeFile(
     args: { field_name: string; instruction: string },
@@ -661,9 +698,7 @@ async function handleAnalyzeFile(
             (m.mimeType || '').includes('pdf') ||
             (m.fileName || '').toLowerCase().endsWith('.pdf');
 
-        const lastMediaMessage = [...conversationMessages]
-            .reverse()
-            .find(m => m.direction === 'INBOUND' && m.mediaUrl && isAnalyzable(m));
+        const lastMediaMessage = findLatestInboundMedia(conversationMessages, isAnalyzable);
 
         if (!lastMediaMessage?.mediaUrl) {
             const allMedia = conversationMessages

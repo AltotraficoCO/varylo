@@ -137,7 +137,7 @@ export async function POST(
     // ignoreActiveCheck lets the user test agents that aren't activated yet.
     let result;
     try {
-        result = await handleAiAgentResponse(conversationId, content, { ignoreActiveCheck: true });
+        result = await handleAiAgentResponse(conversationId, content, { ignoreActiveCheck: true, skipBuffer: true });
     } catch (err) {
         console.error('[Playground] Engine error:', err);
         return NextResponse.json(

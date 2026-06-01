@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "AiAgent" ADD COLUMN "bufferSeconds" INTEGER NOT NULL DEFAULT 0;
