@@ -89,6 +89,71 @@ export async function toggleConversationAgent(conversationId: string, agentId: s
     revalidatePath('/[lang]/agent', 'page');
 }
 
+/**
+ * Hand the conversation back to the AI: re-assign an active AI agent, drop any
+ * human takeover, and trigger an immediate reply to the last customer message.
+ * Useful when the AI went quiet (e.g. a human jumped in, or an error/timeout).
+ */
+export async function resumeAiAgent(conversationId: string) {
+    const session = await auth();
+    if (!session?.user?.companyId) {
+        throw new Error("Unauthorized");
+    }
+
+    const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId, companyId: session.user.companyId },
+        select: { id: true, channelId: true, handledByAiAgentId: true },
+    });
+    if (!conversation) {
+        return { success: false, message: "Conversation not found" };
+    }
+
+    // Prefer the agent already tied to the conversation; otherwise pick an active
+    // AI agent assigned to this channel.
+    let aiAgentId = conversation.handledByAiAgentId;
+    if (!aiAgentId) {
+        const aiAgent = await prisma.aiAgent.findFirst({
+            where: {
+                companyId: session.user.companyId,
+                active: true,
+                channels: { some: { id: conversation.channelId } },
+            },
+            select: { id: true },
+        });
+        if (!aiAgent) {
+            return { success: false, message: "No hay un agente IA activo asignado a este canal." };
+        }
+        aiAgentId = aiAgent.id;
+    }
+
+    await prisma.conversation.update({
+        where: { id: conversationId, companyId: session.user.companyId },
+        data: {
+            handledByAiAgentId: aiAgentId,
+            assignedAgents: { set: [] },
+            status: 'OPEN',
+        },
+    });
+
+    // Trigger an immediate reply to the latest inbound message (no buffer wait).
+    try {
+        const lastInbound = await prisma.message.findFirst({
+            where: { conversationId, direction: 'INBOUND' },
+            orderBy: { createdAt: 'desc' },
+            select: { content: true },
+        });
+        const { handleAiAgentResponse } = await import('@/jobs/ai-agent');
+        await handleAiAgentResponse(conversationId, lastInbound?.content || '', { skipBuffer: true });
+    } catch (e) {
+        console.error('[resumeAiAgent] reply failed:', e);
+        // Reassignment still succeeded — the AI will answer the next message.
+    }
+
+    revalidatePath('/[lang]/company/conversations', 'page');
+    revalidatePath('/[lang]/agent', 'page');
+    return { success: true };
+}
+
 export async function updatePriority(conversationId: string, priority: 'LOW' | 'MEDIUM' | 'HIGH') {
     const session = await auth();
     if (!session?.user?.companyId) {
