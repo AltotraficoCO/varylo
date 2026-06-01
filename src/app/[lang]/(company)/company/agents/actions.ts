@@ -9,6 +9,11 @@ import bcrypt from 'bcryptjs';
 const ASSIGNABLE_ROLES = [Role.AGENT, Role.SUPERVISOR] as const;
 type AssignableRole = typeof ASSIGNABLE_ROLES[number];
 
+// Roles an admin can switch an existing member between (includes promoting to /
+// demoting from COMPANY_ADMIN). Creation still uses ASSIGNABLE_ROLES only.
+const MANAGEABLE_ROLES = [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] as const;
+type ManageableRole = typeof MANAGEABLE_ROLES[number];
+
 function parseRole(value: FormDataEntryValue | null): AssignableRole {
     if (value === Role.SUPERVISOR) return Role.SUPERVISOR;
     return Role.AGENT;
@@ -96,7 +101,7 @@ export async function updateAgent(prevState: string | undefined, formData: FormD
     }
 }
 
-export async function setUserRole(id: string, role: AssignableRole) {
+export async function setUserRole(id: string, role: ManageableRole) {
     const session = await auth();
     if (!session?.user?.companyId) {
         throw new Error('Unauthorized');
@@ -107,7 +112,7 @@ export async function setUserRole(id: string, role: AssignableRole) {
     if (id === session.user.id) {
         throw new Error('Cannot change your own role');
     }
-    if (!ASSIGNABLE_ROLES.includes(role)) {
+    if (!MANAGEABLE_ROLES.includes(role)) {
         throw new Error('Invalid role');
     }
 
@@ -115,7 +120,7 @@ export async function setUserRole(id: string, role: AssignableRole) {
         where: {
             id,
             companyId: session.user.companyId,
-            role: { in: [...ASSIGNABLE_ROLES] },
+            role: { in: [...MANAGEABLE_ROLES] },
         },
         data: { role },
     });

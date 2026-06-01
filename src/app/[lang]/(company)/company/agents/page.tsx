@@ -102,7 +102,7 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
                                             </div>
                                             <div className="flex-1 min-w-[160px] text-sm text-[#3F3F46] truncate">{agent.email}</div>
                                             <div className="w-[100px]">
-                                                {isAdmin && (agent.role === Role.AGENT || agent.role === Role.SUPERVISOR) ? (
+                                                {isAdmin ? (
                                                     <RoleToggle userId={agent.id} currentRole={agent.role} />
                                                 ) : (
                                                     <span className={`inline-block rounded-xl px-2.5 py-1 text-xs font-medium ${roleBadgeClass[agent.role] || roleBadgeClass.AGENT}`}>

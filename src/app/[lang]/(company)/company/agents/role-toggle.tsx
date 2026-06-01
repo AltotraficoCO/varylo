@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 
 interface RoleToggleProps {
     userId: string;
-    currentRole: 'AGENT' | 'SUPERVISOR';
+    currentRole: Role;
 }
 
 export function RoleToggle({ userId, currentRole }: RoleToggleProps) {
@@ -15,7 +15,10 @@ export function RoleToggle({ userId, currentRole }: RoleToggleProps) {
     const [error, setError] = useState<string | null>(null);
 
     function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
-        const next = e.target.value === Role.SUPERVISOR ? Role.SUPERVISOR : Role.AGENT;
+        const value = e.target.value;
+        const next = value === Role.COMPANY_ADMIN ? Role.COMPANY_ADMIN
+            : value === Role.SUPERVISOR ? Role.SUPERVISOR
+            : Role.AGENT;
         if (next === currentRole) return;
         setError(null);
         startTransition(async () => {
@@ -27,9 +30,9 @@ export function RoleToggle({ userId, currentRole }: RoleToggleProps) {
         });
     }
 
-    const baseClass = currentRole === 'SUPERVISOR'
-        ? 'bg-[#F5F3FF] text-[#8B5CF6] border-[#DDD6FE]'
-        : 'bg-[#EFF6FF] text-[#3B82F6] border-[#BFDBFE]';
+    const baseClass = currentRole === 'AGENT'
+        ? 'bg-[#EFF6FF] text-[#3B82F6] border-[#BFDBFE]'
+        : 'bg-[#F5F3FF] text-[#8B5CF6] border-[#DDD6FE]';
 
     return (
         <div className="flex items-center gap-2">
@@ -41,6 +44,7 @@ export function RoleToggle({ userId, currentRole }: RoleToggleProps) {
             >
                 <option value="AGENT">Agente</option>
                 <option value="SUPERVISOR">Supervisor</option>
+                <option value="COMPANY_ADMIN">Admin</option>
             </select>
             {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#71717A]" />}
             {error && <span className="text-xs text-destructive" title={error}>!</span>}
