@@ -49,7 +49,7 @@ export default async function CompanyDashboard({
         prisma.conversation.count({ where: { companyId, isTest: false, status: 'OPEN' } }),
         prisma.conversation.count({ where: { companyId, isTest: false, status: 'OPEN', assignedAgents: { none: {} } } }),
         prisma.user.count({ where: { companyId, role: Role.AGENT, status: 'ONLINE' } }),
-        prisma.user.count({ where: { companyId, role: { in: [Role.AGENT, Role.COMPANY_ADMIN] } } }),
+        prisma.user.count({ where: { companyId, role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] } } }),
         prisma.conversation.findMany({
             where: { companyId, isTest: false },
             orderBy: { updatedAt: 'desc' },

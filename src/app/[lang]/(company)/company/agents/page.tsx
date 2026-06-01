@@ -23,7 +23,7 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
     const agents = await prisma.user.findMany({
         where: {
             companyId: session.user.companyId,
-            role: { in: [Role.AGENT, Role.SUPERVISOR] },
+            role: { in: [Role.AGENT, Role.SUPERVISOR, Role.COMPANY_ADMIN] },
             NOT: { id: session.user.id }
         },
         include: {
@@ -121,11 +121,15 @@ export default async function AgentsPage({ params }: { params: Promise<{ lang: s
                                             </div>
                                             {isAdmin && (
                                                 <div className="w-[160px] flex items-center justify-end gap-3">
-                                                    <label className="flex items-center gap-1.5 text-[12px] text-[#71717A]">
-                                                        <AgentStatusToggle id={agent.id} initialStatus={agent.active} />
-                                                        <span>{agent.active ? 'Activo' : 'Inactivo'}</span>
-                                                    </label>
-                                                    <DeleteAgentDialog agentId={agent.id} agentName={agent.name} />
+                                                    {agent.role !== Role.COMPANY_ADMIN && (
+                                                        <>
+                                                            <label className="flex items-center gap-1.5 text-[12px] text-[#71717A]">
+                                                                <AgentStatusToggle id={agent.id} initialStatus={agent.active} />
+                                                                <span>{agent.active ? 'Activo' : 'Inactivo'}</span>
+                                                            </label>
+                                                            <DeleteAgentDialog agentId={agent.id} agentName={agent.name} />
+                                                        </>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
