@@ -23,6 +23,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useDictionary } from '@/lib/i18n-context';
+import { toast } from 'sonner';
 
 interface ConversationRightSidebarProps {
     conversation: any;
@@ -116,13 +117,14 @@ export function ConversationRightSidebar({ conversation, companyTags, companyAge
         setResumingAi(true);
         try {
             const result = await resumeAiAgent(conversation.id);
-            if (result?.success) {
-                router.refresh();
+            router.refresh();
+            if (result?.replied) {
+                toast.success(t.resumeAiSuccess || 'La IA retomó la conversación.');
             } else {
-                alert(result?.message || t.resumeAiError || 'No se pudo retomar con la IA.');
+                toast.info(result?.message || 'La IA quedó activa en la conversación.');
             }
         } catch (e) {
-            alert(t.resumeAiError || 'No se pudo retomar con la IA.');
+            toast.error(t.resumeAiError || 'No se pudo retomar con la IA.');
         } finally {
             setResumingAi(false);
         }

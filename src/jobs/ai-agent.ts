@@ -135,7 +135,7 @@ function legacyToNormalizedTool(t: LegacyFunctionTool): NormalizedTool {
 export async function handleAiAgentResponse(
     conversationId: string,
     inboundMessage: string,
-    opts?: { ignoreActiveCheck?: boolean; skipBuffer?: boolean },
+    opts?: { ignoreActiveCheck?: boolean; skipBuffer?: boolean; regenerateLast?: boolean },
 ): Promise<AiAgentResult> {
     try {
         const conversation = await prisma.conversation.findUnique({
@@ -305,6 +305,14 @@ export async function handleAiAgentResponse(
 
         // Messages were fetched newest-first; restore chronological order.
         const history = [...conversation.messages].reverse();
+        // Manual "resume": drop trailing agent messages so the context ends on the
+        // customer's last message and the model produces a fresh reply to it
+        // (instead of seeing its own last turn and having nothing to answer).
+        if (opts?.regenerateLast && history.some(m => m.direction === 'INBOUND')) {
+            while (history.length && history[history.length - 1].direction !== 'INBOUND') {
+                history.pop();
+            }
+        }
         for (const msg of history) {
             const role = msg.direction === 'INBOUND' ? 'user' : 'assistant';
 

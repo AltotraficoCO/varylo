@@ -135,23 +135,41 @@ export async function resumeAiAgent(conversationId: string) {
         },
     });
 
-    // Trigger an immediate reply to the latest inbound message (no buffer wait).
+    // Trigger an immediate reply to the latest customer message (no buffer wait).
+    const lastInbound = await prisma.message.findFirst({
+        where: { conversationId, direction: 'INBOUND' },
+        orderBy: { createdAt: 'desc' },
+        select: { content: true },
+    });
+    if (!lastInbound) {
+        revalidatePath('/[lang]/company/conversations', 'page');
+        revalidatePath('/[lang]/agent', 'page');
+        return { success: true, replied: false, message: 'La IA quedó activa. Aún no hay ningún mensaje del cliente que responder.' };
+    }
+
+    let replied = false;
+    let errorCode: string | undefined;
     try {
-        const lastInbound = await prisma.message.findFirst({
-            where: { conversationId, direction: 'INBOUND' },
-            orderBy: { createdAt: 'desc' },
-            select: { content: true },
-        });
         const { handleAiAgentResponse } = await import('@/jobs/ai-agent');
-        await handleAiAgentResponse(conversationId, lastInbound?.content || '', { skipBuffer: true });
+        const result = await handleAiAgentResponse(conversationId, lastInbound.content || '', { skipBuffer: true, regenerateLast: true });
+        replied = result.handled && !result.transferredToHuman;
+        errorCode = result.error;
     } catch (e) {
         console.error('[resumeAiAgent] reply failed:', e);
-        // Reassignment still succeeded — the AI will answer the next message.
+        errorCode = 'engine_error';
     }
 
     revalidatePath('/[lang]/company/conversations', 'page');
     revalidatePath('/[lang]/agent', 'page');
-    return { success: true };
+
+    if (replied) return { success: true, replied: true };
+    return {
+        success: true,
+        replied: false,
+        message: errorCode
+            ? `La IA quedó activa pero no generó respuesta (${errorCode}). Responderá al próximo mensaje del cliente.`
+            : 'La IA quedó activa. Responderá al próximo mensaje del cliente.',
+    };
 }
 
 export async function updatePriority(conversationId: string, priority: 'LOW' | 'MEDIUM' | 'HIGH') {
