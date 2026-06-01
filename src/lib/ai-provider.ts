@@ -1,8 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { getOpenAIForCompany } from '@/lib/openai';
 import { prisma } from '@/lib/prisma';
 import { decryptMaybe } from '@/lib/encryption';
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
+
+export const DEEPSEEK_BASE_URL = 'https://api.deepseek.com';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -36,7 +39,7 @@ export type NormalizedCompletion = {
     usesOwnKey: boolean;
 };
 
-export type AIProvider = 'openai' | 'anthropic' | 'google';
+export type AIProvider = 'openai' | 'anthropic' | 'google' | 'deepseek';
 
 // ── Provider detection ───────────────────────────────────────────────
 
@@ -56,6 +59,7 @@ export function detectProvider(model: string): AIProvider {
     const resolved = resolveModel(model);
     if (resolved.startsWith('claude-')) return 'anthropic';
     if (resolved.startsWith('gemini-')) return 'google';
+    if (resolved.startsWith('deepseek-')) return 'deepseek';
     return 'openai';
 }
 
@@ -66,6 +70,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const globalForAI = globalThis as unknown as {
     anthropicClients: Map<string, { client: Anthropic; cachedAt: number }> | undefined;
     geminiKeys: Map<string, { key: string; cachedAt: number }> | undefined;
+    deepseekClients: Map<string, { client: OpenAI; cachedAt: number }> | undefined;
 };
 
 export async function getAnthropicForCompany(companyId: string): Promise<{ client: Anthropic; usesOwnKey: boolean }> {
@@ -118,6 +123,33 @@ export async function getGeminiKeyForCompany(companyId: string): Promise<{ key: 
     }
 
     return { key: process.env.GEMINI_API_KEY || '', usesOwnKey: false };
+}
+
+export async function getDeepSeekForCompany(companyId: string): Promise<{ client: OpenAI; usesOwnKey: boolean }> {
+    if (!globalForAI.deepseekClients) globalForAI.deepseekClients = new Map();
+    const cached = globalForAI.deepseekClients.get(companyId);
+    if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+        return { client: cached.client, usesOwnKey: true };
+    }
+
+    const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { deepseekApiKey: true },
+    });
+
+    if (company?.deepseekApiKey) {
+        try {
+            const decryptedKey = decryptMaybe(company.deepseekApiKey);
+            const client = new OpenAI({ apiKey: decryptedKey, baseURL: DEEPSEEK_BASE_URL });
+            globalForAI.deepseekClients.set(companyId, { client, cachedAt: Date.now() });
+            return { client, usesOwnKey: true };
+        } catch {
+            console.error(`[DeepSeek] Failed to decrypt key for company ${companyId}, using global key`);
+        }
+    }
+
+    const client = new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY, baseURL: DEEPSEEK_BASE_URL });
+    return { client, usesOwnKey: false };
 }
 
 // ── OpenAI converters ────────────────────────────────────────────────
@@ -433,6 +465,43 @@ export async function callAIProvider(params: {
                 promptTokens,
                 completionTokens,
                 totalTokens: data.usageMetadata?.totalTokenCount || promptTokens + completionTokens,
+            },
+            finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
+            usesOwnKey,
+        };
+    }
+
+    // ── DeepSeek (OpenAI-compatible) ─────────────────────────────────
+    if (provider === 'deepseek') {
+        const { client, usesOwnKey } = await getDeepSeekForCompany(params.companyId);
+        const openaiMessages = toOpenAIMessages(params.messages);
+        const openaiTools = params.tools.length > 0 ? toOpenAITools(params.tools) : undefined;
+
+        const response = await client.chat.completions.create({
+            model,
+            temperature: params.temperature,
+            messages: openaiMessages,
+            ...(openaiTools ? { tools: openaiTools } : {}),
+        });
+
+        const choice = response.choices[0];
+        const msg = choice?.message;
+        type FnToolCall = { id: string; function: { name: string; arguments: string } };
+        const toolCalls: NormalizedToolCall[] = (msg?.tool_calls || [])
+            .filter((tc): tc is FnToolCall & typeof tc => 'function' in tc)
+            .map(tc => ({
+                id: tc.id,
+                name: (tc as FnToolCall).function.name,
+                arguments: JSON.parse((tc as FnToolCall).function.arguments) as Record<string, unknown>,
+            }));
+
+        return {
+            content: msg?.content || null,
+            toolCalls,
+            usage: {
+                promptTokens: response.usage?.prompt_tokens || 0,
+                completionTokens: response.usage?.completion_tokens || 0,
+                totalTokens: response.usage?.total_tokens || 0,
             },
             finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
             usesOwnKey,

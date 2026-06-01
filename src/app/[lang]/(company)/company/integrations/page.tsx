@@ -20,6 +20,8 @@ export default async function IntegrationsPage() {
                 anthropicApiKeyUpdatedAt: true,
                 geminiApiKey: true,
                 geminiApiKeyUpdatedAt: true,
+                deepseekApiKey: true,
+                deepseekApiKeyUpdatedAt: true,
                 googleCalendarRefreshToken: true,
                 googleCalendarEmail: true,
                 googleCalendarConnectedAt: true,
@@ -45,6 +47,10 @@ export default async function IntegrationsPage() {
             gemini={{
                 hasApiKey: !!company?.geminiApiKey,
                 updatedAt: company?.geminiApiKeyUpdatedAt?.toISOString() || null,
+            }}
+            deepseek={{
+                hasApiKey: !!company?.deepseekApiKey,
+                updatedAt: company?.deepseekApiKeyUpdatedAt?.toISOString() || null,
             }}
             googleCalendar={{
                 isConnected: !!company?.googleCalendarRefreshToken,

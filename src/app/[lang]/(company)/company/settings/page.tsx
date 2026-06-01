@@ -64,6 +64,8 @@ export default async function SettingsPage(props: {
                 anthropicApiKeyUpdatedAt: true,
                 geminiApiKey: true,
                 geminiApiKeyUpdatedAt: true,
+                deepseekApiKey: true,
+                deepseekApiKeyUpdatedAt: true,
                 creditBalance: true,
                 googleCalendarEmail: true,
                 googleCalendarConnectedAt: true,
@@ -110,6 +112,8 @@ export default async function SettingsPage(props: {
     const anthropicKeyUpdatedAt = company?.anthropicApiKeyUpdatedAt?.toISOString() || null;
     const hasGeminiKey = !!company?.geminiApiKey;
     const geminiKeyUpdatedAt = company?.geminiApiKeyUpdatedAt?.toISOString() || null;
+    const hasDeepSeekKey = !!company?.deepseekApiKey;
+    const deepseekKeyUpdatedAt = company?.deepseekApiKeyUpdatedAt?.toISOString() || null;
     const creditBalance = company?.creditBalance || 0;
     const userEmail = session?.user?.email || '';
     const hasGoogleCalendar = !!company?.googleCalendarRefreshToken;
@@ -259,6 +263,10 @@ export default async function SettingsPage(props: {
                             gemini={{
                                 hasApiKey: hasGeminiKey,
                                 updatedAt: geminiKeyUpdatedAt,
+                            }}
+                            deepseek={{
+                                hasApiKey: hasDeepSeekKey,
+                                updatedAt: deepseekKeyUpdatedAt,
                             }}
                             googleCalendar={{
                                 isConnected: hasGoogleCalendar,

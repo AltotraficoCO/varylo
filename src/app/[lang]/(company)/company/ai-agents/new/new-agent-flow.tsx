@@ -351,6 +351,10 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                         <option value="gemini-2.0-flash">Gemini 2.0 Flash — Anterior</option>
                                         <option value="gemini-1.5-pro">Gemini 1.5 Pro — Anterior</option>
                                     </optgroup>
+                                    <optgroup label="DeepSeek">
+                                        <option value="deepseek-chat">DeepSeek Chat — Rápido y económico</option>
+                                        <option value="deepseek-reasoner">DeepSeek Reasoner — Razonamiento avanzado</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div className="space-y-1.5">

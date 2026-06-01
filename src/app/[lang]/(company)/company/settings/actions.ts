@@ -713,6 +713,57 @@ export async function removeGeminiKey() {
     }
 }
 
+// DEEPSEEK API KEY ACTIONS
+
+export async function saveDeepSeekKey(prevState: string | undefined, formData: FormData) {
+    const session = await auth();
+    if (!session?.user?.companyId) return 'Error: No authorized session found.';
+
+    const apiKey = formData.get('deepseekApiKey') as string;
+    if (!apiKey || !apiKey.startsWith('sk-')) {
+        return 'Error: La API Key de DeepSeek debe comenzar con "sk-".';
+    }
+
+    try {
+        // Validate key against the DeepSeek API (OpenAI-compatible)
+        const testClient = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com' });
+        await testClient.models.list();
+    } catch {
+        return 'Error: La API Key no es válida. Verifica que sea correcta.';
+    }
+
+    try {
+        const { encrypt } = await import('@/lib/encryption');
+        const encryptedKey = encrypt(apiKey);
+        await prisma.company.update({
+            where: { id: session.user.companyId },
+            data: { deepseekApiKey: encryptedKey, deepseekApiKeyUpdatedAt: new Date() },
+        });
+        revalidatePath('/[lang]/company/settings', 'page');
+        return 'Success: API Key de DeepSeek guardada correctamente.';
+    } catch (error) {
+        console.error('Failed to save DeepSeek key:', error);
+        return 'Error: No se pudo guardar la API Key.';
+    }
+}
+
+export async function removeDeepSeekKey() {
+    const session = await auth();
+    if (!session?.user?.companyId) return { success: false, message: 'No authorized session.' };
+
+    try {
+        await prisma.company.update({
+            where: { id: session.user.companyId },
+            data: { deepseekApiKey: null, deepseekApiKeyUpdatedAt: null },
+        });
+        revalidatePath('/[lang]/company/settings', 'page');
+        return { success: true, message: 'API Key eliminada.' };
+    } catch (error) {
+        console.error('Failed to remove DeepSeek key:', error);
+        return { success: false, message: 'Failed to remove key.' };
+    }
+}
+
 // WEB CHAT ACTIONS
 
 export async function activateWebChat() {

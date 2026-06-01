@@ -33,6 +33,9 @@ export const MODEL_PRICING: Record<string, { input: number; output: number }> = 
     'gemini-2.0-flash-lite': { input: 630, output: 2520 },
     'gemini-1.5-pro': { input: 25200, output: 75600 },
     'gemini-1.5-flash': { input: 1260, output: 5040 },
+    // DeepSeek (2026)
+    'deepseek-chat': { input: 2310, output: 9240 },
+    'deepseek-reasoner': { input: 4620, output: 18480 },
 };
 
 const DEFAULT_PRICING = MODEL_PRICING['gpt-4o-mini'];
@@ -50,7 +53,7 @@ export function calculateCreditCost(
 
 export async function checkCreditBalance(
     companyId: string,
-    provider: 'openai' | 'anthropic' | 'google' = 'openai',
+    provider: 'openai' | 'anthropic' | 'google' | 'deepseek' = 'openai',
 ): Promise<{
     hasCredits: boolean;
     usesOwnKey: boolean;
@@ -63,6 +66,7 @@ export async function checkCreditBalance(
             openaiApiKey: true,
             anthropicApiKey: true,
             geminiApiKey: true,
+            deepseekApiKey: true,
         },
     });
 
@@ -74,6 +78,7 @@ export async function checkCreditBalance(
     if (provider === 'openai') usesOwnKey = !!company.openaiApiKey;
     else if (provider === 'anthropic') usesOwnKey = !!company.anthropicApiKey;
     else if (provider === 'google') usesOwnKey = !!company.geminiApiKey;
+    else if (provider === 'deepseek') usesOwnKey = !!company.deepseekApiKey;
 
     return {
         hasCredits: usesOwnKey || company.creditBalance > 0,

@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { OpenAIKeyForm } from '../settings/openai-form';
 import { AnthropicKeyForm } from '../settings/anthropic-form';
 import { GeminiKeyForm } from '../settings/gemini-form';
+import { DeepSeekKeyForm } from '../settings/deepseek-form';
 import { GoogleCalendarForm } from '../settings/google-calendar-form';
 import { EcommerceForm } from '../settings/ecommerce-form';
 import { disconnectEcommerceById, createWebhookIntegration, deleteWebhookIntegration, testWebhookIntegration } from './actions';
@@ -52,6 +53,10 @@ type IntegrationsClientProps = {
         hasApiKey: boolean;
         updatedAt: string | null;
     };
+    deepseek: {
+        hasApiKey: boolean;
+        updatedAt: string | null;
+    };
     googleCalendar: {
         isConnected: boolean;
         email: string | null;
@@ -61,7 +66,7 @@ type IntegrationsClientProps = {
     n8nIntegrations: N8nIntegration[];
 };
 
-export function IntegrationsClient({ openai, anthropic, gemini, googleCalendar, ecommerceStores, n8nIntegrations }: IntegrationsClientProps) {
+export function IntegrationsClient({ openai, anthropic, gemini, deepseek, googleCalendar, ecommerceStores, n8nIntegrations }: IntegrationsClientProps) {
     const [activeView, setActiveView] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const router = useRouter();
@@ -198,6 +203,17 @@ export function IntegrationsClient({ openai, anthropic, gemini, googleCalendar, 
                     <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
                 </Button>
                 <GeminiKeyForm hasApiKey={gemini.hasApiKey} updatedAt={gemini.updatedAt} />
+            </div>
+        );
+    }
+
+    if (activeView === 'deepseek') {
+        return (
+            <div className="space-y-4">
+                <Button variant="ghost" size="sm" onClick={() => setActiveView(null)} className="gap-2 -ml-2 text-muted-foreground hover:text-foreground">
+                    <ArrowLeft className="h-4 w-4" /> {t.backToIntegrations || 'Volver a integraciones'}
+                </Button>
+                <DeepSeekKeyForm hasApiKey={deepseek.hasApiKey} updatedAt={deepseek.updatedAt} />
             </div>
         );
     }
@@ -455,6 +471,30 @@ export function IntegrationsClient({ openai, anthropic, gemini, googleCalendar, 
                     <Button variant="outline" size="sm" onClick={() => setActiveView('gemini')} className="shrink-0">
                         <Settings2 className="h-3.5 w-3.5 mr-1.5" />
                         {gemini.hasApiKey ? 'Gestionar' : 'Conectar'}
+                    </Button>
+                </div>
+
+                {/* DeepSeek */}
+                <div className="flex items-center gap-4 px-5 py-4">
+                    <div className="h-11 w-11 rounded-lg bg-[#EEF4FF] flex items-center justify-center shrink-0 overflow-hidden">
+                        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="#4D6BFE">
+                            <path d="M23.748 4.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.546-.352-.156-.708-.311-.954-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434 1.202-.422 1.84.027 1.436.633 2.58 1.838 3.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526 5.526 0 0 1-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365 11.365 0 0 0-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055 3.055 0 0 1-.465.137 9.597 9.597 0 0 0-2.883-.102c-1.885.21-3.39 1.102-4.497 2.623C.082 8.606-.231 10.684.152 12.85c.403 2.284 1.569 4.175 3.36 5.653 1.858 1.533 3.997 2.284 6.438 2.14 1.482-.085 3.133-.284 4.994-1.86.47.234.962.327 1.78.397.63.059 1.236-.03 1.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926 1.096-1.296 2.746-2.642 3.392-7.003.05-.347.007-.565 0-.845-.004-.17.035-.237.23-.256a4.173 4.173 0 0 0 1.545-.475c1.396-.763 1.96-2.015 2.093-3.517.02-.23-.004-.467-.247-.588zM11.581 18c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696 4.696 0 0 1 1.529-.039c2.132.312 3.946 1.265 5.468 2.774.868.86 1.525 1.887 2.202 2.891.72 1.066 1.494 2.082 2.48 2.914.348.292.625.514.891.677-.802.09-2.14.11-3.221-.71zm1-6.469a.305.305 0 0 1 .312-.215c.078.008.171.04.222.118.121.187.176.392.207.612-.005.265-.058.42-.137.547a.51.51 0 0 1-.696.155.704.704 0 0 1-.382-.616c0-.187-.005-.32.078-.42.027-.039.039-.055.066-.078zm-2.74 6.687c-.097-.077-.118-.226-.072-.296.063-.094.16-.066.156-.066.31 0 .617.05.913.156.215.078.42.187.59.378.094.094.118.296.05.39-.063.078-.15.094-.236.094-.516-.062-1.04-.234-1.401-.55z"/>
+                        </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[15px] font-medium text-[#09090B]">DeepSeek</span>
+                            {deepseek.hasApiKey && (
+                                <Badge variant="default" className="text-[11px] px-2 py-0">Conectado</Badge>
+                            )}
+                        </div>
+                        <p className="text-[13px] text-[#71717A] mt-0.5">
+                            Conecta tu API Key de DeepSeek para usar modelos DeepSeek Chat y Reasoner.
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setActiveView('deepseek')} className="shrink-0">
+                        <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                        {deepseek.hasApiKey ? 'Gestionar' : 'Conectar'}
                     </Button>
                 </div>
 

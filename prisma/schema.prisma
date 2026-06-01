@@ -151,6 +151,8 @@ model Company {
   anthropicApiKeyUpdatedAt DateTime?
   geminiApiKey          String?
   geminiApiKeyUpdatedAt DateTime?
+  deepseekApiKey          String?
+  deepseekApiKeyUpdatedAt DateTime?
   creditBalance         Int           @default(0)
 
   assignmentStrategy    AssignmentStrategy @default(LEAST_BUSY)
