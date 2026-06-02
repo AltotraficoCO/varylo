@@ -12,6 +12,7 @@ import { mapFieldToContact, validateCapturedValue, inferValidationType } from '@
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
 import { readChannelSecret } from '@/lib/channel-config';
+import { transcribeMessageSafe } from '@/lib/transcribe';
 
 interface AiAgentResult {
     handled: boolean;
@@ -323,6 +324,22 @@ export async function handleAiAgentResponse(
                 history.pop();
             }
         }
+
+        // Transcribe inbound voice notes so the agent can "hear" them. Whisper
+        // result is cached on the Message, so this is a no-op once transcribed
+        // (and the UI's on-demand button reuses the same cached text).
+        const untranscribedAudio = history.filter(
+            m => m.direction === 'INBOUND' && m.mediaType === 'audio' && m.mediaUrl && !m.transcription,
+        );
+        if (untranscribedAudio.length) {
+            await Promise.all(
+                untranscribedAudio.map(async msg => {
+                    const text = await transcribeMessageSafe(msg.id, conversation.companyId);
+                    if (text) msg.transcription = text;
+                }),
+            );
+        }
+
         for (const msg of history) {
             const role = msg.direction === 'INBOUND' ? 'user' : 'assistant';
 
@@ -336,6 +353,13 @@ export async function handleAiAgentResponse(
                     label = '[imagen recibida — usa analyze_file para leer su contenido]';
                 } else if (isPdfMsg) {
                     label = '[PDF recibido — usa analyze_file para leer su contenido]';
+                } else if (msg.mediaType === 'audio') {
+                    // Voice note: feed its transcription so the agent answers what was
+                    // actually said. The caption (msg.content) is just "[audio]".
+                    const transcript = (msg.transcription || '').trim();
+                    label = transcript
+                        ? `[Nota de voz del cliente, transcrita] ${transcript}`
+                        : '[nota de voz recibida — no se pudo transcribir; pide al cliente que la escriba o la repita]';
                 } else {
                     label = `[archivo recibido: ${msg.mediaType || 'documento'} — usa save_document para guardarlo]`;
                 }
