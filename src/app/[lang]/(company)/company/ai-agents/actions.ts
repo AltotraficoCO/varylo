@@ -6,6 +6,7 @@ import { AI_AGENT_TYPES } from '@/lib/ai-agent-types';
 import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 import { validateExternalWebhookUrl } from '@/lib/url-validator';
+import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 
 type WebhookParseResult =
     | { ok: true; value: Prisma.InputJsonValue | null }
@@ -257,4 +258,72 @@ export async function deleteAiAgent(id: string) {
         console.error('Failed to delete AI agent:', error);
         return 'Error: No se pudo eliminar el agente IA.';
     }
+}
+
+export interface TestWebhookResult {
+    ok: boolean;
+    status?: number;
+    error?: string;
+    hint?: string;
+    durationMs?: number;
+}
+
+/**
+ * Send a sample payload to a webhook URL so the user can verify the integration
+ * before relying on it in production. Single attempt (no retries) for fast feedback.
+ */
+export async function testWebhook(input: {
+    url: string;
+    secret?: string;
+    headers?: Record<string, string>;
+}): Promise<TestWebhookResult> {
+    const session = await auth();
+    if (!session?.user?.companyId) return { ok: false, error: 'No autorizado.' };
+
+    const url = (input.url || '').trim();
+    if (!url) return { ok: false, error: 'Ingresa una URL de webhook primero.' };
+
+    // n8n test URLs only work for a single call right after clicking "Execute workflow".
+    if (url.includes('/webhook-test/')) {
+        return {
+            ok: false,
+            error: 'La URL es de PRUEBA de n8n (/webhook-test/).',
+            hint: 'Esa URL solo funciona una vez tras pulsar "Execute workflow" en n8n. Activa el workflow y usa la URL de producción (/webhook/...).',
+        };
+    }
+
+    const validated = await validateExternalWebhookUrl(url);
+    if (!validated.ok) return { ok: false, error: validated.error };
+
+    const payload = buildWebhookPayload(
+        'test-conversation',
+        [
+            { fieldName: 'nombre', fieldValue: 'Prueba Varylo' },
+            { fieldName: 'telefono', fieldValue: '+573000000000' },
+            { fieldName: 'email', fieldValue: 'prueba@varylo.app' },
+        ],
+        [],
+        'ai_agent.test',
+    );
+
+    const startedAt = Date.now();
+    const result = await sendWebhook(
+        { url, secret: input.secret, headers: input.headers },
+        payload,
+        { retries: 0 },
+    );
+    const durationMs = Date.now() - startedAt;
+
+    let hint: string | undefined;
+    if (!result.ok) {
+        if (result.status === 404) {
+            hint = 'El endpoint respondió 404: la ruta no existe o el workflow no está activo en el sistema externo.';
+        } else if (result.status === 401 || result.status === 403) {
+            hint = 'El endpoint rechazó la petición (auth). Revisa el secret o las cabeceras requeridas.';
+        } else if (/abort|timeout/i.test(result.error || '')) {
+            hint = 'El endpoint no respondió a tiempo (15s). Verifica que el servidor esté en línea.';
+        }
+    }
+
+    return { ok: result.ok, status: result.status, error: result.error, hint, durationMs };
 }

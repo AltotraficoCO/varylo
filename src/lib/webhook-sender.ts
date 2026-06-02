@@ -33,7 +33,9 @@ function signPayload(body: string, secret: string): string {
 export async function sendWebhook(
     config: WebhookConfig,
     payload: WebhookPayload,
+    opts?: { retries?: number },
 ): Promise<{ ok: boolean; status?: number; error?: string }> {
+    const maxRetries = opts?.retries ?? MAX_RETRIES;
     const validated = await validateExternalWebhookUrl(config.url);
     if (!validated.ok) {
         console.error(`[Webhook] Rejected unsafe URL ${config.url}: ${validated.error}`);
@@ -53,7 +55,8 @@ export async function sendWebhook(
         headers['X-Varylo-Signature'] = `sha256=${signPayload(body, config.secret)}`;
     }
 
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    let lastServerStatus: number | undefined;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -80,23 +83,24 @@ export async function sendWebhook(
             }
 
             // 5xx — retry
-            console.warn(`[Webhook] Server error ${res.status} from ${config.url}, attempt ${attempt + 1}/${MAX_RETRIES + 1}`);
+            lastServerStatus = res.status;
+            console.warn(`[Webhook] Server error ${res.status} from ${config.url}, attempt ${attempt + 1}/${maxRetries + 1}`);
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Unknown error';
-            console.warn(`[Webhook] Request failed to ${config.url}, attempt ${attempt + 1}/${MAX_RETRIES + 1}: ${message}`);
+            console.warn(`[Webhook] Request failed to ${config.url}, attempt ${attempt + 1}/${maxRetries + 1}: ${message}`);
 
-            if (attempt === MAX_RETRIES) {
+            if (attempt === maxRetries) {
                 return { ok: false, error: message };
             }
         }
 
         // Wait before retrying
-        if (attempt < MAX_RETRIES) {
+        if (attempt < maxRetries) {
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS[attempt]));
         }
     }
 
-    return { ok: false, error: 'Max retries exceeded' };
+    return { ok: false, status: lastServerStatus, error: lastServerStatus ? `HTTP ${lastServerStatus}` : 'Max retries exceeded' };
 }
 
 /**

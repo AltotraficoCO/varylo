@@ -139,7 +139,7 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">API Key</Label>
+                        <Label className="text-xs text-muted-foreground">{t.publicKeyLabel || 'Clave pública del widget'}</Label>
                         <div className="flex gap-2">
                             <Input value={currentKey} readOnly className="font-mono text-xs bg-background" />
                             <Button
@@ -151,6 +151,9 @@ export function WebChatForm({ isActive, apiKey, channelId, automationPriority }:
                                 {copied === 'key' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                             </Button>
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                            {t.publicKeyNote || 'Es seguro incluir esta clave en el código de tu sitio web. Solo permite abrir chats y enviar mensajes de visitante, está limitada a los dominios que autorices y tiene límite de uso. No es una contraseña ni da acceso a tu cuenta.'}
+                        </p>
                     </div>
 
                     {channelId && (

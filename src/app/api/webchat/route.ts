@@ -12,15 +12,46 @@ const MAX_MESSAGE_LENGTH = 4096;
 const MAX_NAME_LENGTH = 100;
 const MAX_EMAIL_LENGTH = 254;
 
+/** Reduce a config entry or an Origin header to its bare host[:port], lowercased. */
+function normalizeOriginEntry(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, '') // drop scheme — the Origin header always has one, config entries may not
+        .replace(/\/+$/, '');        // drop trailing slash(es)
+}
+
+/**
+ * Match a browser Origin against a configured allow-list entry.
+ * Entries may include or omit the scheme, and may use a `*` wildcard for
+ * one subdomain label (e.g. "*.vercel.app" matches preview deployments).
+ */
+function originMatches(origin: string, entry: string): boolean {
+    const host = normalizeOriginEntry(origin);
+    const allowed = normalizeOriginEntry(entry);
+    if (!allowed) return false;
+    if (allowed.includes('*')) {
+        const pattern = '^' + allowed
+            .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // escape regex specials
+            .replace(/\*/g, '[^.]+') + '$';         // `*` matches a single subdomain label
+        return new RegExp(pattern).test(host);
+    }
+    return host === allowed;
+}
+
 function getCorsHeaders(req?: NextRequest): Record<string, string> {
-    const allowedOrigins = process.env.WEBCHAT_ALLOWED_ORIGINS?.split(',').map(o => o.trim());
+    const allowedOrigins = process.env.WEBCHAT_ALLOWED_ORIGINS
+        ?.split(',')
+        .map(o => o.trim())
+        .filter(Boolean);
     const origin = req?.headers.get('origin') || '';
 
-    // Strict CORS: require explicit allowed origins in production
+    // Strict CORS: require explicit allowed origins in production.
     const isDev = process.env.NODE_ENV === 'development';
     let allowedOrigin: string;
     if (allowedOrigins && allowedOrigins.length > 0) {
-        allowedOrigin = allowedOrigins.includes(origin) ? origin : 'null';
+        // Echo back the exact Origin when it matches (CORS requires the literal origin or `*`).
+        allowedOrigin = origin && allowedOrigins.some(entry => originMatches(origin, entry)) ? origin : 'null';
     } else if (isDev) {
         allowedOrigin = origin || '*';
     } else {
@@ -31,6 +62,7 @@ function getCorsHeaders(req?: NextRequest): Record<string, string> {
         'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, x-webchat-key',
+        'Vary': 'Origin',
         'Cache-Control': 'no-store, no-cache, must-revalidate',
         'X-Content-Type-Options': 'nosniff',
     };

@@ -10,10 +10,10 @@ import { Switch } from '@/components/ui/switch';
 import {
     ArrowLeft, Search, Sparkles, Loader2, ChevronRight,
     Brain, Calendar, ShoppingBag, Webhook, FileText, Zap,
-    Plus, X, GripVertical,
+    Plus, X, GripVertical, Send, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import { AGENT_TYPE_CONFIGS, AGENT_CATEGORIES, type AiAgentType } from '@/lib/ai-agent-types';
-import { createAiAgent } from '../actions';
+import { createAiAgent, testWebhook, type TestWebhookResult } from '../actions';
 import { useDictionary } from '@/lib/i18n-context';
 
 type Channel = { id: string; type: string };
@@ -64,7 +64,21 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
     const [woocommerceEnabled, setWoocommerceEnabled] = useState(false);
     const [webhookEnabled, setWebhookEnabled] = useState(false);
     const [webhookUrl, setWebhookUrl] = useState('');
+    const [webhookTesting, setWebhookTesting] = useState(false);
+    const [webhookTestResult, setWebhookTestResult] = useState<TestWebhookResult | null>(null);
     const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+
+    const handleTestWebhook = async () => {
+        setWebhookTesting(true);
+        setWebhookTestResult(null);
+        try {
+            setWebhookTestResult(await testWebhook({ url: webhookUrl }));
+        } catch {
+            setWebhookTestResult({ ok: false, error: 'Error inesperado al probar el webhook.' });
+        } finally {
+            setWebhookTesting(false);
+        }
+    };
 
     const [state, formAction, isPending] = useActionState(createAiAgent, undefined);
 
@@ -568,13 +582,36 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                 <Switch checked={webhookEnabled} onCheckedChange={setWebhookEnabled} />
                             </div>
                             {webhookEnabled && (
-                                <div className="ml-12 space-y-1.5">
-                                    <Input
-                                        value={webhookUrl}
-                                        onChange={e => setWebhookUrl(e.target.value)}
-                                        placeholder="https://tu-erp.com/api/webhook"
-                                        className="h-9 rounded-lg border-[#E4E4E7] text-[13px]"
-                                    />
+                                <div className="ml-12 space-y-2">
+                                    <div className="flex gap-2">
+                                        <Input
+                                            value={webhookUrl}
+                                            onChange={e => { setWebhookUrl(e.target.value); setWebhookTestResult(null); }}
+                                            placeholder="https://tu-erp.com/api/webhook"
+                                            className="h-9 rounded-lg border-[#E4E4E7] text-[13px]"
+                                        />
+                                        <Button type="button" variant="outline" onClick={handleTestWebhook} disabled={webhookTesting || !webhookUrl.trim()} className="h-9 shrink-0 gap-1.5 rounded-lg border-[#E4E4E7] text-[13px]">
+                                            {webhookTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                                            {t.testWebhook || 'Probar'}
+                                        </Button>
+                                    </div>
+                                    {webhookTestResult && (
+                                        <div className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-[12px] ${webhookTestResult.ok ? 'border-[#10B981]/30 bg-[#ECFDF5] text-[#047857]' : 'border-[#EF4444]/30 bg-[#FEF2F2] text-[#B91C1C]'}`}>
+                                            {webhookTestResult.ok
+                                                ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                                                : <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />}
+                                            <div className="space-y-0.5">
+                                                <p className="font-medium">
+                                                    {webhookTestResult.ok
+                                                        ? `${t.testWebhookOk || 'Webhook OK'}${webhookTestResult.status ? ` (HTTP ${webhookTestResult.status})` : ''}${webhookTestResult.durationMs != null ? ` · ${webhookTestResult.durationMs} ms` : ''}`
+                                                        : `${t.testWebhookFail || 'Falló la prueba'}${webhookTestResult.status ? ` (HTTP ${webhookTestResult.status})` : ''}`}
+                                                </p>
+                                                {!webhookTestResult.ok && webhookTestResult.error && <p className="opacity-90">{webhookTestResult.error}</p>}
+                                                {webhookTestResult.hint && <p className="opacity-90">{webhookTestResult.hint}</p>}
+                                                {webhookTestResult.ok && <p className="opacity-90">{t.testWebhookOkHint || 'Se envió un payload de prueba con datos de ejemplo.'}</p>}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
