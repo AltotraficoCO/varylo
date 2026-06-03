@@ -319,6 +319,9 @@ model Conversation {
   // Auto follow-up progress for this conversation: { step, anchor } where anchor
   // is the customer's lastInboundAt the steps are counted from.
   followupJson    Json?
+  // While smart capture is extracting, set to now+~15s so the UI shows the
+  // "Capturando datos" indicator (polled). Auto-expires.
+  smartCapturingUntil DateTime?
   lastMessageAt   DateTime           @default(now())
   lastInboundAt   DateTime?
   createdAt       DateTime           @default(now())

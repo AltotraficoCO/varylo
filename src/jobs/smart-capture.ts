@@ -56,6 +56,12 @@ export async function runSmartCapture(conversationId: string, text: string, medi
 
         const { companyId, contactId } = conversation;
 
+        // Signal the UI that capture is running (polled, auto-expires).
+        await prisma.conversation.update({
+            where: { id: conversationId },
+            data: { smartCapturingUntil: new Date(Date.now() + 15_000) },
+        }).catch(() => {});
+
         // 1) Open extraction from recent conversation text.
         const convoText = conversation.messages
             .slice()

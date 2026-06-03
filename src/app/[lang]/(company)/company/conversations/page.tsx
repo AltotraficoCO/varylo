@@ -19,6 +19,7 @@ import type { Locale } from '@/lib/dictionary';
 import { CollapsibleRightSidebar } from './collapsible-right-sidebar';
 import { ConversationsRealtimeWrapper } from './conversations-realtime-wrapper';
 import { WindowTimer } from './window-timer';
+import { CapturingBadge } from './capturing-badge';
 import { ConversationList } from './conversation-list';
 import { NewConversationButton } from './new-conversation-button';
 import { ReopenBanner } from './reopen-banner';
@@ -405,11 +406,12 @@ export default async function ConversationsPage({
                                     </div>
                                 </div>
                             </div>
-                            {selectedConversation.channel?.type !== ChannelType.WEB_CHAT && (
-                                <div className="shrink-0">
+                            <div className="flex items-center gap-3 shrink-0">
+                                <CapturingBadge conversationId={selectedConversation.id} />
+                                {selectedConversation.channel?.type !== ChannelType.WEB_CHAT && (
                                     <WindowTimer conversationId={selectedConversation.id} />
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
 
 
