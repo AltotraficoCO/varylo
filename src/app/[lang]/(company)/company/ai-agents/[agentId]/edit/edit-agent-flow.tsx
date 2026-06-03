@@ -9,13 +9,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
     ArrowLeft, Sparkles, Loader2, Calendar, ShoppingBag, Webhook, FileText,
-    Plus, X, GripVertical, Pencil, Send, CheckCircle2, AlertCircle, Megaphone,
+    Plus, X, GripVertical, Pencil, Send, CheckCircle2, AlertCircle, Megaphone, Clock,
 } from 'lucide-react';
 import { updateAiAgent, testWebhook, type TestWebhookResult } from '../../actions';
 import { useDictionary } from '@/lib/i18n-context';
 import { PlaygroundPanel } from './playground-panel';
 
 type Channel = { id: string; type: string; label?: string };
+type FollowupStep = { delayMinutes: number; text?: string; templateName?: string; templateLang?: string };
 
 const CHANNEL_LABELS: Record<string, string> = {
     WHATSAPP: 'WhatsApp', INSTAGRAM: 'Instagram', WEB_CHAT: 'Web Chat', MESSENGER: 'Messenger', TELEGRAM: 'Telegram',
@@ -39,6 +40,7 @@ interface EditAgentFlowProps {
         ecommerceEnabled: boolean;
         crmEnabled: boolean;
         handlesAdLeads: boolean;
+        followupJson: { enabled?: boolean; steps?: FollowupStep[] } | null;
         webhookConfigJson: { url?: string; secret?: string } | null;
         channelIds: string[];
     };
@@ -70,6 +72,8 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
     const [newFieldLabel, setNewFieldLabel] = useState('');
     const [calendarEnabled, setCalendarEnabled] = useState(agent.calendarEnabled);
     const [handlesAdLeads, setHandlesAdLeads] = useState(agent.handlesAdLeads);
+    const [followupEnabled, setFollowupEnabled] = useState(!!agent.followupJson?.enabled);
+    const [followupSteps, setFollowupSteps] = useState<FollowupStep[]>(agent.followupJson?.steps || []);
     const [shopifyEnabled, setShopifyEnabled] = useState(agent.ecommerceEnabled && hasShopify);
     const [woocommerceEnabled, setWoocommerceEnabled] = useState(agent.ecommerceEnabled && hasWooCommerce);
     const [webhookEnabled, setWebhookEnabled] = useState(!!agent.webhookConfigJson?.url);
@@ -141,6 +145,8 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                 <input type="hidden" name="ecommerceEnabled" value={(shopifyEnabled || woocommerceEnabled) ? 'on' : 'off'} />
                 <input type="hidden" name="crmEnabled" value="off" />
                 <input type="hidden" name="handlesAdLeads" value={handlesAdLeads ? 'on' : 'off'} />
+                <input type="hidden" name="followupEnabled" value={followupEnabled ? 'on' : 'off'} />
+                <input type="hidden" name="followupSteps" value={JSON.stringify(followupSteps)} />
                 {webhookEnabled && webhookUrl && <input type="hidden" name="webhookUrl" value={webhookUrl} />}
                 {selectedChannels.map(id => (
                     <input key={id} type="hidden" name="channelIds" value={id} />
@@ -335,6 +341,45 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                                 </div>
                             </div>
                             <Switch checked={handlesAdLeads} onCheckedChange={setHandlesAdLeads} />
+                        </div>
+
+                        {/* Seguimientos automáticos */}
+                        <div className="px-6 py-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-9 w-9 rounded-lg bg-[#FEF2F2] flex items-center justify-center"><Clock className="h-4 w-4 text-[#DC2626]" /></div>
+                                    <div>
+                                        <p className="text-[14px] font-medium text-[#09090B]">Seguimientos automáticos</p>
+                                        <p className="text-[12px] text-[#71717A]">Re-contacta al cliente si deja de responder.</p>
+                                    </div>
+                                </div>
+                                <Switch checked={followupEnabled} onCheckedChange={setFollowupEnabled} />
+                            </div>
+                            {followupEnabled && (
+                                <div className="ml-12 space-y-3">
+                                    {followupSteps.map((step, i) => (
+                                        <div key={i} className="rounded-lg border p-3 space-y-2 bg-[#FAFAFA]">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[12px] font-medium">Paso {i + 1}</span>
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setFollowupSteps(prev => prev.filter((_, j) => j !== i))}><X className="h-3.5 w-3.5" /></Button>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[12px] text-muted-foreground">Esperar</span>
+                                                <Input type="number" min={1} value={Math.round((step.delayMinutes || 0) / 60) || ''}
+                                                    onChange={e => { const h = parseInt(e.target.value || '0', 10) || 0; setFollowupSteps(prev => prev.map((s, j) => j === i ? { ...s, delayMinutes: h * 60 } : s)); }}
+                                                    className="h-8 w-20 text-[13px]" />
+                                                <span className="text-[12px] text-muted-foreground">horas sin respuesta del cliente</span>
+                                            </div>
+                                            <Textarea value={step.text || ''} onChange={e => setFollowupSteps(prev => prev.map((s, j) => j === i ? { ...s, text: e.target.value } : s))}
+                                                placeholder="Mensaje (se usa si está dentro de 24h)" className="text-[12px] min-h-[60px]" />
+                                            <Input value={step.templateName || ''} onChange={e => setFollowupSteps(prev => prev.map((s, j) => j === i ? { ...s, templateName: e.target.value } : s))}
+                                                placeholder="Plantilla aprobada (para >24h, opcional)" className="h-8 text-[12px]" />
+                                        </div>
+                                    ))}
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setFollowupSteps(prev => [...prev, { delayMinutes: 1440, text: '' }])}><Plus className="mr-2 h-3.5 w-3.5" />Agregar paso</Button>
+                                    <p className="text-[11px] text-muted-foreground">WhatsApp solo permite texto libre dentro de las 24h del último mensaje del cliente. Para pasos posteriores (días después) necesitas una <span className="font-medium">plantilla aprobada</span> por Meta.</p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Webhook */}

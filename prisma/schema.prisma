@@ -312,6 +312,9 @@ model Conversation {
   // Known data about the lead (source + form metadata) injected at dispatch so
   // the AI agent doesn't re-ask what the lead already provided in a form/ad.
   leadContextJson Json?
+  // Auto follow-up progress for this conversation: { step, anchor } where anchor
+  // is the customer's lastInboundAt the steps are counted from.
+  followupJson    Json?
   lastMessageAt   DateTime           @default(now())
   lastInboundAt   DateTime?
   createdAt       DateTime           @default(now())
@@ -428,6 +431,9 @@ model AiAgent {
   // When true, this agent handles inbound leads that arrive from a Click-to-WhatsApp
   // ad (Meta referral), overriding the channel's default agent for those chats.
   handlesAdLeads     Boolean   @default(false)
+  // Automatic follow-ups when the customer goes silent:
+  // { enabled, steps: [{ delayMinutes, text?, templateName?, templateLang? }] }
+  followupJson       Json?
   webhookConfigJson  Json?     // { url, secret?, headers? }
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

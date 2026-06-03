@@ -48,6 +48,7 @@ export default async function EditAgentPage({ params }: { params: Promise<{ lang
                 ecommerceEnabled: agent.ecommerceEnabled,
                 crmEnabled: agent.crmEnabled,
                 handlesAdLeads: agent.handlesAdLeads,
+                followupJson: agent.followupJson as any,
                 webhookConfigJson: agent.webhookConfigJson as any,
                 channelIds: agent.channels.map(c => c.id),
             }}
