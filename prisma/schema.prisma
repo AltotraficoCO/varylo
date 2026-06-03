@@ -269,6 +269,9 @@ model Conversation {
   // assignedAgentId removed
   status          ConversationStatus @default(OPEN)
   isTest          Boolean            @default(false)
+  // Known data about the lead (source + form metadata) injected at dispatch so
+  // the AI agent doesn't re-ask what the lead already provided in a form/ad.
+  leadContextJson Json?
   lastMessageAt   DateTime           @default(now())
   lastInboundAt   DateTime?
   createdAt       DateTime           @default(now())

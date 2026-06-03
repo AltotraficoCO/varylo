@@ -300,6 +300,7 @@ export async function handleAiAgentResponse(
                     dataCaptureEnabled: aiAgent.dataCaptureEnabled,
                     captureFields: aiAgent.captureFields as CaptureField[] | null,
                     webhookEnabled: !!webhookConfig?.url,
+                    leadContext: conversation.leadContextJson as Record<string, unknown> | null,
                 }),
             },
         ];
@@ -1082,6 +1083,7 @@ interface SystemPromptOptions {
     dataCaptureEnabled: boolean;
     captureFields: CaptureField[] | null;
     webhookEnabled: boolean;
+    leadContext?: Record<string, unknown> | null;
 }
 
 function buildSystemPrompt(opts: SystemPromptOptions): string {
@@ -1096,6 +1098,16 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
 
     if (opts.contextInfo) {
         prompt += `\n\nInformación de contexto adicional:\n${opts.contextInfo}`;
+    }
+
+    if (opts.leadContext) {
+        const lines = Object.entries(opts.leadContext)
+            .filter(([, v]) => v !== null && v !== undefined && v !== '')
+            .map(([k, v]) => `- ${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+            .join('\n');
+        if (lines) {
+            prompt += `\n\nDatos que YA tienes de este lead (origen y formulario). NO vuelvas a preguntar lo que ya está aquí; úsalo para personalizar:\n${lines}`;
+        }
     }
 
     if (opts.calendarEnabled) {
