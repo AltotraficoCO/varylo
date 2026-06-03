@@ -72,12 +72,22 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
             return 'Error: Ese número (phoneNumberId) ya está conectado en otro canal.';
         }
 
+        // Fetch the human-readable phone number from Meta so the UI shows the real
+        // number (e.g. +57 310 ...) instead of the internal phoneNumberId.
+        let phoneDisplay = '';
+        try {
+            const metaRes = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${accessToken}`);
+            const metaData = await metaRes.json().catch(() => ({}));
+            if (metaRes.ok) phoneDisplay = metaData.display_phone_number || '';
+        } catch { /* best-effort — fall back to phoneNumberId */ }
+
         const configJson = {
             phoneNumberId,
             accessToken: writeChannelSecret(accessToken),
             verifyToken,
             appSecret: writeChannelSecret(appSecret),
             connectionMode: 'manual' as const,
+            ...(phoneDisplay ? { phoneDisplay } : {}),
             ...(label ? { label } : {}),
             ...(wabaId ? { wabaId } : {}),
         };
