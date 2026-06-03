@@ -24,6 +24,7 @@ const cspDirectives = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@formatjs/intl-localematcher'],
+  serverExternalPackages: ['quickjs-emscripten', '@jitl/quickjs-wasmfile-release-sync'],
   experimental: {
     serverActions: {
       allowedOrigins,

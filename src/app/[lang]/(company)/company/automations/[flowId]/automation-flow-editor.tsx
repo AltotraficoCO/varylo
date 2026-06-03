@@ -11,7 +11,8 @@ import { FlowCanvasShell, dagreLayout } from '@/components/flow/flow-canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw, History, LayoutGrid } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw, History, LayoutGrid, Code2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import type { AutomationGraph, AutomationFlowNode } from '@/types/automation';
@@ -51,6 +52,7 @@ function graphToReactFlow(
     ids.forEach(id => {
         const fn = graph.nodes[id];
         if (fn.type === 'trigger' && fn.next && graph.nodes[fn.next]) edges.push(edge(id, undefined, fn.next, '#6366F1'));
+        if (fn.type === 'code' && fn.next && graph.nodes[fn.next]) edges.push(edge(id, undefined, fn.next, '#475569'));
         if (fn.type === 'condition') {
             (fn.cases || []).forEach((c, i) => {
                 if (c.next && graph.nodes[c.next]) edges.push(edge(id, `case-${i}`, c.next, '#F59E0B'));
@@ -113,7 +115,7 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
         if (!conn.source || !conn.target) return;
         const src = graph.nodes[conn.source];
         if (!src) return;
-        if (src.type === 'trigger') {
+        if (src.type === 'trigger' || src.type === 'code') {
             updateNode(conn.source, { next: conn.target });
         } else if (src.type === 'condition') {
             if (conn.sourceHandle === 'else') {
@@ -130,13 +132,14 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
         updateNode(node.id, { position: { x: node.position.x, y: node.position.y } });
     }, [updateNode]);
 
-    const addNode = useCallback((type: 'condition' | 'dispatch_agent') => {
-        const id = newId(type === 'condition' ? 'cond' : 'agent');
+    const addNode = useCallback((type: 'condition' | 'dispatch_agent' | 'code') => {
+        const id = newId(type === 'condition' ? 'cond' : type === 'code' ? 'code' : 'agent');
         // place to the right of the rightmost node (flow runs left → right)
         const rightmost = Object.values(graph.nodes).reduce((a, b) => ((b.position?.x ?? 0) > (a.position?.x ?? 0) ? b : a), graph.nodes[graph.startNodeId]);
         const position = { x: (rightmost.position?.x ?? 0) + 280, y: rightmost.position?.y ?? 100 };
-        const node: AutomationFlowNode = type === 'condition'
-            ? { id, type, field: 'source', cases: [{ value: '', next: '' }], position }
+        const node: AutomationFlowNode =
+            type === 'condition' ? { id, type, field: 'source', cases: [{ value: '', next: '' }], position }
+            : type === 'code' ? { id, type, code: '// Recibe `input` (el payload) y devuelve el nuevo objeto.\nreturn input;', position }
             : { id, type, agentId: agents[0]?.id, template: { name: '', language: 'es' }, position };
         setGraph(prev => ({ ...prev, nodes: { ...prev.nodes, [id]: node } }));
         setShowAddMenu(false);
@@ -263,6 +266,9 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
                                             <button onClick={() => addNode('condition')} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm hover:bg-muted text-left">
                                                 <GitBranch className="h-4 w-4 text-[#F59E0B]" /><span>Condición</span>
                                             </button>
+                                            <button onClick={() => addNode('code')} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm hover:bg-muted text-left">
+                                                <Code2 className="h-4 w-4 text-[#475569]" /><span>Código JS</span>
+                                            </button>
                                             <button onClick={() => addNode('dispatch_agent')} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm hover:bg-muted text-left">
                                                 <Bot className="h-4 w-4 text-[#8B5CF6]" /><span>Despachar a Agente IA</span>
                                             </button>
@@ -318,7 +324,10 @@ function NodeConfigPanel({ node, agents, channels, onUpdate, onDelete, onClose }
         <div className="absolute right-0 top-0 bottom-0 w-[360px] border-l bg-background shadow-xl overflow-y-auto">
             <div className="flex items-center justify-between px-4 py-3 border-b">
                 <h3 className="font-semibold text-sm">
-                    {node.type === 'trigger' ? 'Webhook (entrada)' : node.type === 'condition' ? 'Condición' : 'Despachar a Agente IA'}
+                    {node.type === 'trigger' ? 'Webhook (entrada)'
+                        : node.type === 'condition' ? 'Condición'
+                        : node.type === 'code' ? 'Código JS'
+                        : 'Despachar a Agente IA'}
                 </h3>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}><X className="h-4 w-4" /></Button>
             </div>
@@ -358,6 +367,25 @@ function NodeConfigPanel({ node, agents, channels, onUpdate, onDelete, onClose }
                                 <Plus className="mr-2 h-3.5 w-3.5" />Agregar rama
                             </Button>
                             <p className="text-[11px] text-muted-foreground">Conecta cada rama (y el “else”) a un nodo arrastrando desde su punto a la derecha.</p>
+                        </div>
+                    </>
+                )}
+
+                {node.type === 'code' && (
+                    <>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Código JavaScript</Label>
+                            <Textarea
+                                value={node.code || ''}
+                                onChange={e => onUpdate({ code: e.target.value })}
+                                spellCheck={false}
+                                className="font-mono text-[12px] min-h-[220px] leading-relaxed"
+                                placeholder={'// Recibe `input` (el payload) y devuelve el nuevo objeto.\nreturn { ...input, vip: input.monto > 1000 };'}
+                            />
+                        </div>
+                        <div className="text-[11px] text-muted-foreground space-y-1">
+                            <p>Recibes el payload en <code>input</code> y debes <code>return</code> el nuevo objeto, que pasa al siguiente nodo.</p>
+                            <p>Corre aislado (sin internet, archivos ni acceso al servidor), con límite de 1s y 16&nbsp;MB.</p>
                         </div>
                     </>
                 )}

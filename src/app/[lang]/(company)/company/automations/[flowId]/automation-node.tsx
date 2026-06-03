@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Webhook, GitBranch, Bot } from 'lucide-react';
+import { Webhook, GitBranch, Bot, Code2 } from 'lucide-react';
 import type { AutomationFlowNode } from '@/types/automation';
 
 export interface AutomationNodeData extends Record<string, unknown> {
@@ -45,6 +45,22 @@ export const AutomationNode = memo(function AutomationNode({ data, selected }: N
                         {flowNode.template?.name ? flowNode.template.name : 'falta plantilla'}
                     </p>
                 </div>
+            </div>
+        );
+    }
+
+    if (flowNode.type === 'code') {
+        return (
+            <div className={`relative flex items-center gap-2.5 w-[200px] rounded-lg border border-[#CBD5E1] bg-white shadow-sm px-3 py-2.5 ${ring}`}>
+                <Handle type="target" position={Position.Left} className={`${handleBase} !bg-[#475569] !-left-1.5`} />
+                <div className="w-9 h-9 rounded-md bg-[#F1F5F9] text-[#475569] flex items-center justify-center shrink-0">
+                    <Code2 className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-[#0F172A] leading-tight">Código JS</p>
+                    <p className="text-[11px] text-[#64748B] truncate">transforma el payload</p>
+                </div>
+                <Handle type="source" position={Position.Right} className={`${handleBase} !bg-[#475569] !-right-1.5`} />
             </div>
         );
     }

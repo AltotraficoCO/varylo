@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { dispatchLead } from '@/lib/lead-dispatch';
+import { runUserJs } from '@/lib/js-sandbox';
 import type { AutomationGraph, AutomationFlowNode } from '@/types/automation';
 
 const MAX_STEPS = 50; // guard against accidental cycles
@@ -32,6 +33,7 @@ export async function runAutomationFlow(
         } else {
             result = { status: 'ERROR', path, error: 'El flujo no llegó a ningún nodo de acción.' };
             let currentId: string | undefined = graph.startNodeId;
+            let work: Record<string, unknown> = payload; // payload as it flows (a code node may transform it)
             let steps = 0;
 
             while (currentId && steps < MAX_STEPS) {
@@ -51,8 +53,25 @@ export async function runAutomationFlow(
                     continue;
                 }
 
+                if (node.type === 'code') {
+                    const sandbox = await runUserJs(node.code || 'return input;', work, { timeoutMs: 1000 });
+                    if (!sandbox.ok) {
+                        result = { status: 'ERROR', path, error: `Código: ${sandbox.error}` };
+                        break;
+                    }
+                    if (sandbox.value && typeof sandbox.value === 'object' && !Array.isArray(sandbox.value)) {
+                        work = sandbox.value as Record<string, unknown>;
+                    }
+                    currentId = node.next;
+                    if (!currentId) {
+                        result = { status: 'ERROR', path, error: 'El nodo de código no está conectado a nada.' };
+                        break;
+                    }
+                    continue;
+                }
+
                 if (node.type === 'condition') {
-                    const fieldVal = node.field ? payload?.[node.field] : undefined;
+                    const fieldVal = node.field ? work?.[node.field] : undefined;
                     const match = (node.cases || []).find(c => String(c.value) === String(fieldVal ?? ''));
                     currentId = match ? match.next : node.elseNext;
                     if (!currentId) {
@@ -71,7 +90,7 @@ export async function runAutomationFlow(
                         result = { status: 'ERROR', path, error: 'El nodo de agente no tiene agente o plantilla configurados.' };
                         break;
                     }
-                    const phone = payload?.phone;
+                    const phone = work?.phone;
                     if (!phone) {
                         result = { status: 'ERROR', path, error: 'El payload no trae "phone".' };
                         break;
@@ -81,9 +100,9 @@ export async function runAutomationFlow(
                         agentId: node.agentId,
                         channelId: node.channelId,
                         phone: String(phone),
-                        name: payload?.name != null ? String(payload.name) : undefined,
-                        source: payload?.source != null ? String(payload.source) : undefined,
-                        metadata: payload,
+                        name: work?.name != null ? String(work.name) : undefined,
+                        source: work?.source != null ? String(work.source) : undefined,
+                        metadata: work,
                         template: node.template,
                     });
                     result = dispatched.ok

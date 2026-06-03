@@ -1,7 +1,7 @@
 // Shared shape of an automation flow graph (lead router).
 // Authored on the canvas (UI) and traversed by the one-pass engine.
 
-export type AutomationNodeType = 'trigger' | 'condition' | 'dispatch_agent';
+export type AutomationNodeType = 'trigger' | 'condition' | 'dispatch_agent' | 'code';
 
 export interface AutomationConditionCase {
     value: string;
@@ -31,6 +31,9 @@ export interface AutomationFlowNode {
     agentId?: string;
     channelId?: string;
     template?: AutomationDispatchTemplate;
+
+    // code (runs user JS in a sandbox; transforms the payload). Single output via `next`.
+    code?: string;
 
     // canvas-only
     position?: { x: number; y: number };
