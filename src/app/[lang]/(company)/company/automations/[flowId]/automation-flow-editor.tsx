@@ -2,16 +2,16 @@
 
 import { useState, useCallback, useTransition, useMemo, useRef } from 'react';
 import {
-    ReactFlow, ReactFlowProvider, Background, Controls, MiniMap,
+    ReactFlowProvider,
     useNodesState, useEdgesState, useReactFlow,
     type Node, type Edge, type Connection, type NodeTypes, type OnConnect,
     MarkerType, Panel,
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
+import { FlowCanvasShell } from '@/components/flow/flow-canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw } from 'lucide-react';
+import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw, History } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import type { AutomationGraph, AutomationFlowNode } from '@/types/automation';
@@ -202,6 +202,9 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
                 <div className="flex items-center justify-between py-3 px-4 border-b bg-background z-10">
                     <Link href={backHref}><Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" />Volver</Button></Link>
                     <div className="flex items-center gap-2">
+                        <Link href={`${backHref}/${flowId}/runs`}>
+                            <Button variant="ghost" size="sm"><History className="mr-2 h-4 w-4" />Ejecuciones</Button>
+                        </Link>
                         <span className={`text-xs px-2 py-1 rounded-md font-medium ${status === 'PUBLISHED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                             {status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
                         </span>
@@ -233,19 +236,14 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
                 {/* Canvas + panel */}
                 <div className="flex-1 flex relative">
                     <div ref={canvasRef} className={`flex-1 transition-all ${selected ? 'mr-[360px]' : ''}`}>
-                        <ReactFlow
+                        <FlowCanvasShell
                             nodes={nodes} edges={edges}
                             onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
                             onConnect={onConnect} onNodeDragStop={onNodeDragStop}
                             onNodeClick={(_, n) => setSelectedId(n.id)}
                             onPaneClick={() => { setSelectedId(null); setShowAddMenu(false); }}
-                            nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.3 }}
-                            defaultEdgeOptions={{ type: 'smoothstep', animated: true, style: { strokeWidth: 2 } }}
-                            proOptions={{ hideAttribution: true }}
+                            nodeTypes={nodeTypes}
                         >
-                            <Background gap={20} size={1} />
-                            <Controls showInteractive={false} />
-                            <MiniMap nodeStrokeWidth={3} className="!bg-muted/50 !border-border" />
                             <Panel position="bottom-center">
                                 <div className="relative">
                                     {showAddMenu && (
@@ -261,7 +259,7 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
                                     <Button onClick={() => setShowAddMenu(v => !v)} className="shadow-lg"><Plus className="mr-2 h-4 w-4" />Agregar nodo</Button>
                                 </div>
                             </Panel>
-                        </ReactFlow>
+                        </FlowCanvasShell>
                     </div>
 
                     {selected && selectedId && (
