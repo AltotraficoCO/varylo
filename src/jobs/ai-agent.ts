@@ -312,7 +312,7 @@ export async function handleAiAgentResponse(
         if (opts?.regenerateLast) {
             messages.push({
                 role: 'system',
-                content: 'Estás retomando esta conversación tras una pausa. Revisa TODOS los mensajes recientes del cliente que quedaron sin responder, ten en cuenta la información que ya dio, y continúa el proceso desde donde se quedó. No repitas preguntas que el cliente ya respondió ni vuelvas a empezar; responde de forma natural integrando todo lo que escribió.',
+                content: 'Estás retomando esta conversación tras una pausa. Lee TODO el historial (lo que escribió el cliente y lo que respondió el equipo) y continúa el proceso desde donde se quedó, según tu rol y tu objetivo. SIEMPRE debes escribir un mensaje útil para avanzar: si hay algo del cliente sin responder, respóndelo; si ya tienes lo necesario, da el siguiente paso (confirma, resume, agenda o pregunta lo que falte). NO te quedes sin responder ni dejes el turno vacío. No repitas preguntas ya respondidas ni vuelvas a empezar; responde de forma natural integrando todo el contexto.',
             });
         }
 

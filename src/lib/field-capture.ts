@@ -82,3 +82,55 @@ export async function extractAndPersistFields(params: {
     }
     return saved;
 }
+
+const SNAKE = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * Open-ended extraction: detect ANY personal/contact data in the text and let
+ * the model choose sensible field names. No predefined fields needed — this is
+ * what makes smart capture work without configuring an agent.
+ */
+export async function extractOpenFields(params: {
+    text: string;
+    model: string;
+    companyId: string;
+    conversationId: string;
+    contactId: string | null;
+}): Promise<string[]> {
+    const { text, model, companyId, conversationId, contactId } = params;
+    if (!text.trim()) return [];
+
+    let parsed: Record<string, unknown>;
+    try {
+        const extraction = await callAIProvider({
+            model,
+            temperature: 0,
+            companyId,
+            tools: [],
+            messages: [
+                { role: 'system', content: 'Eres un extractor de datos. Respondes ÚNICAMENTE con un objeto JSON válido, sin texto adicional.' },
+                {
+                    role: 'user',
+                    content: `Del siguiente texto de una conversación o documento, extrae TODOS los datos personales o de contacto que el cliente haya proporcionado: nombre, telefono, email, cedula (o documento), direccion, ciudad, empresa, cargo, fecha_nacimiento, y cualquier otro dato relevante. Devuelve SOLO un objeto JSON { "clave_snake_case": "valor" } con claves claras en español, minúsculas y guion bajo. Incluye únicamente datos REALMENTE presentes; no inventes. Si no hay datos, devuelve {}.\n\nTexto:\n${text.slice(0, 12000)}`,
+                },
+            ],
+        });
+        const rawJson = (extraction.content || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+        parsed = JSON.parse(rawJson) as Record<string, unknown>;
+    } catch (e) {
+        console.error('[field-capture] open extraction failed:', e instanceof Error ? e.message : e);
+        return [];
+    }
+
+    const saved: string[] = [];
+    for (const [rawKey, rawVal] of Object.entries(parsed)) {
+        if (rawVal == null || rawVal === '') continue;
+        const key = rawKey.toString().trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+        if (!SNAKE.test(key)) continue;
+        const value = String(typeof rawVal === 'object' ? JSON.stringify(rawVal) : rawVal).trim();
+        if (!value) continue;
+        await persistCapturedField(companyId, conversationId, contactId, key, value);
+        saved.push(`${key}: ${value}`);
+    }
+    return saved;
+}

@@ -2,15 +2,29 @@ import { prisma } from '@/lib/prisma';
 import { checkCreditBalance } from '@/lib/credits';
 import { detectProvider } from '@/lib/ai-provider';
 import { transcribeMedia } from '@/lib/vision-ocr';
-import { extractAndPersistFields, type CaptureFieldDef } from '@/lib/field-capture';
+import { extractOpenFields } from '@/lib/field-capture';
 import type { InboundMediaInfo } from '@/jobs/chatbot';
 
+/** Pick an extraction model from whatever the company has active. */
+function resolveCaptureModel(keys: {
+    anthropicApiKey?: string | null;
+    openaiApiKey?: string | null;
+    geminiApiKey?: string | null;
+    deepseekApiKey?: string | null;
+}): string {
+    if (keys.anthropicApiKey) return 'claude-haiku-4-5-20251001';
+    if (keys.openaiApiKey) return 'gpt-4o-mini';
+    if (keys.geminiApiKey) return 'gemini-2.0-flash';
+    if (keys.deepseekApiKey) return 'deepseek-chat';
+    return 'gpt-4o-mini'; // global key (requires Varylo credits)
+}
+
 /**
- * Passive data capture for conversations handled by a HUMAN (not the AI).
- * Runs only when the company enabled account-wide smart capture. Extracts the
- * company's configured capture fields from the recent text and from any
- * document/image in the current inbound message (OCR), filing each into the
- * contact. Self-gates, so it's safe to call on every inbound.
+ * Passive, open-ended data capture for conversations handled by a HUMAN (not the
+ * AI). Runs only when the company enabled account-wide smart capture. It detects
+ * ANY personal/contact data in the recent text and in the current inbound
+ * document/image (OCR) — no agent or predefined fields needed — and files each
+ * datum into the contact. Self-gates, so it's safe to call on every inbound.
  */
 export async function runSmartCapture(conversationId: string, text: string, media?: InboundMediaInfo) {
     void text;
@@ -18,9 +32,13 @@ export async function runSmartCapture(conversationId: string, text: string, medi
         const conversation = await prisma.conversation.findUnique({
             where: { id: conversationId },
             select: {
-                id: true, companyId: true, channelId: true, contactId: true, handledByAiAgentId: true,
-                company: { select: { smartCaptureEnabled: true } },
-                handledByAiAgent: { select: { captureFields: true, model: true } },
+                id: true, companyId: true, contactId: true, handledByAiAgentId: true,
+                company: {
+                    select: {
+                        smartCaptureEnabled: true,
+                        anthropicApiKey: true, openaiApiKey: true, geminiApiKey: true, deepseekApiKey: true,
+                    },
+                },
                 messages: { orderBy: { createdAt: 'desc' }, take: 20, select: { direction: true, content: true } },
             },
         });
@@ -30,29 +48,15 @@ export async function runSmartCapture(conversationId: string, text: string, medi
         if (!conversation.company?.smartCaptureEnabled) return;
         if (conversation.handledByAiAgentId) return;
 
-        // Resolve capture fields + model: channel's agent with fields, else any company agent with fields.
-        let captureFields = conversation.handledByAiAgent?.captureFields as CaptureFieldDef[] | null;
-        let model = conversation.handledByAiAgent?.model || undefined;
-        if (!captureFields?.length) {
-            const agents = await prisma.aiAgent.findMany({
-                where: { companyId: conversation.companyId, active: true },
-                select: { captureFields: true, model: true, channels: { select: { id: true } } },
-            });
-            const hasFields = (a: { captureFields: unknown }) => Array.isArray(a.captureFields) && (a.captureFields as unknown[]).length > 0;
-            const onChannel = agents.find(a => a.channels.some(c => c.id === conversation.channelId) && hasFields(a));
-            const chosen = onChannel || agents.find(hasFields);
-            captureFields = (chosen?.captureFields as CaptureFieldDef[] | null) || null;
-            model = chosen?.model;
-        }
-        if (!captureFields?.length || !model) return;
+        const model = resolveCaptureModel(conversation.company);
 
-        // Skip silently if the company can't pay for the extraction calls.
+        // Requires an active AI model: own key OR Varylo credits. Else skip silently.
         const credit = await checkCreditBalance(conversation.companyId, detectProvider(model));
         if (!credit.usesOwnKey && !credit.hasCredits) return;
 
         const { companyId, contactId } = conversation;
 
-        // 1) Extract from recent conversation text.
+        // 1) Open extraction from recent conversation text.
         const convoText = conversation.messages
             .slice()
             .reverse()
@@ -60,10 +64,10 @@ export async function runSmartCapture(conversationId: string, text: string, medi
             .map(m => `${m.direction === 'INBOUND' ? 'Cliente' : 'Agente'}: ${m.content}`)
             .join('\n');
         if (convoText.trim()) {
-            await extractAndPersistFields({ text: convoText, captureFields, model, companyId, conversationId, contactId });
+            await extractOpenFields({ text: convoText, model, companyId, conversationId, contactId });
         }
 
-        // 2) Extract from a document/image in the current inbound message (OCR).
+        // 2) Open extraction from a document/image in the current inbound message (OCR).
         if (media?.mediaUrl) {
             const isDoc = media.mediaType === 'image'
                 || (media.mimeType || '').includes('pdf')
@@ -74,7 +78,7 @@ export async function runSmartCapture(conversationId: string, text: string, medi
                     { companyId, usesOwnKey: credit.usesOwnKey, conversationId },
                 );
                 if (ocr.trim()) {
-                    await extractAndPersistFields({ text: ocr, captureFields, model, companyId, conversationId, contactId });
+                    await extractOpenFields({ text: ocr, model, companyId, conversationId, contactId });
                 }
             }
         }

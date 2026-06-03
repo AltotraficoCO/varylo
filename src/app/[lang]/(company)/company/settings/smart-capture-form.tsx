@@ -32,9 +32,10 @@ export function SmartCaptureForm({ enabled }: { enabled: boolean }) {
                     Captura inteligente de datos
                 </CardTitle>
                 <CardDescription>
-                    Cuando está activa, Varylo extrae y ubica los datos del cliente (nombre, teléfono, correo, etc.)
-                    <strong> también en conversaciones atendidas por una persona</strong>, leyendo lo que el cliente
-                    escribe y los documentos/imágenes que envía. Usa los campos de captura configurados en tus agentes IA.
+                    Cuando está activa, Varylo detecta automáticamente cualquier dato del cliente (nombre, teléfono,
+                    correo, cédula, dirección, etc.) <strong>también en conversaciones atendidas por una persona</strong>,
+                    leyendo lo que el cliente escribe y los documentos/imágenes que envía, y lo ubica en el contacto.
+                    No necesitas configurar campos.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -46,7 +47,8 @@ export function SmartCaptureForm({ enabled }: { enabled: boolean }) {
                     <Switch checked={on} onCheckedChange={handleToggle} disabled={isPending} />
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-3">
-                    Necesitas al menos un agente IA con campos de captura definidos (de ahí Varylo sabe qué datos extraer).
+                    Para usar esta herramienta debes tener un <strong>modelo de IA activo</strong>: una API key
+                    configurada en Integraciones (OpenAI, Claude, Gemini o DeepSeek) o créditos de Varylo.
                 </p>
             </CardContent>
         </Card>
