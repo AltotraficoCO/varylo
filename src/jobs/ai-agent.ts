@@ -446,6 +446,8 @@ export async function handleAiAgentResponse(
                                 conversation.contactId,
                                 conversation.messages,
                                 usesOwnKey,
+                                aiAgent.captureFields as CaptureField[] | null,
+                                aiAgent.model,
                             );
                             break;
 
@@ -733,6 +735,8 @@ async function handleAnalyzeFile(
     contactId: string | null,
     conversationMessages: MediaMessage[],
     usesOwnKey: boolean,
+    captureFields: CaptureField[] | null,
+    model: string,
 ): Promise<string> {
     console.log(`[analyze_file] called | field="${args.field_name}" | instruction="${args.instruction}"`);
     try {
@@ -986,6 +990,58 @@ async function handleAnalyzeFile(
             return JSON.stringify({
                 success: false,
                 message: 'El análisis no devolvió ningún contenido. Pide al usuario que envíe la imagen de nuevo.',
+            });
+        }
+
+        // Segment the transcription into the agent's configured capture fields, so
+        // each datum is saved individually on the contact instead of one big blob.
+        let segmentedSummary = '';
+        if (captureFields && captureFields.length > 0) {
+            try {
+                const fieldList = captureFields.map(f => `- ${f.key}${f.label ? ` (${f.label})` : ''}`).join('\n');
+                const extraction = await callAIProvider({
+                    model,
+                    temperature: 0,
+                    companyId,
+                    tools: [],
+                    messages: [
+                        { role: 'system', content: 'Eres un extractor de datos. Respondes ÚNICAMENTE con un objeto JSON válido, sin texto adicional.' },
+                        { role: 'user', content: `Del siguiente texto extraído de un documento, identifica estos campos. Responde SOLO con un JSON {clave: valor} usando EXACTAMENTE estas claves. Si un campo no aparece, omítelo (no inventes).\n\nCampos:\n${fieldList}\n\nTexto del documento:\n${analysisText.slice(0, 12000)}` },
+                    ],
+                });
+                const rawJson = (extraction.content || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+                const parsed = JSON.parse(rawJson) as Record<string, unknown>;
+                const saved: string[] = [];
+                for (const f of captureFields) {
+                    const v = parsed[f.key];
+                    if (v == null || v === '') continue;
+                    const value = String(typeof v === 'object' ? JSON.stringify(v) : v).trim();
+                    if (!value) continue;
+                    const ex = await prisma.capturedData.findFirst({ where: { conversationId, fieldName: f.key }, select: { id: true } });
+                    if (ex) await prisma.capturedData.update({ where: { id: ex.id }, data: { fieldValue: value } });
+                    else await prisma.capturedData.create({ data: { companyId, conversationId, contactId, fieldName: f.key, fieldValue: value, source: 'ai_agent' } });
+                    if (contactId) {
+                        const cu = mapFieldToContact(f.key, value);
+                        if (cu) {
+                            const k = Object.keys(cu)[0];
+                            const ct = await prisma.contact.findUnique({ where: { id: contactId }, select: { [k]: true } });
+                            if (ct && !ct[k]) await prisma.contact.update({ where: { id: contactId }, data: cu }).catch(() => {});
+                        }
+                    }
+                    saved.push(`${f.label || f.key}: ${value}`);
+                }
+                segmentedSummary = saved.join('\n');
+                console.log(`[analyze_file] segmented ${saved.length} fields from document`);
+            } catch (segErr) {
+                console.error('[analyze_file] segmentation failed:', segErr instanceof Error ? segErr.message : segErr);
+            }
+        }
+
+        if (segmentedSummary) {
+            return JSON.stringify({
+                success: true,
+                savedFields: segmentedSummary,
+                instruction: `Extraje y guardé estos datos del documento en campos separados:\n${segmentedSummary}\n\nConfirma al cliente de forma breve y natural que recibiste su documento y tomaste sus datos. NO copies el documento completo; solo continúa la conversación.`,
             });
         }
 
