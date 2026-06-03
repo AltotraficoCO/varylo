@@ -193,6 +193,43 @@ model Company {
   productCategories  ProductCategory[]
   quotes             Quote[]
   quickReplies       QuickReply[]
+  automationFlows    AutomationFlow[]
+}
+
+/// Visual automation flow (lead router). graphJson holds the node-based graph
+/// authored on the canvas; the one-pass engine traverses it when a lead hits
+/// the flow's webhook trigger.
+model AutomationFlow {
+  id            String          @id @default(cuid())
+  companyId     String
+  name          String
+  status        String          @default("DRAFT") // DRAFT | PUBLISHED
+  graphJson     Json            @default("{}")
+  webhookSecret String          @default(cuid())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  runs    AutomationRun[]
+
+  @@index([companyId])
+}
+
+/// One execution of an AutomationFlow — for observability ("why did this lead
+/// go to this agent?"). Records the payload and the path of nodes traversed.
+model AutomationRun {
+  id        String   @id @default(cuid())
+  flowId    String
+  companyId String
+  payload   Json
+  path      Json     @default("[]")
+  status    String // SUCCESS | NO_MATCH | ERROR
+  error     String?
+  createdAt DateTime @default(now())
+
+  flow AutomationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([flowId, createdAt])
 }
 
 model QuickReply {

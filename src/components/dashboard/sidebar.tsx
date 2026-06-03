@@ -23,6 +23,7 @@ import {
     CalendarDays,
     Activity,
     Phone,
+    Workflow,
 } from 'lucide-react';
 import { SidebarUnreadBadge } from './unread-badge';
 
@@ -103,6 +104,7 @@ export interface SidebarDict {
     automation: string;
     chatbots: string;
     aiAgents: string;
+    automations?: string;
     management: string;
     team: string;
     calendar: string;
@@ -175,6 +177,7 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[], chan
                     label: t.automation, items: [
                         { title: t.chatbots, href: '/company/chatbots', icon: Bot },
                         { title: t.aiAgents, href: '/company/ai-agents', icon: Sparkles },
+                        { title: t.automations || 'Automatizaciones', href: '/company/automations', icon: Workflow },
                     ]
                 },
                 {
@@ -230,6 +233,7 @@ const defaultDict: SidebarDict = {
     automation: 'AUTOMATIZACIÓN',
     chatbots: 'Chatbots',
     aiAgents: 'Agentes IA',
+    automations: 'Automatizaciones',
     management: 'GESTIÓN',
     team: 'Equipo',
     calendar: 'Calendario',
