@@ -1,7 +1,9 @@
 import { auth } from '@/auth';
-import { getContacts, CONTACTS_PAGE_SIZE } from './actions';
+import { getContacts } from './actions';
 import { ContactsClient } from './contacts-client';
 import { SubscriptionGate } from '@/components/subscription-gate';
+
+const PAGE_SIZE = 10;
 
 export default async function ContactsPage(props: {
     params: Promise<{ lang: string }>,
@@ -26,7 +28,7 @@ export default async function ContactsPage(props: {
                 lang={params.lang}
                 page={page}
                 total={total}
-                pageSize={CONTACTS_PAGE_SIZE}
+                pageSize={PAGE_SIZE}
             />
         </SubscriptionGate>
     );

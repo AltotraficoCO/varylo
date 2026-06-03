@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Role } from '@prisma/client';
 
-export const CONTACTS_PAGE_SIZE = 10;
+const CONTACTS_PAGE_SIZE = 10;
 
 function buildContactsWhere(companyId: string, search?: string, filter?: string, channel?: string) {
     const conditions: any[] = [];
