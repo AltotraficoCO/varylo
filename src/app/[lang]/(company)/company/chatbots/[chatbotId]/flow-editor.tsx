@@ -2,11 +2,7 @@
 
 import { useState, useCallback, useTransition, useMemo, useRef } from 'react';
 import {
-    ReactFlow,
     ReactFlowProvider,
-    Background,
-    Controls,
-    MiniMap,
     useNodesState,
     useEdgesState,
     useReactFlow,
@@ -18,12 +14,11 @@ import {
     MarkerType,
     Panel,
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
+import { FlowCanvasShell, dagreLayout } from '@/components/flow/flow-canvas';
 import { Button } from '@/components/ui/button';
 import { Save, ArrowLeft, AlertCircle, CheckCircle2, Plus, MessageCircle, User, Bot, XCircle, LayoutGrid, FileInput, Send, Paperclip } from 'lucide-react';
 import { updateChatbotFlow } from './actions';
 import Link from 'next/link';
-import Dagre from '@dagrejs/dagre';
 import type { ChatbotFlow, ChatbotFlowNode, ChatbotFlowOption, WebhookConfig } from '@/types/chatbot';
 import { ChatbotNode } from './chatbot-node';
 import { NodeEditPanel } from './node-edit-panel';
@@ -375,23 +370,7 @@ function FlowCanvas({
     }, [nodes, fitView, nodeTemplates]);
 
     const autoLayout = useCallback(() => {
-        const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-        g.setGraph({ rankdir: 'TB', nodesep: 80, ranksep: 120 });
-
-        nodes.forEach(node => {
-            g.setNode(node.id, { width: 280, height: 200 });
-        });
-        edges.forEach(edge => {
-            g.setEdge(edge.source, edge.target);
-        });
-
-        Dagre.layout(g);
-
-        const newPositions: Record<string, { x: number; y: number }> = {};
-        nodes.forEach(node => {
-            const pos = g.node(node.id);
-            newPositions[node.id] = { x: pos.x - 140, y: pos.y - 100 };
-        });
+        const newPositions = dagreLayout(nodes, edges, { width: 280, height: 200 });
         setNodePositions(newPositions);
         setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
     }, [nodes, edges, fitView]);
@@ -456,7 +435,7 @@ function FlowCanvas({
             {/* Canvas + Edit panel */}
             <div className="flex-1 flex relative">
                 <div ref={canvasRef} className={`flex-1 transition-all ${selectedNode ? 'mr-[380px]' : ''}`}>
-                    <ReactFlow
+                    <FlowCanvasShell
                         nodes={nodes}
                         edges={edges}
                         onNodesChange={onNodesChange}
@@ -466,21 +445,7 @@ function FlowCanvas({
                         onNodeClick={(_, node) => setSelectedNodeId(node.id)}
                         onPaneClick={() => { setSelectedNodeId(null); setShowAddMenu(false); }}
                         nodeTypes={nodeTypes}
-                        fitView
-                        fitViewOptions={{ padding: 0.3 }}
-                        defaultEdgeOptions={{
-                            type: 'smoothstep',
-                            animated: true,
-                            style: { strokeWidth: 2 },
-                        }}
-                        proOptions={{ hideAttribution: true }}
                     >
-                        <Background gap={20} size={1} />
-                        <Controls showInteractive={false} />
-                        <MiniMap
-                            nodeStrokeWidth={3}
-                            className="!bg-muted/50 !border-border"
-                        />
                         <Panel position="bottom-center">
                             <div className="flex items-center gap-2">
                                 <div className="relative">
@@ -513,7 +478,7 @@ function FlowCanvas({
                                 </Button>
                             </div>
                         </Panel>
-                    </ReactFlow>
+                    </FlowCanvasShell>
                 </div>
 
                 {selectedNode && selectedNodeId && (
