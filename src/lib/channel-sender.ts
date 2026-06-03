@@ -185,6 +185,22 @@ export function toWhatsAppText(text: string): string {
         .replace(/__(.+?)__/g, '*$1*');           // __bold__ → *bold*
 }
 
+/**
+ * Strip Markdown emphasis to plain text. Instagram DM and Messenger have NO
+ * text formatting, so any *, ** or _ would show up literally — better to remove
+ * the markers and send clean text.
+ */
+export function toPlainText(text: string): string {
+    if (!text) return text;
+    return text
+        .replace(/\*\*\*(.+?)\*\*\*/g, '$1')
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/\*(.+?)\*/g, '$1')
+        .replace(/__(.+?)__/g, '$1')
+        .replace(/~~(.+?)~~/g, '$1')
+        .replace(/`(.+?)`/g, '$1');
+}
+
 function buildWhatsAppMediaPayloadById(
     recipientPhone: string,
     content: string,
@@ -379,7 +395,7 @@ export async function sendChannelMessage({
         const msgToken = readChannelSecret(config?.accessToken);
         if (msgToken) {
             // Messenger uses same API as Instagram DMs (Graph /PAGE_ID/messages)
-            const result = await sendInstagramMessageWithToken(contact.phone, content, msgToken, config?.pageId);
+            const result = await sendInstagramMessageWithToken(contact.phone, toPlainText(content || ''), msgToken, config?.pageId);
             if (!result.success) {
                 throw new Error(`Messenger API error: ${result.message}`);
             }
@@ -390,7 +406,7 @@ export async function sendChannelMessage({
         const config = channel.configJson as { accessToken?: string; pageId?: string } | null;
         const igToken = readChannelSecret(config?.accessToken);
         if (igToken) {
-            const result = await sendInstagramMessageWithToken(contact.phone, content, igToken, config?.pageId);
+            const result = await sendInstagramMessageWithToken(contact.phone, toPlainText(content || ''), igToken, config?.pageId);
             if (!result.success) {
                 throw new Error(`Instagram API error: ${result.message}`);
             }
