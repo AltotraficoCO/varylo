@@ -1,6 +1,7 @@
 import { handleChatbotResponse, type InboundMediaInfo } from '@/jobs/chatbot';
 import { handleAiAgentResponse } from '@/jobs/ai-agent';
 import { analyzeConversation } from '@/jobs/ai';
+import { runSmartCapture } from '@/jobs/smart-capture';
 import type { AutomationPriority } from '@prisma/client';
 
 /**
@@ -13,6 +14,10 @@ export async function runAutomationPipeline(
     priority: AutomationPriority = 'CHATBOT_FIRST',
     media?: InboundMediaInfo,
 ) {
+    // Passive smart capture for human-handled conversations (self-gated by the
+    // company flag + whether an AI agent is active). Fire-and-forget.
+    runSmartCapture(conversationId, text, media).catch(() => {});
+
     try {
         if (priority === 'AI_FIRST') {
             // AI agent first, then chatbot fallback

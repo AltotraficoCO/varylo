@@ -74,6 +74,7 @@ export default async function SettingsPage(props: {
                 specificAgentId: true,
                 excludedAgentIds: true,
                 unattendedThresholdMinutes: true,
+                smartCaptureEnabled: true,
             },
         }),
         prisma.channel.findMany({ where: { companyId, type: ChannelType.WHATSAPP, status: ChannelStatus.CONNECTED }, orderBy: { createdAt: 'asc' } }),
@@ -220,6 +221,7 @@ export default async function SettingsPage(props: {
                             excludedAgentIds={company?.excludedAgentIds || []}
                             agents={companyAgents}
                             unattendedThresholdMinutes={company?.unattendedThresholdMinutes ?? 20}
+                            smartCaptureEnabled={company?.smartCaptureEnabled ?? false}
                         />
                     )}
 

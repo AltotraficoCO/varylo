@@ -1190,6 +1190,24 @@ export async function updateUnattendedThreshold(minutes: number) {
     }
 }
 
+export async function setSmartCapture(enabled: boolean) {
+    const session = await auth();
+    if (!session?.user?.companyId) {
+        return { success: false, message: 'No authorized session.' };
+    }
+    try {
+        await prisma.company.update({
+            where: { id: session.user.companyId },
+            data: { smartCaptureEnabled: enabled },
+        });
+        revalidatePath('/[lang]/company/settings', 'page');
+        return { success: true };
+    } catch (error) {
+        console.error('Failed to update smart capture:', error);
+        return { success: false, message: 'Error al actualizar.' };
+    }
+}
+
 export async function updateChannelPriority(channelId: string, priority: AutomationPriority) {
     const session = await auth();
     if (!session?.user?.companyId) {

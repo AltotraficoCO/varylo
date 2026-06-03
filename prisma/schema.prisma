@@ -164,6 +164,10 @@ model Company {
   // conversation is considered "unattended" (desatendido) in analytics.
   unattendedThresholdMinutes Int @default(20)
 
+  // Account-wide passive data capture: extract & file data even when a human
+  // (not the AI) is handling the conversation.
+  smartCaptureEnabled Boolean @default(false)
+
   googleCalendarRefreshToken String?
   googleCalendarEmail        String?
   googleCalendarConnectedAt  DateTime?

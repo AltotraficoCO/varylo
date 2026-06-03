@@ -7,7 +7,8 @@ import { checkCreditBalance, deductCredits, logUsageOnly } from '@/lib/credits';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { CALENDAR_TOOLS, executeCalendarTool } from '@/lib/calendar-tools';
 import { ECOMMERCE_TOOLS, executeEcommerceTool } from '@/lib/ecommerce-tools';
-import { mapFieldToContact, validateCapturedValue, inferValidationType } from '@/lib/data-capture-utils';
+import { validateCapturedValue, inferValidationType } from '@/lib/data-capture-utils';
+import { extractAndPersistFields, persistCapturedField } from '@/lib/field-capture';
 // CRM removed
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
@@ -624,50 +625,7 @@ async function handleSaveCapturedData(
         }
 
         const trimmedValue = args.field_value.trim();
-
-        // Update existing or create new capture for this field
-        const existing = await prisma.capturedData.findFirst({
-            where: { conversationId, fieldName: args.field_name },
-            select: { id: true },
-        });
-
-        if (existing) {
-            await prisma.capturedData.update({
-                where: { id: existing.id },
-                data: { fieldValue: trimmedValue },
-            });
-        } else {
-            await prisma.capturedData.create({
-                data: {
-                    companyId,
-                    conversationId,
-                    contactId,
-                    fieldName: args.field_name,
-                    fieldValue: trimmedValue,
-                    source: 'ai_agent',
-                },
-            });
-        }
-
-        // Update contact record only if the field is currently empty
-        if (contactId) {
-            const contactUpdate = mapFieldToContact(args.field_name, trimmedValue);
-            if (contactUpdate) {
-                const fieldKey = Object.keys(contactUpdate)[0];
-                const contact = await prisma.contact.findUnique({
-                    where: { id: contactId },
-                    select: { [fieldKey]: true },
-                });
-                // Only fill empty fields — never overwrite existing data
-                if (contact && !contact[fieldKey]) {
-                    await prisma.contact.update({
-                        where: { id: contactId },
-                        data: contactUpdate,
-                    }).catch(() => {});
-                }
-            }
-        }
-
+        await persistCapturedField(companyId, conversationId, contactId, args.field_name, trimmedValue);
         return JSON.stringify({ success: true, message: `Dato "${args.field_name}" guardado correctamente.` });
     } catch (err) {
         return JSON.stringify({ success: false, message: 'Error al guardar el dato.' });
@@ -998,38 +956,7 @@ async function handleAnalyzeFile(
         let segmentedSummary = '';
         if (captureFields && captureFields.length > 0) {
             try {
-                const fieldList = captureFields.map(f => `- ${f.key}${f.label ? ` (${f.label})` : ''}`).join('\n');
-                const extraction = await callAIProvider({
-                    model,
-                    temperature: 0,
-                    companyId,
-                    tools: [],
-                    messages: [
-                        { role: 'system', content: 'Eres un extractor de datos. Respondes ÚNICAMENTE con un objeto JSON válido, sin texto adicional.' },
-                        { role: 'user', content: `Del siguiente texto extraído de un documento, identifica estos campos. Responde SOLO con un JSON {clave: valor} usando EXACTAMENTE estas claves. Si un campo no aparece, omítelo (no inventes).\n\nCampos:\n${fieldList}\n\nTexto del documento:\n${analysisText.slice(0, 12000)}` },
-                    ],
-                });
-                const rawJson = (extraction.content || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-                const parsed = JSON.parse(rawJson) as Record<string, unknown>;
-                const saved: string[] = [];
-                for (const f of captureFields) {
-                    const v = parsed[f.key];
-                    if (v == null || v === '') continue;
-                    const value = String(typeof v === 'object' ? JSON.stringify(v) : v).trim();
-                    if (!value) continue;
-                    const ex = await prisma.capturedData.findFirst({ where: { conversationId, fieldName: f.key }, select: { id: true } });
-                    if (ex) await prisma.capturedData.update({ where: { id: ex.id }, data: { fieldValue: value } });
-                    else await prisma.capturedData.create({ data: { companyId, conversationId, contactId, fieldName: f.key, fieldValue: value, source: 'ai_agent' } });
-                    if (contactId) {
-                        const cu = mapFieldToContact(f.key, value);
-                        if (cu) {
-                            const k = Object.keys(cu)[0];
-                            const ct = await prisma.contact.findUnique({ where: { id: contactId }, select: { [k]: true } });
-                            if (ct && !ct[k]) await prisma.contact.update({ where: { id: contactId }, data: cu }).catch(() => {});
-                        }
-                    }
-                    saved.push(`${f.label || f.key}: ${value}`);
-                }
+                const saved = await extractAndPersistFields({ text: analysisText, captureFields, model, companyId, conversationId, contactId });
                 segmentedSummary = saved.join('\n');
                 console.log(`[analyze_file] segmented ${saved.length} fields from document`);
             } catch (segErr) {
