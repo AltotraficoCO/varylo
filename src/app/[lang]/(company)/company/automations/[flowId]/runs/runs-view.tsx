@@ -36,7 +36,7 @@ export function RunsView({ flowName, backHref, nodeLabels, runs }: {
     return (
         <div className="space-y-5">
             <div className="flex items-center gap-3">
-                <Link href={backHref}><Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" />Volver al flujo</Button></Link>
+                <Link href={backHref}><Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" />Volver</Button></Link>
             </div>
             <div>
                 <h1 className="text-2xl font-semibold">Ejecuciones · {flowName}</h1>

@@ -26,21 +26,21 @@ export function AutomationsList({ lang, flows }: { lang: string; flows: FlowRow[
         setCreating(true);
         startTransition(async () => {
             try {
-                const id = await createAutomationFlow('Nuevo flujo');
+                const id = await createAutomationFlow('Nuevo agente condicional');
                 router.push(`/${lang}/company/automations/${id}`);
             } catch {
-                toast.error('No se pudo crear el flujo');
+                toast.error('No se pudo crear el agente condicional');
                 setCreating(false);
             }
         });
     };
 
     const handleDelete = (id: string, name: string) => {
-        if (!confirm(`¿Eliminar el flujo "${name}"? Esto no se puede deshacer.`)) return;
+        if (!confirm(`¿Eliminar el agente condicional "${name}"? Esto no se puede deshacer.`)) return;
         startTransition(async () => {
             try {
                 await deleteAutomationFlow(id);
-                toast.success('Flujo eliminado');
+                toast.success('Agente condicional eliminado');
                 router.refresh();
             } catch {
                 toast.error('No se pudo eliminar');
@@ -54,7 +54,7 @@ export function AutomationsList({ lang, flows }: { lang: string; flows: FlowRow[
                 <div>
                     <h1 className="text-2xl font-semibold flex items-center gap-2">
                         <Workflow className="h-6 w-6 text-[#6366F1]" />
-                        Automatizaciones
+                        Agente condicional
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
                         Recibe leads por webhook y rutéalos al agente IA correcto según su origen.
@@ -62,7 +62,7 @@ export function AutomationsList({ lang, flows }: { lang: string; flows: FlowRow[
                 </div>
                 <Button onClick={handleCreate} disabled={creating}>
                     {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                    Nuevo flujo
+                    Nuevo agente condicional
                 </Button>
             </div>
 
@@ -71,9 +71,9 @@ export function AutomationsList({ lang, flows }: { lang: string; flows: FlowRow[
                     <div className="h-12 w-12 rounded-full bg-[#EEF2FF] flex items-center justify-center">
                         <Workflow className="h-6 w-6 text-[#6366F1]" />
                     </div>
-                    <p className="font-medium">Aún no tienes flujos</p>
+                    <p className="font-medium">Aún no tienes agentes condicionales</p>
                     <p className="text-sm text-muted-foreground max-w-sm">
-                        Crea un flujo con un nodo Webhook que reciba tus leads, una Condición por origen, y nodos que despachen al agente IA correspondiente.
+                        Crea un agente condicional con un nodo Webhook que reciba tus leads, una Condición por origen, y nodos que despachen al agente IA correspondiente.
                     </p>
                     <Button onClick={handleCreate} disabled={creating} variant="outline">
                         <Plus className="mr-2 h-4 w-4" />Crear el primero

@@ -7,11 +7,11 @@ import {
     type Node, type Edge, type Connection, type NodeTypes, type OnConnect,
     MarkerType, Panel,
 } from '@xyflow/react';
-import { FlowCanvasShell } from '@/components/flow/flow-canvas';
+import { FlowCanvasShell, dagreLayout } from '@/components/flow/flow-canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw, History } from 'lucide-react';
+import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw, History, LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import type { AutomationGraph, AutomationFlowNode } from '@/types/automation';
@@ -35,7 +35,7 @@ function graphToReactFlow(
         return {
             id,
             type: 'automationNode',
-            position: fn.position || { x: 300, y: i * 180 },
+            position: fn.position || { x: i * 280, y: 100 },
             data: { flowNode: fn, agentName: agents.find(a => a.id === fn.agentId)?.name },
         };
     });
@@ -132,8 +132,9 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
 
     const addNode = useCallback((type: 'condition' | 'dispatch_agent') => {
         const id = newId(type === 'condition' ? 'cond' : 'agent');
-        const lowest = Object.values(graph.nodes).reduce((a, b) => ((b.position?.y ?? 0) > (a.position?.y ?? 0) ? b : a), graph.nodes[graph.startNodeId]);
-        const position = { x: (lowest.position?.x ?? 300) + (type === 'condition' ? 0 : 340), y: (lowest.position?.y ?? 0) + 220 };
+        // place to the right of the rightmost node (flow runs left → right)
+        const rightmost = Object.values(graph.nodes).reduce((a, b) => ((b.position?.x ?? 0) > (a.position?.x ?? 0) ? b : a), graph.nodes[graph.startNodeId]);
+        const position = { x: (rightmost.position?.x ?? 0) + 280, y: rightmost.position?.y ?? 100 };
         const node: AutomationFlowNode = type === 'condition'
             ? { id, type, field: 'source', cases: [{ value: '', next: '' }], position }
             : { id, type, agentId: agents[0]?.id, template: { name: '', language: 'es' }, position };
@@ -141,6 +142,16 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
         setShowAddMenu(false);
         setTimeout(() => { setSelectedId(id); fitView({ padding: 0.3, duration: 300 }); }, 50);
     }, [graph, agents, fitView]);
+
+    const autoLayout = useCallback(() => {
+        const positions = dagreLayout(nodes, edges, { width: 220, height: 110, direction: 'LR' });
+        setGraph(prev => {
+            const n = { ...prev.nodes };
+            Object.keys(n).forEach(id => { if (positions[id]) n[id] = { ...n[id], position: positions[id] }; });
+            return { ...prev, nodes: n };
+        });
+        setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
+    }, [nodes, edges, fitView]);
 
     const handleSave = () => {
         startTransition(async () => {
@@ -245,6 +256,7 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
                             nodeTypes={nodeTypes}
                         >
                             <Panel position="bottom-center">
+                                <div className="flex items-center">
                                 <div className="relative">
                                     {showAddMenu && (
                                         <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-background border rounded-xl shadow-xl p-2 w-[220px] space-y-1">
@@ -257,6 +269,8 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
                                         </div>
                                     )}
                                     <Button onClick={() => setShowAddMenu(v => !v)} className="shadow-lg"><Plus className="mr-2 h-4 w-4" />Agregar nodo</Button>
+                                </div>
+                                <Button onClick={autoLayout} variant="outline" className="shadow-lg bg-background ml-2"><LayoutGrid className="mr-2 h-4 w-4" />Auto-organizar</Button>
                                 </div>
                             </Panel>
                         </FlowCanvasShell>

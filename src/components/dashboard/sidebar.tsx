@@ -177,7 +177,7 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[], chan
                     label: t.automation, items: [
                         { title: t.chatbots, href: '/company/chatbots', icon: Bot },
                         { title: t.aiAgents, href: '/company/ai-agents', icon: Sparkles },
-                        { title: t.automations || 'Automatizaciones', href: '/company/automations', icon: Workflow },
+                        { title: t.automations || 'Agente condicional', href: '/company/automations', icon: Workflow },
                     ]
                 },
                 {
@@ -233,7 +233,7 @@ const defaultDict: SidebarDict = {
     automation: 'AUTOMATIZACIÓN',
     chatbots: 'Chatbots',
     aiAgents: 'Agentes IA',
-    automations: 'Automatizaciones',
+    automations: 'Agente condicional',
     management: 'GESTIÓN',
     team: 'Equipo',
     calendar: 'Calendario',

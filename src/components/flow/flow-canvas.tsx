@@ -68,12 +68,12 @@ export function FlowCanvasShell<NodeT extends Node = Node, EdgeT extends Edge = 
 export function dagreLayout(
     nodes: { id: string }[],
     edges: { source: string; target: string }[],
-    opts?: { width?: number; height?: number },
+    opts?: { width?: number; height?: number; direction?: 'TB' | 'LR' },
 ): Record<string, { x: number; y: number }> {
     const width = opts?.width ?? 280;
     const height = opts?.height ?? 200;
     const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    g.setGraph({ rankdir: 'TB', nodesep: 80, ranksep: 120 });
+    g.setGraph({ rankdir: opts?.direction ?? 'TB', nodesep: 80, ranksep: 120 });
     nodes.forEach(n => g.setNode(n.id, { width, height }));
     edges.forEach(e => g.setEdge(e.source, e.target));
     Dagre.layout(g);

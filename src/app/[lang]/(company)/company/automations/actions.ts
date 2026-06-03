@@ -25,7 +25,7 @@ export async function createAutomationFlow(name: string): Promise<string> {
     const flow = await prisma.automationFlow.create({
         data: {
             companyId,
-            name: name?.trim() || 'Nuevo flujo',
+            name: name?.trim() || 'Nuevo agente condicional',
             webhookSecret: `whk_${randomBytes(24).toString('hex')}`,
             graphJson: graphJson as Prisma.InputJsonValue,
         },
