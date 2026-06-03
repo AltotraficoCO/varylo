@@ -22,17 +22,19 @@ export interface RunFlowResult {
 export async function runAutomationFlow(
     flow: { id: string; companyId: string; graphJson: unknown },
     payload: Record<string, unknown>,
+    startFrom?: string,
 ): Promise<RunFlowResult> {
     const graph = (flow.graphJson || {}) as AutomationGraph;
     const path: string[] = [];
     let result: RunFlowResult;
+    const entryId = startFrom || graph.startNodeId;
 
     try {
-        if (!graph.startNodeId || !graph.nodes || !graph.nodes[graph.startNodeId]) {
+        if (!entryId || !graph.nodes || !graph.nodes[entryId]) {
             result = { status: 'ERROR', path, error: 'El flujo no tiene nodo inicial.' };
         } else {
             result = { status: 'ERROR', path, error: 'El flujo no llegó a ningún nodo de acción.' };
-            let currentId: string | undefined = graph.startNodeId;
+            let currentId: string | undefined = entryId;
             let work: Record<string, unknown> = payload; // payload as it flows (a code node may transform it)
             let steps = 0;
 
@@ -45,7 +47,7 @@ export async function runAutomationFlow(
                 }
                 path.push(currentId);
 
-                if (node.type === 'trigger') {
+                if (node.type === 'trigger' || node.type === 'cron') {
                     currentId = node.next;
                     if (!currentId) {
                         result = { status: 'ERROR', path, error: 'El nodo de inicio no está conectado a nada.' };

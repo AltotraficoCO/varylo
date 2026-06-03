@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Webhook, GitBranch, Bot, Code2 } from 'lucide-react';
+import { Webhook, GitBranch, Bot, Code2, Clock } from 'lucide-react';
 import type { AutomationFlowNode } from '@/types/automation';
 
 export interface AutomationNodeData extends Record<string, unknown> {
@@ -45,6 +45,21 @@ export const AutomationNode = memo(function AutomationNode({ data, selected }: N
                         {flowNode.template?.name ? flowNode.template.name : 'falta plantilla'}
                     </p>
                 </div>
+            </div>
+        );
+    }
+
+    if (flowNode.type === 'cron') {
+        return (
+            <div className={`relative flex items-center gap-2.5 w-[210px] rounded-lg border border-[#A7F3D0] bg-white shadow-sm px-3 py-2.5 ${ring}`}>
+                <div className="w-9 h-9 rounded-md bg-[#ECFDF5] text-[#059669] flex items-center justify-center shrink-0">
+                    <Clock className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-[#064E3B] leading-tight">Cron</p>
+                    <p className="text-[11px] text-[#64748B] truncate font-mono">{flowNode.schedule || 'sin horario'}</p>
+                </div>
+                <Handle type="source" position={Position.Right} className={`${handleBase} !bg-[#059669] !-right-1.5`} />
             </div>
         );
     }

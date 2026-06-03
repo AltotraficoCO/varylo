@@ -206,6 +206,9 @@ model AutomationFlow {
   status        String          @default("DRAFT") // DRAFT | PUBLISHED
   graphJson     Json            @default("{}")
   webhookSecret String          @default(cuid())
+  // Per cron-node last-run tracking: { [nodeId]: ISO timestamp }. Kept separate
+  // from graphJson (user-edited) so the dispatcher can update it independently.
+  cronStateJson Json?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 

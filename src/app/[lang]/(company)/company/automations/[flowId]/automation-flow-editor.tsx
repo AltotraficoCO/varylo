@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw, History, LayoutGrid, Code2 } from 'lucide-react';
+import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw, History, LayoutGrid, Code2, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import type { AutomationGraph, AutomationFlowNode } from '@/types/automation';
@@ -52,6 +52,7 @@ function graphToReactFlow(
     ids.forEach(id => {
         const fn = graph.nodes[id];
         if (fn.type === 'trigger' && fn.next && graph.nodes[fn.next]) edges.push(edge(id, undefined, fn.next, '#6366F1'));
+        if (fn.type === 'cron' && fn.next && graph.nodes[fn.next]) edges.push(edge(id, undefined, fn.next, '#059669'));
         if (fn.type === 'code' && fn.next && graph.nodes[fn.next]) edges.push(edge(id, undefined, fn.next, '#475569'));
         if (fn.type === 'condition') {
             (fn.cases || []).forEach((c, i) => {
@@ -115,7 +116,7 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
         if (!conn.source || !conn.target) return;
         const src = graph.nodes[conn.source];
         if (!src) return;
-        if (src.type === 'trigger' || src.type === 'code') {
+        if (src.type === 'trigger' || src.type === 'code' || src.type === 'cron') {
             updateNode(conn.source, { next: conn.target });
         } else if (src.type === 'condition') {
             if (conn.sourceHandle === 'else') {
@@ -132,14 +133,15 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
         updateNode(node.id, { position: { x: node.position.x, y: node.position.y } });
     }, [updateNode]);
 
-    const addNode = useCallback((type: 'condition' | 'dispatch_agent' | 'code') => {
-        const id = newId(type === 'condition' ? 'cond' : type === 'code' ? 'code' : 'agent');
+    const addNode = useCallback((type: 'condition' | 'dispatch_agent' | 'code' | 'cron') => {
+        const id = newId(type === 'condition' ? 'cond' : type === 'code' ? 'code' : type === 'cron' ? 'cron' : 'agent');
         // place to the right of the rightmost node (flow runs left → right)
         const rightmost = Object.values(graph.nodes).reduce((a, b) => ((b.position?.x ?? 0) > (a.position?.x ?? 0) ? b : a), graph.nodes[graph.startNodeId]);
         const position = { x: (rightmost.position?.x ?? 0) + 280, y: rightmost.position?.y ?? 100 };
         const node: AutomationFlowNode =
             type === 'condition' ? { id, type, field: 'source', cases: [{ value: '', next: '' }], position }
             : type === 'code' ? { id, type, code: '// Recibe `input` (el payload) y devuelve el nuevo objeto.\nreturn input;', position }
+            : type === 'cron' ? { id, type, schedule: '0 9 * * *', position }
             : { id, type, agentId: agents[0]?.id, template: { name: '', language: 'es' }, position };
         setGraph(prev => ({ ...prev, nodes: { ...prev.nodes, [id]: node } }));
         setShowAddMenu(false);
@@ -263,6 +265,9 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
                                 <div className="relative">
                                     {showAddMenu && (
                                         <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-background border rounded-xl shadow-xl p-2 w-[220px] space-y-1">
+                                            <button onClick={() => addNode('cron')} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm hover:bg-muted text-left">
+                                                <Clock className="h-4 w-4 text-[#059669]" /><span>Cron (programado)</span>
+                                            </button>
                                             <button onClick={() => addNode('condition')} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm hover:bg-muted text-left">
                                                 <GitBranch className="h-4 w-4 text-[#F59E0B]" /><span>Condición</span>
                                             </button>
@@ -301,7 +306,8 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
 function validateGraph(graph: AutomationGraph): string[] {
     const problems: string[] = [];
     const trigger = graph.nodes[graph.startNodeId];
-    if (!trigger?.next) problems.push('Conecta el nodo Webhook a algo antes de publicar.');
+    const hasCronEntry = Object.values(graph.nodes).some(n => n.type === 'cron' && n.next);
+    if (!trigger?.next && !hasCronEntry) problems.push('Conecta el Webhook (o un nodo Cron) a algo antes de publicar.');
     Object.values(graph.nodes).forEach(n => {
         if (n.type === 'dispatch_agent') {
             if (!n.agentId) problems.push('Un nodo de Agente IA no tiene agente seleccionado.');
@@ -325,6 +331,7 @@ function NodeConfigPanel({ node, agents, channels, onUpdate, onDelete, onClose }
             <div className="flex items-center justify-between px-4 py-3 border-b">
                 <h3 className="font-semibold text-sm">
                     {node.type === 'trigger' ? 'Webhook (entrada)'
+                        : node.type === 'cron' ? 'Cron (programado)'
                         : node.type === 'condition' ? 'Condición'
                         : node.type === 'code' ? 'Código JS'
                         : 'Despachar a Agente IA'}
@@ -338,6 +345,30 @@ function NodeConfigPanel({ node, agents, channels, onUpdate, onDelete, onClose }
                         Este es el punto de entrada. Tu app envía el lead a la URL del webhook (arriba) y el flujo arranca aquí.
                         Conéctalo a una Condición o directo a un Agente IA arrastrando desde el punto inferior.
                     </p>
+                )}
+
+                {node.type === 'cron' && (
+                    <>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Horario (expresión cron)</Label>
+                            <Input value={node.schedule || ''} onChange={e => onUpdate({ schedule: e.target.value })}
+                                placeholder="0 9 * * *" className="h-9 text-[13px] font-mono" />
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                            {[
+                                { label: 'Cada hora', v: '0 * * * *' },
+                                { label: 'Cada día 9am', v: '0 9 * * *' },
+                                { label: 'Lun-Vie 8am', v: '0 8 * * 1-5' },
+                                { label: 'Cada 15 min', v: '*/15 * * * *' },
+                            ].map(p => (
+                                <button key={p.v} onClick={() => onUpdate({ schedule: p.v })}
+                                    className="text-[11px] px-2 py-1 rounded-md border hover:bg-muted">{p.label}</button>
+                            ))}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                            Arranca el flujo en el horario indicado (precisión ~5 min). Útil con un nodo de Código que genere o traiga los datos. Hora del servidor (UTC).
+                        </p>
+                    </>
                 )}
 
                 {node.type === 'condition' && (

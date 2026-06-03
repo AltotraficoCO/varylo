@@ -1,7 +1,7 @@
 // Shared shape of an automation flow graph (lead router).
 // Authored on the canvas (UI) and traversed by the one-pass engine.
 
-export type AutomationNodeType = 'trigger' | 'condition' | 'dispatch_agent' | 'code';
+export type AutomationNodeType = 'trigger' | 'condition' | 'dispatch_agent' | 'code' | 'cron';
 
 export interface AutomationConditionCase {
     value: string;
@@ -19,8 +19,11 @@ export interface AutomationFlowNode {
     id: string;
     type: AutomationNodeType;
 
-    // trigger
+    // trigger / cron / code — single output
     next?: string;
+
+    // cron (scheduled trigger). `schedule` is a standard cron expression.
+    schedule?: string;
 
     // condition (switch on a payload field)
     field?: string;
