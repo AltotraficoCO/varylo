@@ -58,6 +58,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
         'gemini-3.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash',
         // previous (still selectable)
         'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+        'deepseek-chat', 'deepseek-reasoner',
         'claude-sonnet-4-5-20251030', 'claude-opus-4-6',
         // legacy aliases — kept so existing agents can still be edited without forced model change
         'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
@@ -158,6 +159,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
         'gemini-3.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash',
         // previous (still selectable)
         'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+        'deepseek-chat', 'deepseek-reasoner',
         'claude-sonnet-4-5-20251030', 'claude-opus-4-6',
         // legacy aliases — kept so existing agents can still be edited without forced model change
         'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-7-sonnet-20250219', 'claude-opus-4-5',
