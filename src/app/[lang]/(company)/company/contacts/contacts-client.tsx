@@ -17,9 +17,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Download, Plus, Send } from 'lucide-react';
+import { Search, Trash2, CheckSquare, X, Phone, Instagram, Globe, Users, Download, Plus, Send, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { deleteContacts } from './actions';
+import { deleteContacts, exportContacts } from './actions';
 import { toast } from 'sonner';
 import { SendTemplateDialog } from './send-template-dialog';
 import { useDictionary } from '@/lib/i18n-context';
@@ -50,6 +50,9 @@ interface ContactsClientProps {
     filter: string;
     channel: string;
     lang: string;
+    page: number;
+    total: number;
+    pageSize: number;
 }
 
 const channelBadge: Record<string, { bg: string; dot: string; text: string; label: string }> = {
@@ -70,7 +73,7 @@ function timeAgo(date: Date | string) {
     return `hace ${days}d`;
 }
 
-export function ContactsClient({ contacts, search, filter, channel, lang }: ContactsClientProps) {
+export function ContactsClient({ contacts, search, filter, channel, lang, page, total, pageSize }: ContactsClientProps) {
     const dict = useDictionary();
     const t = dict.contacts || {};
     const ui = dict.ui || {};
@@ -90,6 +93,16 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
         if (searchValue) params.set('q', searchValue);
         if (filter) params.set('filter', filter);
         if (channel) params.set('channel', channel);
+        router.push(`?${params.toString()}`);
+    };
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const goToPage = (p: number) => {
+        const params = new URLSearchParams();
+        if (search) params.set('q', search);
+        if (filter) params.set('filter', filter);
+        if (channel) params.set('channel', channel);
+        if (p > 1) params.set('page', String(p));
         router.push(`?${params.toString()}`);
     };
 
@@ -145,9 +158,10 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                     <Button
                         variant="outline"
                         className="rounded-lg px-4 py-2 text-[14px] font-medium text-[#3F3F46]"
-                        onClick={() => {
+                        onClick={async () => {
+                            const all = await exportContacts(search, filter, channel);
                             const header = 'Nombre,Telefono,Email,Canal,Empresa';
-                            const rows = contacts.map(c => {
+                            const rows = all.map(c => {
                                 const ch = c.originChannel || c.conversations?.[0]?.channel?.type || '';
                                 return [
                                     (c.name || '').replace(/,/g, ' '),
@@ -353,6 +367,24 @@ export function ContactsClient({ contacts, search, filter, channel, lang }: Cont
                 )}
               </div>
             </div>
+
+            {/* Pagination */}
+            {total > 0 && (
+                <div className="flex items-center justify-between mt-3">
+                    <span className="text-[13px] text-[#71717A]">
+                        {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} de {total}
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => goToPage(page - 1)}>
+                            <ChevronLeft className="h-4 w-4 mr-1" />{ui.previous || 'Anterior'}
+                        </Button>
+                        <span className="text-[13px] text-[#71717A]">{page} / {totalPages}</span>
+                        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => goToPage(page + 1)}>
+                            {ui.next || 'Siguiente'}<ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Template dialog */}
             <SendTemplateDialog
