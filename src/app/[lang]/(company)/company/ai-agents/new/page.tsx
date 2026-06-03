@@ -27,7 +27,10 @@ export default async function NewAgentPage({ params }: { params: Promise<{ lang:
             lang={lang}
             channels={channels
                 .filter(c => !(c.configJson as { isPlayground?: boolean } | null)?.isPlayground)
-                .map(c => ({ id: c.id, type: c.type }))}
+                .map(c => {
+                    const cfg = c.configJson as { label?: string; phoneDisplay?: string; phoneNumberId?: string } | null;
+                    return { id: c.id, type: c.type, label: cfg?.label?.trim() || cfg?.phoneDisplay || cfg?.phoneNumberId || undefined };
+                })}
             hasGoogleCalendar={!!company?.googleCalendarRefreshToken}
             hasShopify={ecommerceStores.some(s => s.platform === 'shopify')}
             hasWooCommerce={ecommerceStores.some(s => s.platform === 'woocommerce')}

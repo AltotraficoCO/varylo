@@ -15,7 +15,7 @@ import { updateAiAgent, testWebhook, type TestWebhookResult } from '../../action
 import { useDictionary } from '@/lib/i18n-context';
 import { PlaygroundPanel } from './playground-panel';
 
-type Channel = { id: string; type: string };
+type Channel = { id: string; type: string; label?: string };
 
 const CHANNEL_LABELS: Record<string, string> = {
     WHATSAPP: 'WhatsApp', INSTAGRAM: 'Instagram', WEB_CHAT: 'Web Chat', MESSENGER: 'Messenger', TELEGRAM: 'Telegram',
@@ -395,7 +395,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                                         <button key={ch.id} type="button"
                                             onClick={() => setSelectedChannels(prev => isSelected ? prev.filter(id => id !== ch.id) : [...prev, ch.id])}
                                             className={`px-4 py-2 rounded-lg text-[13px] font-medium border transition-all ${isSelected ? 'bg-[#ECFDF5] border-[#10B981] text-[#059669]' : 'bg-white border-[#E4E4E7] text-[#3F3F46] hover:border-[#D4D4D8]'}`}>
-                                            {CHANNEL_LABELS[ch.type] || ch.type}
+                                            {CHANNEL_LABELS[ch.type] || ch.type}{ch.label ? ` · ${ch.label}` : ''}
                                         </button>
                                     );
                                 })}

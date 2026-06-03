@@ -16,7 +16,7 @@ import { AGENT_TYPE_CONFIGS, AGENT_CATEGORIES, type AiAgentType } from '@/lib/ai
 import { createAiAgent, testWebhook, type TestWebhookResult } from '../actions';
 import { useDictionary } from '@/lib/i18n-context';
 
-type Channel = { id: string; type: string };
+type Channel = { id: string; type: string; label?: string };
 
 interface NewAgentFlowProps {
     lang: string;
@@ -642,7 +642,7 @@ export function NewAgentFlow({ lang, channels, hasGoogleCalendar, hasShopify, ha
                                                     : 'bg-white border-[#E4E4E7] text-[#3F3F46] hover:border-[#D4D4D8]'
                                             }`}
                                         >
-                                            {CHANNEL_LABELS[ch.type] || ch.type}
+                                            {CHANNEL_LABELS[ch.type] || ch.type}{ch.label ? ` · ${ch.label}` : ''}
                                         </button>
                                     );
                                 })}
