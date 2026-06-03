@@ -172,6 +172,19 @@ async function uploadBufferToWhatsApp(
 /**
  * Build WhatsApp API payload for media messages using a media ID (uploaded via media API).
  */
+/**
+ * Convert Markdown emphasis to WhatsApp's syntax. Models write **bold** (Markdown,
+ * double asterisk) but WhatsApp bold is *single asterisk*, so customers were seeing
+ * literal `**`. Applied only to outbound WhatsApp text; the original is kept in the DB.
+ */
+export function toWhatsAppText(text: string): string {
+    if (!text) return text;
+    return text
+        .replace(/\*\*\*(.+?)\*\*\*/g, '*_$1_*') // ***bold italic*** → *_x_*
+        .replace(/\*\*(.+?)\*\*/g, '*$1*')        // **bold** → *bold*
+        .replace(/__(.+?)__/g, '*$1*');           // __bold__ → *bold*
+}
+
 function buildWhatsAppMediaPayloadById(
     recipientPhone: string,
     content: string,
@@ -283,6 +296,7 @@ export async function sendChannelMessage({
         const accessToken = readChannelSecret(config?.accessToken);
         if (accessToken && config?.phoneNumberId) {
             let payload: Record<string, any>;
+            const waText = toWhatsAppText(content || ''); // Markdown bold → WhatsApp bold
 
             if (mediaUrl && mediaType && mimeType) {
                 const cleanMime = mimeType.split(';')[0];
@@ -299,14 +313,14 @@ export async function sendChannelMessage({
                     );
 
                     if (waMediaId) {
-                        payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, 'audio');
+                        payload = buildWhatsAppMediaPayloadById(contact.phone, waText, waMediaId, 'audio');
                     } else {
                         payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: '🎤 Te envié una nota de voz.' } };
                     }
                 }
                 // Non-audio with URL: send URL directly (images, docs, etc.)
                 else if (fileUrl) {
-                    payload = buildWhatsAppMediaPayloadByUrl(contact.phone, content, fileUrl, mediaType, fileName);
+                    payload = buildWhatsAppMediaPayloadByUrl(contact.phone, waText, fileUrl, mediaType, fileName);
                 }
                 // Data URL fallback: upload to WhatsApp media API
                 else if (mediaUrl.startsWith('data:')) {
@@ -318,15 +332,15 @@ export async function sendChannelMessage({
                         fileName || 'file',
                     );
                     if (waMediaId) {
-                        payload = buildWhatsAppMediaPayloadById(contact.phone, content, waMediaId, mediaType, fileName);
+                        payload = buildWhatsAppMediaPayloadById(contact.phone, waText, waMediaId, mediaType, fileName);
                     } else {
                         throw new Error('No se pudo enviar el archivo a WhatsApp.');
                     }
                 } else {
-                    payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content } };
+                    payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: waText } };
                 }
             } else {
-                payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: content } };
+                payload = { messaging_product: 'whatsapp', to: contact.phone, type: 'text', text: { body: waText } };
             }
 
             const res = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
