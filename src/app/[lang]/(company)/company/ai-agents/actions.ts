@@ -82,6 +82,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
     const crmEnabled = formData.get('crmEnabled') === 'on';
+    const handlesAdLeads = formData.get('handlesAdLeads') === 'on';
 
     if (!name || !systemPrompt) {
         return 'Error: Nombre y prompt del sistema son requeridos.';
@@ -125,6 +126,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
                 calendarId,
                 ecommerceEnabled,
                 crmEnabled,
+                handlesAdLeads,
                 webhookConfigJson: webhookConfigJson ?? Prisma.JsonNull,
                 channels: validChannelIds.length > 0 ? {
                     connect: validChannelIds.map(id => ({ id })),
@@ -180,6 +182,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const calendarId = (formData.get('calendarId') as string)?.trim() || 'primary';
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
     const crmEnabled = formData.get('crmEnabled') === 'on';
+    const handlesAdLeads = formData.get('handlesAdLeads') === 'on';
 
     if (!id || !name || !systemPrompt) return 'Error: Campos requeridos faltantes.';
 
@@ -216,6 +219,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
                 calendarId,
                 ecommerceEnabled,
                 crmEnabled,
+                handlesAdLeads,
                 webhookConfigJson: webhookConfigJson ?? Prisma.JsonNull,
                 channels: {
                     set: validChannels.map(c => ({ id: c.id })),

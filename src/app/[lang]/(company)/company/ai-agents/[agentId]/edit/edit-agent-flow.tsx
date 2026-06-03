@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
     ArrowLeft, Sparkles, Loader2, Calendar, ShoppingBag, Webhook, FileText,
-    Plus, X, GripVertical, Pencil, Send, CheckCircle2, AlertCircle,
+    Plus, X, GripVertical, Pencil, Send, CheckCircle2, AlertCircle, Megaphone,
 } from 'lucide-react';
 import { updateAiAgent, testWebhook, type TestWebhookResult } from '../../actions';
 import { useDictionary } from '@/lib/i18n-context';
@@ -38,6 +38,7 @@ interface EditAgentFlowProps {
         calendarEnabled: boolean;
         ecommerceEnabled: boolean;
         crmEnabled: boolean;
+        handlesAdLeads: boolean;
         webhookConfigJson: { url?: string; secret?: string } | null;
         channelIds: string[];
     };
@@ -68,6 +69,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
     ]);
     const [newFieldLabel, setNewFieldLabel] = useState('');
     const [calendarEnabled, setCalendarEnabled] = useState(agent.calendarEnabled);
+    const [handlesAdLeads, setHandlesAdLeads] = useState(agent.handlesAdLeads);
     const [shopifyEnabled, setShopifyEnabled] = useState(agent.ecommerceEnabled && hasShopify);
     const [woocommerceEnabled, setWoocommerceEnabled] = useState(agent.ecommerceEnabled && hasWooCommerce);
     const [webhookEnabled, setWebhookEnabled] = useState(!!agent.webhookConfigJson?.url);
@@ -138,6 +140,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                 <input type="hidden" name="calendarId" value="primary" />
                 <input type="hidden" name="ecommerceEnabled" value={(shopifyEnabled || woocommerceEnabled) ? 'on' : 'off'} />
                 <input type="hidden" name="crmEnabled" value="off" />
+                <input type="hidden" name="handlesAdLeads" value={handlesAdLeads ? 'on' : 'off'} />
                 {webhookEnabled && webhookUrl && <input type="hidden" name="webhookUrl" value={webhookUrl} />}
                 {selectedChannels.map(id => (
                     <input key={id} type="hidden" name="channelIds" value={id} />
@@ -320,6 +323,18 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                                 </div>
                             </div>
                             <Switch checked={woocommerceEnabled} onCheckedChange={setWoocommerceEnabled} disabled={!hasWooCommerce} />
+                        </div>
+
+                        {/* Ad leads (Click-to-WhatsApp / pauta) */}
+                        <div className="flex items-center justify-between px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-lg bg-[#ECFEFF] flex items-center justify-center"><Megaphone className="h-4 w-4 text-[#0891B2]" /></div>
+                                <div>
+                                    <p className="text-[14px] font-medium text-[#09090B]">Atender leads de anuncios (pauta)</p>
+                                    <p className="text-[12px] text-[#71717A]">Solo este agente atiende los chats que llegan desde un anuncio Click-to-WhatsApp de Meta.</p>
+                                </div>
+                            </div>
+                            <Switch checked={handlesAdLeads} onCheckedChange={setHandlesAdLeads} />
                         </div>
 
                         {/* Webhook */}

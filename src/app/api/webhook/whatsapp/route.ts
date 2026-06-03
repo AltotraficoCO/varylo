@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ChannelType, MessageDirection } from '@prisma/client';
+import { ChannelType, MessageDirection, Prisma } from '@prisma/client';
 import { runAutomationPipeline } from '@/jobs/pipeline';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { findLeastBusyAgent } from '@/lib/assign-agent';
@@ -264,22 +264,34 @@ export async function POST(req: NextRequest) {
                 });
 
                 if (!conversation) {
-                    const activeAiAgent = await prisma.aiAgent.findFirst({
-                        where: {
-                            companyId,
-                            active: true,
-                            channels: { some: { id: channel.id } },
-                        },
-                    });
+                    // Detect a Click-to-WhatsApp ad referral. Meta attaches `referral`
+                    // to the first message when the lead came from an ad.
+                    const referral = (message as { referral?: { source_type?: string; source_id?: string; source_url?: string; headline?: string; body?: string; ctwa_clid?: string } }).referral;
+                    const fromAd = !!referral && (referral.source_type === 'ad' || !!referral.source_id);
 
-                    if (activeAiAgent) {
+                    // For ad leads, prefer the agent reserved for ads; otherwise the
+                    // channel's general agent (explicitly NOT an ads-only agent, so an
+                    // ads agent never grabs normal inbound traffic).
+                    let chosenAgent = fromAd
+                        ? await prisma.aiAgent.findFirst({ where: { companyId, active: true, handlesAdLeads: true, channels: { some: { id: channel.id } } } })
+                        : null;
+                    if (!chosenAgent) {
+                        chosenAgent = await prisma.aiAgent.findFirst({ where: { companyId, active: true, handlesAdLeads: false, channels: { some: { id: channel.id } } } });
+                    }
+
+                    const leadContextJson = fromAd
+                        ? ({ source: 'pauta_directa', ad: { sourceType: referral!.source_type, sourceId: referral!.source_id, headline: referral!.headline, body: referral!.body, sourceUrl: referral!.source_url, ctwaClid: referral!.ctwa_clid } } as Prisma.InputJsonValue)
+                        : undefined;
+
+                    if (chosenAgent) {
                         conversation = await prisma.conversation.create({
                             data: {
                                 companyId,
                                 channelId: channel.id,
                                 contactId: contact.id,
                                 status: 'OPEN',
-                                handledByAiAgentId: activeAiAgent.id,
+                                handledByAiAgentId: chosenAgent.id,
+                                ...(leadContextJson ? { leadContextJson } : {}),
                             },
                         });
                     } else {
@@ -294,8 +306,18 @@ export async function POST(req: NextRequest) {
                                 assignedAgents: selectedAgentId ? {
                                     connect: { id: selectedAgentId },
                                 } : undefined,
+                                ...(leadContextJson ? { leadContextJson } : {}),
                             },
                         });
+                    }
+
+                    // Tag ad-originated contacts so they're easy to segment.
+                    if (fromAd) {
+                        try {
+                            let tag = await prisma.tag.findFirst({ where: { companyId, name: 'pauta-directa' } });
+                            if (!tag) tag = await prisma.tag.create({ data: { companyId, name: 'pauta-directa' } });
+                            await prisma.contact.update({ where: { id: contact.id }, data: { tags: { connect: { id: tag.id } } } });
+                        } catch { /* tagging is best-effort */ }
                     }
                 }
 
