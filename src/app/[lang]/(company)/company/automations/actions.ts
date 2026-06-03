@@ -76,3 +76,39 @@ export async function deleteAutomationFlow(id: string): Promise<void> {
     await prisma.automationFlow.delete({ where: { id, companyId } });
     revalidatePath('/[lang]/company/automations', 'page');
 }
+
+export interface TestFlowResult {
+    status: 'SUCCESS' | 'NO_MATCH' | 'ERROR';
+    path: string[];
+    error?: string;
+    dispatch?: { agentName: string; template?: string };
+}
+
+/** Run a flow in dry-run mode against a test payload — never sends anything. */
+export async function testAutomationFlow(id: string, payloadJson: string): Promise<TestFlowResult> {
+    const companyId = await requireCompanyId();
+    const flow = await prisma.automationFlow.findFirst({ where: { id, companyId } });
+    if (!flow) return { status: 'ERROR', path: [], error: 'Flujo no encontrado.' };
+
+    let payload: Record<string, unknown>;
+    try {
+        const parsed = JSON.parse(payloadJson || '{}');
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return { status: 'ERROR', path: [], error: 'El payload debe ser un objeto JSON.' };
+        }
+        payload = parsed;
+    } catch {
+        return { status: 'ERROR', path: [], error: 'JSON inválido.' };
+    }
+
+    const { runAutomationFlow } = await import('@/jobs/automation-runner');
+    const result = await runAutomationFlow(flow, payload, undefined, { dryRun: true });
+
+    let dispatch: TestFlowResult['dispatch'];
+    if (result.dispatchPreview?.agentId) {
+        const agent = await prisma.aiAgent.findFirst({ where: { id: result.dispatchPreview.agentId, companyId }, select: { name: true } });
+        dispatch = { agentName: agent?.name || 'Agente', template: result.dispatchPreview.template?.name };
+    }
+
+    return { status: result.status, path: result.path, error: result.error, dispatch };
+}

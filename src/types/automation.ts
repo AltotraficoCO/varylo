@@ -22,7 +22,9 @@ export interface AutomationFlowNode {
     // trigger / cron / code — single output
     next?: string;
 
-    // cron (scheduled trigger). `schedule` is a standard cron expression.
+    // cron (scheduled trigger). `intervalMinutes` runs every N minutes; `schedule`
+    // (a cron expression) is the legacy/advanced alternative.
+    intervalMinutes?: number;
     schedule?: string;
 
     // condition (switch on a payload field)

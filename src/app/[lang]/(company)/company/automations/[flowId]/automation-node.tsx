@@ -56,8 +56,10 @@ export const AutomationNode = memo(function AutomationNode({ data, selected }: N
                     <Clock className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-[#064E3B] leading-tight">Cron</p>
-                    <p className="text-[11px] text-[#64748B] truncate font-mono">{flowNode.schedule || 'sin horario'}</p>
+                    <p className="text-[13px] font-semibold text-[#064E3B] leading-tight">Programado</p>
+                    <p className="text-[11px] text-[#64748B] truncate">
+                        {flowNode.intervalMinutes ? `cada ${flowNode.intervalMinutes} min` : flowNode.schedule || 'sin horario'}
+                    </p>
                 </div>
                 <Handle type="source" position={Position.Right} className={`${handleBase} !bg-[#059669] !-right-1.5`} />
             </div>

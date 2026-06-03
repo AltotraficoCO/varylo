@@ -80,27 +80,28 @@ export function AutomationsList({ lang, flows }: { lang: string; flows: FlowRow[
                     </Button>
                 </Card>
             ) : (
-                <div className="grid gap-3">
+                <div className="grid gap-2.5">
                     {flows.map(f => (
-                        <Card key={f.id} className="p-4 flex items-center justify-between hover:border-[#6366F1]/40 transition-colors">
+                        <div key={f.id} className="rounded-xl border bg-card p-3.5 flex items-center gap-3 hover:border-[#6366F1]/50 hover:shadow-sm transition-all">
+                            <div className="h-9 w-9 rounded-lg bg-[#EEF2FF] flex items-center justify-center shrink-0">
+                                <Workflow className="h-4 w-4 text-[#6366F1]" />
+                            </div>
                             <Link href={`/${lang}/company/automations/${f.id}`} className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                     <span className="font-medium truncate">{f.name}</span>
-                                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${f.status === 'PUBLISHED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium shrink-0 ${f.status === 'PUBLISHED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                                         {f.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
                                     </span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-0.5">{f.runs} ejecuciones</p>
                             </Link>
-                            <div className="flex items-center gap-1 shrink-0">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" disabled={isPending} onClick={() => handleDelete(f.id, f.name)}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                                <Link href={`/${lang}/company/automations/${f.id}`}>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowRight className="h-4 w-4" /></Button>
-                                </Link>
-                            </div>
-                        </Card>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0" disabled={isPending} onClick={() => handleDelete(f.id, f.name)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <Link href={`/${lang}/company/automations/${f.id}`} className="shrink-0">
+                                <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowRight className="h-4 w-4" /></Button>
+                            </Link>
+                        </div>
                     ))}
                 </div>
             )}

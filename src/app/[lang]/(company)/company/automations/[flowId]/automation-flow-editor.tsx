@@ -12,12 +12,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw, History, LayoutGrid, Code2, Clock } from 'lucide-react';
+import { Save, ArrowLeft, Plus, GitBranch, Bot, Copy, Check, Trash2, X, RefreshCw, History, LayoutGrid, Code2, Clock, FlaskConical, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import type { AutomationGraph, AutomationFlowNode } from '@/types/automation';
 import { AutomationNode, type AutomationNodeData } from './automation-node';
-import { saveAutomationGraph, setAutomationStatus, regenerateWebhookSecret } from '../actions';
+import { saveAutomationGraph, setAutomationStatus, regenerateWebhookSecret, testAutomationFlow, type TestFlowResult } from '../actions';
 
 type AgentOpt = { id: string; name: string };
 type ChannelOpt = { id: string; label: string };
@@ -81,7 +81,6 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
     const [secret, setSecret] = useState(initialSecret);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [showAddMenu, setShowAddMenu] = useState(false);
-    const [copied, setCopied] = useState<string | null>(null);
 
     const webhookUrl = typeof window !== 'undefined'
         ? `${window.location.origin}/api/automations/${flowId}/trigger`
@@ -141,7 +140,7 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
         const node: AutomationFlowNode =
             type === 'condition' ? { id, type, field: 'source', cases: [{ value: '', next: '' }], position }
             : type === 'code' ? { id, type, code: '// Recibe `input` (el payload) y devuelve el nuevo objeto.\nreturn input;', position }
-            : type === 'cron' ? { id, type, schedule: '0 9 * * *', position }
+            : type === 'cron' ? { id, type, intervalMinutes: 60, position }
             : { id, type, agentId: agents[0]?.id, template: { name: '', language: 'es' }, position };
         setGraph(prev => ({ ...prev, nodes: { ...prev.nodes, [id]: node } }));
         setShowAddMenu(false);
@@ -187,13 +186,6 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
         });
     };
 
-    const copy = (text: string, key: string) => {
-        navigator.clipboard.writeText(text);
-        setCopied(key);
-        toast.success('Copiado');
-        setTimeout(() => setCopied(null), 1500);
-    };
-
     const regenSecret = () => {
         if (!confirm('¿Regenerar el secret? El anterior dejará de funcionar.')) return;
         startTransition(async () => {
@@ -202,6 +194,12 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
             toast.success('Secret regenerado');
         });
     };
+
+    // Test mode: persist the current graph first so the dry-run reflects the canvas.
+    const onTest = useCallback(async (payloadJson: string): Promise<TestFlowResult> => {
+        await saveAutomationGraph(flowId, graph);
+        return testAutomationFlow(flowId, payloadJson);
+    }, [flowId, graph]);
 
     const nodeTypes: NodeTypes = useMemo(() => ({ automationNode: AutomationNode }), []);
     const selected = selectedId ? graph.nodes[selectedId] : null;
@@ -231,22 +229,9 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
                     </div>
                 </div>
 
-                {/* Webhook info */}
-                <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30 text-xs">
-                    <span className="text-muted-foreground shrink-0">Webhook:</span>
-                    <code className="truncate font-mono text-[11px]">{webhookUrl}</code>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => copy(webhookUrl, 'url')}>
-                        {copied === 'url' ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
-                    </Button>
-                    <span className="text-muted-foreground shrink-0 ml-2">Secret:</span>
-                    <code className="truncate font-mono text-[11px]">{secret.slice(0, 14)}…</code>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => copy(secret, 'secret')}>
-                        {copied === 'secret' ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={regenSecret} title="Regenerar secret">
-                        <RefreshCw className="h-3 w-3" />
-                    </Button>
-                    <span className="ml-auto text-muted-foreground shrink-0">Envíalo en el header <code>x-automation-secret</code></span>
+                {/* Hint: webhook details live in the Webhook node */}
+                <div className="px-4 py-1.5 border-b bg-muted/30 text-[11px] text-muted-foreground">
+                    Haz clic en el nodo <span className="font-medium text-foreground">Webhook</span> para ver su URL, secret y el modo de prueba.
                 </div>
 
                 {/* Canvas + panel */}
@@ -292,6 +277,10 @@ function FlowCanvas({ flowId, initialGraph, initialStatus, secret: initialSecret
                             node={selected}
                             agents={agents}
                             channels={channels}
+                            webhookUrl={webhookUrl}
+                            secret={secret}
+                            onRegenSecret={regenSecret}
+                            onTest={onTest}
                             onUpdate={(u) => updateNode(selectedId, u)}
                             onDelete={() => deleteNode(selectedId)}
                             onClose={() => setSelectedId(null)}
@@ -318,14 +307,42 @@ function validateGraph(graph: AutomationGraph): string[] {
     return problems;
 }
 
-function NodeConfigPanel({ node, agents, channels, onUpdate, onDelete, onClose }: {
+function NodeConfigPanel({ node, agents, channels, webhookUrl, secret, onRegenSecret, onTest, onUpdate, onDelete, onClose }: {
     node: AutomationFlowNode;
     agents: AgentOpt[];
     channels: ChannelOpt[];
+    webhookUrl: string;
+    secret: string;
+    onRegenSecret: () => void;
+    onTest: (payloadJson: string) => Promise<TestFlowResult>;
     onUpdate: (u: Partial<AutomationFlowNode>) => void;
     onDelete: () => void;
     onClose: () => void;
 }) {
+    const [copied, setCopied] = useState<string | null>(null);
+    const [testPayload, setTestPayload] = useState('{\n  "phone": "573001234567",\n  "name": "Prueba",\n  "source": "ads_form"\n}');
+    const [testing, setTesting] = useState(false);
+    const [testResult, setTestResult] = useState<TestFlowResult | null>(null);
+
+    const copyText = (text: string, key: string) => {
+        navigator.clipboard.writeText(text);
+        setCopied(key);
+        toast.success('Copiado');
+        setTimeout(() => setCopied(null), 1500);
+    };
+
+    const runTest = async () => {
+        setTesting(true);
+        setTestResult(null);
+        try {
+            setTestResult(await onTest(testPayload));
+        } catch {
+            setTestResult({ status: 'ERROR', path: [], error: 'Error al probar.' });
+        } finally {
+            setTesting(false);
+        }
+    };
+
     return (
         <div className="absolute right-0 top-0 bottom-0 w-[360px] border-l bg-background shadow-xl overflow-y-auto">
             <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -341,32 +358,81 @@ function NodeConfigPanel({ node, agents, channels, onUpdate, onDelete, onClose }
 
             <div className="p-4 space-y-4">
                 {node.type === 'trigger' && (
-                    <p className="text-xs text-muted-foreground">
-                        Este es el punto de entrada. Tu app envía el lead a la URL del webhook (arriba) y el flujo arranca aquí.
-                        Conéctalo a una Condición o directo a un Agente IA arrastrando desde el punto inferior.
-                    </p>
+                    <>
+                        <p className="text-xs text-muted-foreground">
+                            Punto de entrada. Tu app envía el lead a esta URL (POST, con el header del secret) y el flujo arranca aquí.
+                        </p>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">URL del webhook</Label>
+                            <div className="flex gap-2">
+                                <Input value={webhookUrl} readOnly className="h-9 text-[11px] font-mono bg-muted/40" />
+                                <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => copyText(webhookUrl, 'url')}>
+                                    {copied === 'url' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                                </Button>
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">Secret (header <code className="text-[10px]">x-automation-secret</code>)</Label>
+                            <div className="flex gap-2">
+                                <Input value={secret} readOnly className="h-9 text-[11px] font-mono bg-muted/40" />
+                                <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => copyText(secret, 'secret')}>
+                                    {copied === 'secret' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                                </Button>
+                                <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={onRegenSecret} title="Regenerar secret">
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="border-t pt-3 space-y-2">
+                            <Label className="text-xs flex items-center gap-1.5"><FlaskConical className="h-3.5 w-3.5" />Modo prueba</Label>
+                            <p className="text-[11px] text-muted-foreground">Corre el flujo con este payload sin enviar nada real. Guarda el flujo automáticamente.</p>
+                            <Textarea value={testPayload} onChange={e => setTestPayload(e.target.value)} spellCheck={false}
+                                className="font-mono text-[11px] min-h-[120px]" />
+                            <Button type="button" size="sm" className="w-full" onClick={runTest} disabled={testing}>
+                                {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FlaskConical className="mr-2 h-4 w-4" />}
+                                Probar flujo
+                            </Button>
+                            {testResult && (
+                                <div className={`rounded-md border px-3 py-2 text-[11px] space-y-1 ${testResult.status === 'SUCCESS' ? 'border-green-200 bg-green-50' : testResult.status === 'NO_MATCH' ? 'border-amber-200 bg-amber-50' : 'border-red-200 bg-red-50'}`}>
+                                    <p className="font-medium">
+                                        {testResult.status === 'SUCCESS' ? '✅ Llegaría al agente' : testResult.status === 'NO_MATCH' ? '⚠️ Ninguna rama coincidió' : '❌ Error'}
+                                    </p>
+                                    {testResult.dispatch && (
+                                        <p>→ <span className="font-medium">{testResult.dispatch.agentName}</span>{testResult.dispatch.template ? ` · plantilla "${testResult.dispatch.template}"` : ''}</p>
+                                    )}
+                                    {testResult.error && <p className="opacity-90">{testResult.error}</p>}
+                                    {testResult.path.length > 0 && <p className="opacity-70">camino: {testResult.path.join(' → ')}</p>}
+                                </div>
+                            )}
+                        </div>
+                    </>
                 )}
 
                 {node.type === 'cron' && (
                     <>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Horario (expresión cron)</Label>
-                            <Input value={node.schedule || ''} onChange={e => onUpdate({ schedule: e.target.value })}
-                                placeholder="0 9 * * *" className="h-9 text-[13px] font-mono" />
+                            <Label className="text-xs">Ejecutar cada (minutos)</Label>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    type="number" min={5} step={5}
+                                    value={node.intervalMinutes ?? 60}
+                                    onChange={e => onUpdate({ intervalMinutes: Math.max(5, parseInt(e.target.value || '0', 10) || 0), schedule: undefined })}
+                                    className="h-9 text-[13px] w-28"
+                                />
+                                <span className="text-sm text-muted-foreground">minutos</span>
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                            {[
-                                { label: 'Cada hora', v: '0 * * * *' },
-                                { label: 'Cada día 9am', v: '0 9 * * *' },
-                                { label: 'Lun-Vie 8am', v: '0 8 * * 1-5' },
-                                { label: 'Cada 15 min', v: '*/15 * * * *' },
-                            ].map(p => (
-                                <button key={p.v} onClick={() => onUpdate({ schedule: p.v })}
-                                    className="text-[11px] px-2 py-1 rounded-md border hover:bg-muted">{p.label}</button>
+                            {[15, 30, 60, 360, 720, 1440].map(m => (
+                                <button key={m} onClick={() => onUpdate({ intervalMinutes: m, schedule: undefined })}
+                                    className="text-[11px] px-2 py-1 rounded-md border hover:bg-muted">
+                                    {m < 60 ? `${m} min` : m < 1440 ? `${m / 60} h` : `${m / 1440} día`}
+                                </button>
                             ))}
                         </div>
                         <p className="text-[11px] text-muted-foreground">
-                            Arranca el flujo en el horario indicado (precisión ~5 min). Útil con un nodo de Código que genere o traiga los datos. Hora del servidor (UTC).
+                            Arranca el flujo cada N minutos (precisión ~5 min, mínimo 5). Útil con un nodo de Código que genere o traiga los datos.
                         </p>
                     </>
                 )}

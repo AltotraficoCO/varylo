@@ -11,6 +11,7 @@ export interface RunFlowResult {
     path: string[];
     error?: string;
     conversationId?: string;
+    dispatchPreview?: { agentId?: string; template?: { name: string; language: string } };
 }
 
 /**
@@ -23,6 +24,7 @@ export async function runAutomationFlow(
     flow: { id: string; companyId: string; graphJson: unknown },
     payload: Record<string, unknown>,
     startFrom?: string,
+    opts?: { dryRun?: boolean },
 ): Promise<RunFlowResult> {
     const graph = (flow.graphJson || {}) as AutomationGraph;
     const path: string[] = [];
@@ -97,6 +99,11 @@ export async function runAutomationFlow(
                         result = { status: 'ERROR', path, error: 'El payload no trae "phone".' };
                         break;
                     }
+                    if (opts?.dryRun) {
+                        // Test mode: show what WOULD happen, don't send anything.
+                        result = { status: 'SUCCESS', path, dispatchPreview: { agentId: node.agentId, template: node.template } };
+                        break;
+                    }
                     const dispatched = await dispatchLead({
                         companyId: flow.companyId,
                         agentId: node.agentId,
@@ -124,6 +131,9 @@ export async function runAutomationFlow(
     } catch (e) {
         result = { status: 'ERROR', path, error: e instanceof Error ? e.message : 'Error desconocido.' };
     }
+
+    // Test runs are not recorded.
+    if (opts?.dryRun) return result;
 
     // Record the run (best-effort — never let observability break the dispatch).
     await prisma.automationRun

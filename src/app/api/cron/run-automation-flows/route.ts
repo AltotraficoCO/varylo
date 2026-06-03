@@ -29,21 +29,26 @@ export async function GET(req: NextRequest) {
 
         for (const flow of flows) {
             const graph = (flow.graphJson || {}) as unknown as AutomationGraph;
-            const cronNodes = Object.values(graph?.nodes || {}).filter(n => n.type === 'cron' && n.schedule);
+            const cronNodes = Object.values(graph?.nodes || {}).filter(n => n.type === 'cron' && (n.intervalMinutes || n.schedule));
             if (cronNodes.length === 0) continue;
 
             const state = (flow.cronStateJson as Record<string, string> | null) || {};
             let changed = false;
 
             for (const node of cronNodes) {
-                let prevScheduled: Date;
-                try {
-                    prevScheduled = CronExpressionParser.parse(node.schedule!, { currentDate: now }).prev().toDate();
-                } catch {
-                    continue; // invalid cron expression — skip
-                }
                 const lastRun = state[node.id] ? new Date(state[node.id]) : null;
-                const isDue = !lastRun || lastRun < prevScheduled;
+                let isDue: boolean;
+                if (node.intervalMinutes && node.intervalMinutes > 0) {
+                    isDue = !lastRun || now.getTime() - lastRun.getTime() >= node.intervalMinutes * 60_000;
+                } else {
+                    let prevScheduled: Date;
+                    try {
+                        prevScheduled = CronExpressionParser.parse(node.schedule!, { currentDate: now }).prev().toDate();
+                    } catch {
+                        continue; // invalid cron expression — skip
+                    }
+                    isDue = !lastRun || lastRun < prevScheduled;
+                }
                 if (!isDue) continue;
 
                 await runAutomationFlow(flow, { triggeredBy: 'cron', at: now.toISOString() }, node.id);
