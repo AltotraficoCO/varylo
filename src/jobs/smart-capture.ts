@@ -62,12 +62,13 @@ export async function runSmartCapture(conversationId: string, text: string, medi
             data: { smartCapturingUntil: new Date(Date.now() + 15_000) },
         }).catch(() => {});
 
-        // 1) Open extraction from recent conversation text.
+        // 1) Open extraction from what the CUSTOMER wrote only. Never the agent's
+        //    own messages — those are not the contact's data.
         const convoText = conversation.messages
             .slice()
             .reverse()
-            .filter(m => (m.content || '').trim())
-            .map(m => `${m.direction === 'INBOUND' ? 'Cliente' : 'Agente'}: ${m.content}`)
+            .filter(m => m.direction === 'INBOUND' && (m.content || '').trim())
+            .map(m => m.content)
             .join('\n');
         if (convoText.trim()) {
             await extractOpenFields({ text: convoText, model, companyId, conversationId, contactId });
