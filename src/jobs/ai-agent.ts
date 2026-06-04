@@ -8,7 +8,7 @@ import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { CALENDAR_TOOLS, executeCalendarTool } from '@/lib/calendar-tools';
 import { ECOMMERCE_TOOLS, executeEcommerceTool } from '@/lib/ecommerce-tools';
 import { validateCapturedValue, inferValidationType } from '@/lib/data-capture-utils';
-import { extractAndPersistFields, persistCapturedField } from '@/lib/field-capture';
+import { extractOpenFields, persistCapturedField } from '@/lib/field-capture';
 // CRM removed
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
@@ -447,7 +447,6 @@ export async function handleAiAgentResponse(
                                 conversation.contactId,
                                 conversation.messages,
                                 usesOwnKey,
-                                aiAgent.captureFields as CaptureField[] | null,
                                 aiAgent.model,
                             );
                             break;
@@ -693,7 +692,6 @@ async function handleAnalyzeFile(
     contactId: string | null,
     conversationMessages: MediaMessage[],
     usesOwnKey: boolean,
-    captureFields: CaptureField[] | null,
     model: string,
 ): Promise<string> {
     console.log(`[analyze_file] called | field="${args.field_name}" | instruction="${args.instruction}"`);
@@ -951,17 +949,17 @@ async function handleAnalyzeFile(
             });
         }
 
-        // Segment the transcription into the agent's configured capture fields, so
-        // each datum is saved individually on the contact instead of one big blob.
+        // Segment the transcription into individual fields so each datum is saved
+        // separately on the contact instead of one big blob. Open extraction detects
+        // ALL relevant data (nombre, cédula, teléfono, email, dirección, etc.), not
+        // just the agent's configured capture fields.
         let segmentedSummary = '';
-        if (captureFields && captureFields.length > 0) {
-            try {
-                const saved = await extractAndPersistFields({ text: analysisText, captureFields, model, companyId, conversationId, contactId });
-                segmentedSummary = saved.join('\n');
-                console.log(`[analyze_file] segmented ${saved.length} fields from document`);
-            } catch (segErr) {
-                console.error('[analyze_file] segmentation failed:', segErr instanceof Error ? segErr.message : segErr);
-            }
+        try {
+            const saved = await extractOpenFields({ text: analysisText, model, companyId, conversationId, contactId });
+            segmentedSummary = saved.join('\n');
+            console.log(`[analyze_file] segmented ${saved.length} fields from document`);
+        } catch (segErr) {
+            console.error('[analyze_file] segmentation failed:', segErr instanceof Error ? segErr.message : segErr);
         }
 
         if (segmentedSummary) {
