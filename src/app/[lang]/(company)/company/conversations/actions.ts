@@ -149,14 +149,17 @@ export async function resumeAiAgent(conversationId: string) {
 
     let replied = false;
     let errorCode: string | undefined;
+    let errorDetail: string | undefined;
     try {
         const { handleAiAgentResponse } = await import('@/jobs/ai-agent');
         const result = await handleAiAgentResponse(conversationId, lastInbound.content || '', { skipBuffer: true, regenerateLast: true });
         replied = result.handled && !result.transferredToHuman;
         errorCode = result.error;
+        errorDetail = result.errorDetail;
     } catch (e) {
         console.error('[resumeAiAgent] reply failed:', e);
         errorCode = 'engine_error';
+        errorDetail = e instanceof Error ? e.message.slice(0, 200) : undefined;
     }
 
     revalidatePath('/[lang]/company/conversations', 'page');
@@ -166,9 +169,11 @@ export async function resumeAiAgent(conversationId: string) {
     return {
         success: true,
         replied: false,
-        message: errorCode
-            ? `La IA quedó activa pero no generó respuesta (${errorCode}). Responderá al próximo mensaje del cliente.`
-            : 'La IA quedó activa. Responderá al próximo mensaje del cliente.',
+        message: errorCode === 'provider_credits'
+            ? 'La IA quedó activa pero la API key del proveedor de IA no tiene créditos (recarga en la consola del proveedor o cambia la key en Integraciones).'
+            : errorCode
+                ? `La IA quedó activa pero no generó respuesta (${errorCode}${errorDetail ? `: ${errorDetail}` : ''}). Responderá al próximo mensaje del cliente.`
+                : 'La IA quedó activa. Responderá al próximo mensaje del cliente.',
     };
 }
 

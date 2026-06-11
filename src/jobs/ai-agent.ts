@@ -38,6 +38,7 @@ function classifyAiError(error: unknown): { code: string; detail: string } {
     const msg = error instanceof Error ? error.message : String(error);
     const detail = redactSecrets(msg).slice(0, 200);
     if (/decrypt|unable to authenticate data|invalid encrypted/i.test(msg)) return { code: 'decrypt_failed', detail };
+    if (/credit balance|insufficient credits|insufficient_quota|exceeded your current quota|plans & billing/i.test(msg)) return { code: 'provider_credits', detail };
     if (/api[\s_-]?key|authentication|x-api-key|401|credential|missing/i.test(msg)) return { code: 'provider_auth', detail };
     if (/429|rate[\s_-]?limit|overloaded|\b529\b/i.test(msg)) return { code: 'rate_limited', detail };
     if (/model|not[\s_-]?found|404|does not exist/i.test(msg)) return { code: 'model_error', detail };
