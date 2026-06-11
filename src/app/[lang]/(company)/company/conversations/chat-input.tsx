@@ -165,6 +165,10 @@ export default function ChatInput({ conversationId, channelType, channelId, cont
     const router = useRouter();
     const { markAsRead, conversations } = useRealtimeData();
     const markedRef = useRef(false);
+    // Synchronous send lock: isSending state updates on the next render, so two
+    // rapid Enter presses could both pass the guard and double-send. A ref flips
+    // immediately.
+    const sendingLockRef = useRef(false);
     const dict = useDictionary();
     const t = dict.conversations || {};
     const ui = dict.ui || {};
@@ -377,8 +381,9 @@ export default function ChatInput({ conversationId, channelType, channelId, cont
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
-        if ((!message.trim() && !selectedFile) || isSending) return;
+        if ((!message.trim() && !selectedFile) || isSending || sendingLockRef.current) return;
 
+        sendingLockRef.current = true;
         setIsSending(true);
         try {
             let result: any;
@@ -405,6 +410,7 @@ export default function ChatInput({ conversationId, channelType, channelId, cont
             console.error('Error sending message:', error);
             alert('An unexpected error occurred.');
         } finally {
+            sendingLockRef.current = false;
             setIsSending(false);
         }
     };
