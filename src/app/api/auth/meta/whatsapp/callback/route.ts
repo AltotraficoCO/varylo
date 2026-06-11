@@ -151,13 +151,26 @@ export async function GET(req: NextRequest) {
 
             // Dedupe by phoneNumberId: each number maps to exactly one channel
             // (so a second OAuth connection ADDS a number instead of overwriting).
-            const existingChannel = await prisma.channel.findFirst({
+            let existingChannel = await prisma.channel.findFirst({
                 where: {
                     companyId,
                     type: ChannelType.WHATSAPP,
                     configJson: { path: ['phoneNumberId'], equals: phoneNumberId },
                 },
             });
+            // Same number reconnected under a new phoneNumberId (e.g. re-registered
+            // in another WABA): adopt the disconnected channel that held this
+            // display number so its conversation history comes back with it.
+            if (!existingChannel && phone.display_phone_number) {
+                existingChannel = await prisma.channel.findFirst({
+                    where: {
+                        companyId,
+                        type: ChannelType.WHATSAPP,
+                        status: 'DISCONNECTED',
+                        configJson: { path: ['phoneDisplay'], equals: phone.display_phone_number },
+                    },
+                });
+            }
 
             // Enforce the per-company limit for *new* numbers only.
             if (!existingChannel) {

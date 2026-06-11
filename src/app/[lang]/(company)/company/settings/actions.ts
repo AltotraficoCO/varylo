@@ -52,7 +52,7 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
         // A company can connect multiple WhatsApp numbers (one Channel each).
         // When channelId is provided we edit that number; otherwise we create a
         // new one (subject to the per-company limit and phoneNumberId uniqueness).
-        const existingChannel = channelId
+        let existingChannel = channelId
             ? await prisma.channel.findFirst({
                 where: { id: channelId, companyId, type: ChannelType.WHATSAPP },
             })
@@ -66,10 +66,14 @@ export async function saveWhatsAppCredentials(prevState: string | undefined, for
                 configJson: { path: ['phoneNumberId'], equals: phoneNumberId },
                 ...(existingChannel ? { NOT: { id: existingChannel.id } } : {}),
             },
-            select: { id: true },
         });
-        if (duplicate) {
+        if (duplicate && duplicate.status !== ChannelStatus.DISCONNECTED) {
             return 'Error: Ese número (phoneNumberId) ya está conectado en otro canal.';
+        }
+        // A disconnected channel still holding this number is a reconnection:
+        // adopt it so its conversation history reappears with the number.
+        if (duplicate && !existingChannel) {
+            existingChannel = duplicate;
         }
 
         // Fetch the human-readable phone number from Meta so the UI shows the real
@@ -293,11 +297,19 @@ export async function disconnectWhatsApp(channelId?: string) {
             if (convCount === 0) {
                 await prisma.channel.delete({ where: { id: channel.id } });
             } else {
+                // Strip only the secrets. The number's identity (phoneNumberId,
+                // phoneDisplay, wabaId, label…) must survive so a future
+                // reconnection re-adopts THIS channel and its conversations
+                // reappear, instead of creating a new empty channel.
+                const identity = { ...((channel.configJson as Record<string, unknown> | null) ?? {}) };
+                delete identity.accessToken;
+                delete identity.appSecret;
                 await prisma.channel.update({
                     where: { id: channel.id },
                     data: {
                         status: ChannelStatus.DISCONNECTED,
-                        configJson: {}, // Clear credentials
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        configJson: identity as any,
                         tokenStatus: null,
                         tokenExpiresAt: null,
                     },
