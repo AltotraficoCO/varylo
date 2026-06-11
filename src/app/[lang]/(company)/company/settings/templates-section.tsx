@@ -38,7 +38,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getWhatsAppTemplates, deleteWhatsAppTemplate } from '@/lib/template-actions';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getWhatsAppTemplates, deleteWhatsAppTemplate, getWhatsAppNumbers } from '@/lib/template-actions';
 import { useDictionary } from '@/lib/i18n-context';
 import { TemplateCreateDialog } from './template-create-dialog';
 
@@ -281,22 +282,36 @@ export function TemplatesSection() {
     const [createOpen, setCreateOpen] = useState(false);
     const [deleting, setDeleting] = useState<Template | null>(null);
     const [deletingInFlight, setDeletingInFlight] = useState(false);
+    // Templates live on the WABA of each number: with several numbers connected
+    // the user must pick which one they're managing.
+    const [numbers, setNumbers] = useState<{ id: string; label: string }[]>([]);
+    const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>(undefined);
 
     const dict = useDictionary();
     const t = dict.settingsUI?.templatesSection || {};
     const ui = dict.ui || {};
 
+    useEffect(() => {
+        let cancelled = false;
+        getWhatsAppNumbers().then((nums) => {
+            if (cancelled) return;
+            setNumbers(nums);
+            setSelectedChannelId((prev) => prev ?? nums[0]?.id);
+        });
+        return () => { cancelled = true; };
+    }, []);
+
     const loadTemplates = useCallback(async () => {
         setLoading(true);
         setError('');
-        const result = await getWhatsAppTemplates('ALL');
+        const result = await getWhatsAppTemplates('ALL', selectedChannelId);
         if (result.success && result.templates) {
             setTemplates(result.templates);
         } else {
             setError(result.error || (ui.unknown || 'Error desconocido'));
         }
         setLoading(false);
-    }, [ui.unknown]);
+    }, [ui.unknown, selectedChannelId]);
 
     useEffect(() => {
         loadTemplates();
@@ -331,7 +346,22 @@ export function TemplatesSection() {
                             </CardDescription>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center flex-wrap">
+                        {numbers.length > 1 && (
+                            <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
+                                <SelectTrigger size="sm" className="min-w-[160px]">
+                                    <span className="flex items-center gap-2 min-w-0">
+                                        <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        <SelectValue placeholder="Número" />
+                                    </span>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {numbers.map((n) => (
+                                        <SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"
@@ -451,6 +481,7 @@ export function TemplatesSection() {
                 open={createOpen}
                 onOpenChange={setCreateOpen}
                 onCreated={loadTemplates}
+                channelId={selectedChannelId}
             />
 
             <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
@@ -471,7 +502,7 @@ export function TemplatesSection() {
                                 e.preventDefault();
                                 if (!deleting) return;
                                 setDeletingInFlight(true);
-                                const result = await deleteWhatsAppTemplate(deleting.name, deleting.id);
+                                const result = await deleteWhatsAppTemplate(deleting.name, deleting.id, selectedChannelId);
                                 setDeletingInFlight(false);
                                 if (result.success) {
                                     toast.success('Plantilla borrada.');

@@ -426,6 +426,7 @@ export default async function ConversationsPage({
                                 <ChatInput
                                 conversationId={selectedConversation.id}
                                 channelType={selectedConversation.channel?.type}
+                                channelId={selectedConversation.channelId}
                                 contactId={selectedConversation.contactId}
                             />
                             </div>

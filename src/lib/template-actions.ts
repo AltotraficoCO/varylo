@@ -364,7 +364,8 @@ function buildComponents(input: CreateTemplateInput): unknown[] {
 }
 
 export async function createWhatsAppTemplate(
-    input: CreateTemplateInput
+    input: CreateTemplateInput,
+    channelId?: string
 ): Promise<{ success: boolean; templateId?: string; status?: string; error?: string }> {
     const session = await auth();
     if (!session?.user?.companyId) return { success: false, error: 'No autorizado.' };
@@ -379,7 +380,7 @@ export async function createWhatsAppTemplate(
         return { success: false, error: 'El cuerpo de la plantilla es obligatorio.' };
     }
 
-    const result = await getWhatsAppChannelConfig(session.user.companyId);
+    const result = await getWhatsAppChannelConfig(session.user.companyId, channelId);
     if ('error' in result) return { success: false, error: result.error };
 
     const { config } = result;
@@ -423,12 +424,13 @@ export async function createWhatsAppTemplate(
 
 export async function deleteWhatsAppTemplate(
     name: string,
-    hsmId?: string
+    hsmId?: string,
+    channelId?: string
 ): Promise<{ success: boolean; error?: string }> {
     const session = await auth();
     if (!session?.user?.companyId) return { success: false, error: 'No autorizado.' };
 
-    const result = await getWhatsAppChannelConfig(session.user.companyId);
+    const result = await getWhatsAppChannelConfig(session.user.companyId, channelId);
     if ('error' in result) return { success: false, error: result.error };
 
     const { config } = result;

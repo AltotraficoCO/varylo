@@ -151,10 +151,12 @@ interface Template {
 interface ChatInputProps {
     conversationId: string;
     channelType?: string;
+    /** Channel of THIS conversation — templates are WABA-specific per number. */
+    channelId?: string;
     contactId?: string;
 }
 
-export default function ChatInput({ conversationId, channelType, contactId }: ChatInputProps) {
+export default function ChatInput({ conversationId, channelType, channelId, contactId }: ChatInputProps) {
     const [message, setMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -411,14 +413,14 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
     const loadTemplates = useCallback(async () => {
         setLoadingTemplates(true);
         setTemplateError('');
-        const result = await getWhatsAppTemplates();
+        const result = await getWhatsAppTemplates('APPROVED', channelId);
         if (result.success && result.templates) {
             setTemplates(result.templates);
         } else {
             setTemplateError(result.error || ui.unknown);
         }
         setLoadingTemplates(false);
-    }, [ui.unknown]);
+    }, [ui.unknown, channelId]);
 
     const handleOpenTemplateSelector = () => {
         setShowTemplateSelector(true);
@@ -510,6 +512,7 @@ export default function ChatInput({ conversationId, channelType, contactId }: Ch
 
         const result = await sendTemplateMessage({
             contactId,
+            channelId,
             templateName: selectedTemplate.name,
             templateLanguage: selectedTemplate.language,
             templateComponents: components,

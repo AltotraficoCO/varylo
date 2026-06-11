@@ -150,10 +150,13 @@ export function TemplateCreateDialog({
     open,
     onOpenChange,
     onCreated,
+    channelId,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onCreated: () => void;
+    /** WhatsApp channel whose WABA receives the template (multi-number). */
+    channelId?: string;
 }) {
     const [name, setName] = useState('');
     const [language, setLanguage] = useState('es');
@@ -304,7 +307,7 @@ export function TemplateCreateDialog({
         }
 
         setSubmitting(true);
-        const result = await createWhatsAppTemplate(input);
+        const result = await createWhatsAppTemplate(input, channelId);
         setSubmitting(false);
 
         if (result.success) {
