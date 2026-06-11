@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { callAIProvider } from '@/lib/ai-provider';
+import { recordAiUsage } from '@/lib/credits';
 import { mapFieldToContact } from '@/lib/data-capture-utils';
 
 export interface CaptureFieldDef { key: string; label?: string; required?: boolean }
@@ -64,6 +65,7 @@ export async function extractAndPersistFields(params: {
                 { role: 'user', content: `Del siguiente texto, identifica estos campos. Responde SOLO con un JSON {clave: valor} usando EXACTAMENTE estas claves. Si un campo no aparece, omítelo (no inventes).\n\nCampos:\n${fieldList}\n\nTexto:\n${text.slice(0, 12000)}` },
             ],
         });
+        await recordAiUsage({ usesOwnKey: extraction.usesOwnKey, companyId, conversationId, model, promptTokens: extraction.usage.promptTokens, completionTokens: extraction.usage.completionTokens, totalTokens: extraction.usage.totalTokens });
         const rawJson = (extraction.content || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
         parsed = JSON.parse(rawJson) as Record<string, unknown>;
     } catch (e) {
@@ -115,6 +117,7 @@ export async function extractOpenFields(params: {
                 },
             ],
         });
+        await recordAiUsage({ usesOwnKey: extraction.usesOwnKey, companyId, conversationId, model, promptTokens: extraction.usage.promptTokens, completionTokens: extraction.usage.completionTokens, totalTokens: extraction.usage.totalTokens });
         const rawJson = (extraction.content || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
         parsed = JSON.parse(rawJson) as Record<string, unknown>;
     } catch (e) {

@@ -97,21 +97,26 @@ export async function deductCredits(params: {
 }): Promise<void> {
     const cost = calculateCreditCost(params.model, params.promptTokens, params.completionTokens);
 
-    await prisma.$transaction([
-        prisma.company.update({
+    // Single interactive transaction: decrement and read the resulting balance
+    // atomically, so balanceAfter is always the real post-deduction balance even
+    // under concurrent deductions (the previous "patch the latest tx" approach
+    // could overwrite the wrong row when two messages ran at once).
+    await prisma.$transaction(async (tx) => {
+        const updated = await tx.company.update({
             where: { id: params.companyId },
             data: { creditBalance: { decrement: cost } },
-        }),
-        prisma.creditTransaction.create({
+            select: { creditBalance: true },
+        });
+        await tx.creditTransaction.create({
             data: {
                 companyId: params.companyId,
                 type: CreditTransactionType.AI_USAGE,
                 amount: -cost,
-                balanceAfter: 0, // will be updated below
+                balanceAfter: updated.creditBalance,
                 description: `IA: ${params.model} (${params.totalTokens} tokens)`,
             },
-        }),
-        prisma.aiUsageLog.create({
+        });
+        await tx.aiUsageLog.create({
             data: {
                 companyId: params.companyId,
                 conversationId: params.conversationId,
@@ -122,25 +127,32 @@ export async function deductCredits(params: {
                 costCop: cost,
                 usedOwnKey: false,
             },
-        }),
-    ]);
-
-    // Update balanceAfter on the transaction
-    const company = await prisma.company.findUnique({
-        where: { id: params.companyId },
-        select: { creditBalance: true },
-    });
-    if (company) {
-        const lastTx = await prisma.creditTransaction.findFirst({
-            where: { companyId: params.companyId },
-            orderBy: { createdAt: 'desc' },
         });
-        if (lastTx) {
-            await prisma.creditTransaction.update({
-                where: { id: lastTx.id },
-                data: { balanceAfter: company.creditBalance },
-            });
-        }
+    });
+}
+
+/**
+ * Record the cost of an AI call: log-only when the company used its own provider
+ * key, deduct credits when it ran on Varylo's global key. Use this for every
+ * provider call so no AI work goes unbilled (data extraction, OCR, etc.).
+ * Never throws — accounting must not break the reply path.
+ */
+export async function recordAiUsage(params: {
+    usesOwnKey: boolean;
+    companyId: string;
+    conversationId?: string;
+    model: string;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+}): Promise<void> {
+    if (!params.totalTokens) return;
+    const { usesOwnKey, ...rest } = params;
+    try {
+        if (usesOwnKey) await logUsageOnly(rest);
+        else await deductCredits(rest);
+    } catch (e) {
+        console.error('[credits] recordAiUsage failed:', e instanceof Error ? e.message : e);
     }
 }
 

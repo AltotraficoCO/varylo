@@ -1,6 +1,6 @@
 import { getOpenAIForCompany } from '@/lib/openai';
 import { getAnthropicForCompany, getGeminiKeyForCompany } from '@/lib/ai-provider';
-import { deductCredits, logUsageOnly } from '@/lib/credits';
+import { recordAiUsage } from '@/lib/credits';
 
 export interface OcrMedia {
     mediaUrl: string;
@@ -29,7 +29,7 @@ export async function transcribeMedia(
     media: OcrMedia,
     opts: { companyId: string; usesOwnKey: boolean; instruction?: string; conversationId?: string },
 ): Promise<{ text: string; model: string }> {
-    const { companyId, usesOwnKey } = opts;
+    const { companyId } = opts;
     const instruction = opts.instruction || DEFAULT_INSTRUCTION;
     const isPdf = (media.mimeType || '').includes('pdf') || (media.fileName || '').toLowerCase().endsWith('.pdf');
 
@@ -80,7 +80,7 @@ export async function transcribeMedia(
 
     // 1. Gemini
     if (!text.trim() && imageBuffer) {
-        const { key: geminiKey } = await getGeminiKeyForCompany(companyId);
+        const { key: geminiKey, usesOwnKey: usesGeminiKey } = await getGeminiKeyForCompany(companyId);
         if (geminiKey) {
             try {
                 const res = await fetch(
@@ -96,9 +96,16 @@ export async function transcribeMedia(
                     },
                 );
                 if (res.ok) {
-                    const data = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+                    const data = await res.json() as {
+                        candidates?: { content?: { parts?: { text?: string }[] } }[];
+                        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
+                    };
                     const out = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                    if (out.trim()) { text = out; model = 'gemini-2.0-flash'; }
+                    if (out.trim()) {
+                        text = out; model = 'gemini-2.0-flash';
+                        const u = data.usageMetadata;
+                        await recordAiUsage({ usesOwnKey: usesGeminiKey, companyId, conversationId: opts.conversationId, model, promptTokens: u?.promptTokenCount || 0, completionTokens: u?.candidatesTokenCount || 0, totalTokens: u?.totalTokenCount || ((u?.promptTokenCount || 0) + (u?.candidatesTokenCount || 0)) });
+                    }
                 }
             } catch (e) { console.error('[vision-ocr] Gemini failed:', e instanceof Error ? e.message : e); }
         }
@@ -119,7 +126,10 @@ export async function transcribeMedia(
                     messages: [{ role: 'user', content: [{ type: 'text', text: instruction }, mediaBlock] }],
                 });
                 const out = res.content.filter(b => b.type === 'text').map(b => (b as { text: string }).text).join('');
-                if (out.trim() && !isRefusal(out)) { text = out; model = 'claude-haiku-4-5-20251001'; }
+                if (out.trim() && !isRefusal(out)) {
+                    text = out; model = 'claude-haiku-4-5-20251001';
+                    await recordAiUsage({ usesOwnKey: usesAnthropicKey, companyId, conversationId: opts.conversationId, model, promptTokens: res.usage.input_tokens, completionTokens: res.usage.output_tokens, totalTokens: res.usage.input_tokens + res.usage.output_tokens });
+                }
             } catch (e) { console.error('[vision-ocr] Claude failed:', e instanceof Error ? e.message : e); }
         }
     }
@@ -142,8 +152,7 @@ export async function transcribeMedia(
                     text = out;
                     model = 'gpt-4o-mini';
                     if (res.usage) {
-                        const fn = usesOwnKey ? logUsageOnly : deductCredits;
-                        await fn({ companyId, conversationId: opts.conversationId, model: 'gpt-4o-mini', promptTokens: res.usage.prompt_tokens, completionTokens: res.usage.completion_tokens, totalTokens: res.usage.total_tokens });
+                        await recordAiUsage({ usesOwnKey: usesOpenAIKey, companyId, conversationId: opts.conversationId, model: 'gpt-4o-mini', promptTokens: res.usage.prompt_tokens, completionTokens: res.usage.completion_tokens, totalTokens: res.usage.total_tokens });
                     }
                 }
             } catch (e) { console.error('[vision-ocr] gpt-4o-mini failed:', e instanceof Error ? e.message : e); }
