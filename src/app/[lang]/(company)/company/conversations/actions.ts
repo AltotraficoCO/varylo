@@ -171,9 +171,13 @@ export async function resumeAiAgent(conversationId: string) {
         replied: false,
         message: errorCode === 'provider_credits'
             ? 'La IA quedó activa pero la API key del proveedor de IA no tiene créditos (recarga en la consola del proveedor o cambia la key en Integraciones).'
-            : errorCode
-                ? `La IA quedó activa pero no generó respuesta (${errorCode}${errorDetail ? `: ${errorDetail}` : ''}). Responderá al próximo mensaje del cliente.`
-                : 'La IA quedó activa. Responderá al próximo mensaje del cliente.',
+            : errorCode === 'window_expired'
+                ? 'La IA generó la respuesta pero la ventana de 24 horas de WhatsApp expiró: para reabrir la conversación debes enviar una plantilla aprobada.'
+                : errorCode === 'send_failed'
+                    ? 'La IA generó la respuesta pero el canal rechazó el envío (revisa el token/estado del número en Ajustes → Canales).'
+                    : errorCode
+                        ? `La IA quedó activa pero no generó respuesta (${errorCode}${errorDetail ? `: ${errorDetail}` : ''}). Responderá al próximo mensaje del cliente.`
+                        : 'La IA quedó activa. Responderá al próximo mensaje del cliente.',
     };
 }
 

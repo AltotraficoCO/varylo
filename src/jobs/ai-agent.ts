@@ -39,6 +39,10 @@ function classifyAiError(error: unknown): { code: string; detail: string } {
     const detail = redactSecrets(msg).slice(0, 200);
     if (/decrypt|unable to authenticate data|invalid encrypted/i.test(msg)) return { code: 'decrypt_failed', detail };
     if (/credit balance|insufficient credits|insufficient_quota|exceeded your current quota|plans & billing/i.test(msg)) return { code: 'provider_credits', detail };
+    // The agent produced a reply but the channel rejected the send. Surface the
+    // real cause instead of a generic engine_error (e.g. expired 24h window).
+    if (/window_expired|ventana de 24|24 horas/i.test(msg)) return { code: 'window_expired', detail };
+    if (/whatsapp api error|messenger api error|instagram api error|channel not configured|no se pudo enviar/i.test(msg)) return { code: 'send_failed', detail };
     if (/api[\s_-]?key|authentication|x-api-key|401|credential|missing/i.test(msg)) return { code: 'provider_auth', detail };
     if (/429|rate[\s_-]?limit|overloaded|\b529\b/i.test(msg)) return { code: 'rate_limited', detail };
     if (/model|not[\s_-]?found|404|does not exist/i.test(msg)) return { code: 'model_error', detail };
