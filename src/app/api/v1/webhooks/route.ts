@@ -1,6 +1,7 @@
 import { authenticateApiKey, requireScope } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { randomBytes, createHmac } from 'crypto';
+import { validateExternalWebhookUrl } from '@/lib/url-validator';
 
 /**
  * POST /api/v1/webhooks
@@ -36,13 +37,13 @@ export async function POST(req: Request) {
         return Response.json({ success: false, error: 'Field "url" is required.' }, { status: 400 });
     }
 
-    try {
-        new URL(url);
-    } catch {
-        return Response.json({ success: false, error: 'Invalid URL format.' }, { status: 400 });
+    // Reject private/loopback/link-local targets (SSRF) and non-https, resolving
+    // DNS too — same guard the AI-agent/integration webhooks use.
+    const validated = await validateExternalWebhookUrl(url);
+    if (!validated.ok) {
+        return Response.json({ success: false, error: validated.error }, { status: 400 });
     }
-
-    if (!url.startsWith('https://')) {
+    if (validated.url.protocol !== 'https:') {
         return Response.json({ success: false, error: 'Webhook URL must use HTTPS.' }, { status: 400 });
     }
 
