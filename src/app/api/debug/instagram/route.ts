@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
+import { readChannelSecret } from '@/lib/channel-config';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -9,6 +10,9 @@ export async function GET(req: NextRequest) {
     const session = await auth();
     if (!session?.user?.companyId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (session.user.role !== 'COMPANY_ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const channel = await prisma.channel.findFirst({
@@ -20,17 +24,18 @@ export async function GET(req: NextRequest) {
     }
 
     const config = channel.configJson as any;
+    const accessToken = readChannelSecret(config?.accessToken);
     const results: Record<string, any> = {
         channelId: channel.id,
         status: channel.status,
         pageId: config?.pageId || 'MISSING',
         igAccountId: config?.igAccountId || 'MISSING',
         hasAccessToken: !!config?.accessToken,
-        tokenPreview: config?.accessToken ? config.accessToken.substring(0, 20) + '...' : 'MISSING',
+        // Masked: enough to tell tokens apart, never the usable value.
+        tokenPreview: accessToken ? accessToken.substring(0, 6) + '…' + accessToken.slice(-4) : 'MISSING',
         pageName: config?.pageName || 'unknown',
     };
 
-    const accessToken = config?.accessToken;
     if (!accessToken) {
         return NextResponse.json({ ...results, error: 'No access token' });
     }

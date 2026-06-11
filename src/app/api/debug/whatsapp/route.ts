@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
     if (!session?.user?.companyId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (session.user.role !== 'COMPANY_ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const channel = await prisma.channel.findFirst({
         where: { companyId: session.user.companyId, type: ChannelType.WHATSAPP },
@@ -26,16 +29,17 @@ export async function GET(req: NextRequest) {
     }
 
     const config = channel.configJson as any;
+    const accessToken = readChannelSecret(config?.accessToken);
     const results: Record<string, any> = {
         channelId: channel.id,
         status: channel.status,
         phoneNumberId: config?.phoneNumberId || 'MISSING',
         wabaId: config?.wabaId || 'MISSING',
         hasAccessToken: !!config?.accessToken,
-        tokenPreview: config?.accessToken ? config.accessToken.substring(0, 20) + '...' : 'MISSING',
+        // Masked: enough to tell tokens apart, never the usable value.
+        tokenPreview: accessToken ? accessToken.substring(0, 6) + '…' + accessToken.slice(-4) : 'MISSING',
     };
 
-    const accessToken = readChannelSecret(config?.accessToken);
     if (!accessToken) {
         return NextResponse.json({ ...results, error: 'No access token' });
     }
