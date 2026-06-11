@@ -57,7 +57,7 @@ export interface ChannelInboxData {
  * (only when there are 2+ numbers, so single-number companies stay clean) +
  * the sidebar tags. Returns null when there's nothing to nest.
  */
-function buildConversationChildren(t: SidebarDict, channels?: ChannelInboxData[], tags?: TagData[]): NavItem[] | null {
+function buildConversationChildren(t: SidebarDict, channels?: ChannelInboxData[], tags?: TagData[], basePath = '/company/conversations'): NavItem[] | null {
     const numbers = (channels ?? []);
     const sidebarTags = (tags ?? []).filter(tg => tg.showInSidebar);
     const showNumbers = numbers.length >= 2;
@@ -65,14 +65,14 @@ function buildConversationChildren(t: SidebarDict, channels?: ChannelInboxData[]
     if (!showNumbers && sidebarTags.length === 0) return null;
 
     const children: NavItem[] = [
-        { title: t.all, href: '/company/conversations', icon: MessageSquare },
+        { title: t.all, href: basePath, icon: MessageSquare },
     ];
 
     if (showNumbers) {
         for (const ch of numbers) {
             children.push({
                 title: ch.label,
-                href: `/company/conversations?channel=${ch.id}`,
+                href: `${basePath}?channel=${ch.id}`,
                 icon: Phone,
             });
         }
@@ -81,7 +81,7 @@ function buildConversationChildren(t: SidebarDict, channels?: ChannelInboxData[]
     for (const tag of sidebarTags) {
         children.push({
             title: tag.name,
-            href: `/company/conversations?filter=all&tag=${tag.id}`,
+            href: `${basePath}?filter=all&tag=${tag.id}`,
             icon: ({ className }: { className?: string }) => (
                 <div
                     className={className}
@@ -212,12 +212,16 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[], chan
             ];
             break;
         }
-        case 'agent':
+        case 'agent': {
+            // Agents get the same per-number inbox entries, on their own route.
+            const inboxItem: NavItem = { title: t.inbox, href: '/agent', icon: Inbox, unreadBadge: true };
+            const convChildren = buildConversationChildren(t, channels, tags, '/agent');
             sections = [
-                { items: [{ title: t.inbox, href: '/agent', icon: Inbox, unreadBadge: true }] },
+                { items: [convChildren ? { ...inboxItem, children: convChildren } : inboxItem] },
                 { items: [{ title: t.myProfile, href: '/agent/profile', icon: UserCircle }] },
             ];
             break;
+        }
     }
 
     return { sections, bottomItems };

@@ -34,14 +34,34 @@ export default async function AgentLayout({
     }
 
     let userStatus: 'ONLINE' | 'BUSY' | 'OFFLINE' = 'OFFLINE';
+    let channelInboxes: { id: string; label: string }[] = [];
+    let tags: { id: string; name: string; color: string; showInSidebar: boolean }[] = [];
 
     if (session?.user?.id) {
         try {
-            const user = await prisma.user.findUnique({
-                where: { id: session.user.id },
-                select: { status: true },
-            });
+            const [user, waChannels, fetchedTags] = await Promise.all([
+                prisma.user.findUnique({
+                    where: { id: session.user.id },
+                    select: { status: true },
+                }),
+                session.user.companyId ? prisma.channel.findMany({
+                    where: { companyId: session.user.companyId, type: 'WHATSAPP', status: 'CONNECTED' },
+                    orderBy: { createdAt: 'asc' },
+                    select: { id: true, configJson: true },
+                }) : Promise.resolve([]),
+                session.user.companyId ? prisma.tag.findMany({
+                    where: { companyId: session.user.companyId, showInSidebar: true },
+                    orderBy: { name: 'asc' },
+                }) : Promise.resolve([]),
+            ]);
             userStatus = (user?.status as typeof userStatus) || 'OFFLINE';
+
+            // WhatsApp numbers for the per-number inbox entries in the sidebar.
+            channelInboxes = waChannels.map((ch) => {
+                const cfg = (ch.configJson || {}) as { label?: string; phoneDisplay?: string };
+                return { id: ch.id, label: cfg.label?.trim() || cfg.phoneDisplay || 'WhatsApp' };
+            });
+            tags = fetchedTags;
 
             // Auto-set to ONLINE if currently OFFLINE
             if (userStatus === 'OFFLINE') {
@@ -61,7 +81,7 @@ export default async function AgentLayout({
             <PresenceHeartbeat />
             <div className="flex w-full h-screen overflow-hidden">
                 <div className="hidden lg:block shrink-0">
-                    <Sidebar role="agent" lang={lang} dict={dict.dashboard.sidebar} />
+                    <Sidebar role="agent" lang={lang} channels={channelInboxes} tags={tags} dict={dict.dashboard.sidebar} />
                 </div>
                 <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
                     <StatusBanner />
@@ -69,6 +89,8 @@ export default async function AgentLayout({
                         title={dict.dashboard.agentTitle}
                         lang={lang}
                         role="agent"
+                        channels={channelInboxes}
+                        tags={tags}
                         userStatus={userStatus}
                         userName={session?.user?.name || undefined}
                         userEmail={session?.user?.email || undefined}
