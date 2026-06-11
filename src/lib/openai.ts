@@ -2,6 +2,12 @@ import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
 import { decryptMaybe } from '@/lib/encryption';
 
+// Serverless-friendly limits: the SDK defaults (10 min timeout) outlive the
+// function, so a hung provider call silently kills the reply. Fail fast and
+// let the SDK retry transient errors instead.
+export const PROVIDER_TIMEOUT_MS = 90_000;
+export const PROVIDER_MAX_RETRIES = 2;
+
 const globalForOpenAI = globalThis as unknown as {
     openai: OpenAI | undefined;
     companyClients: Map<string, { client: OpenAI; cachedAt: number }> | undefined;
@@ -13,6 +19,8 @@ export function getOpenAI(): OpenAI {
     if (!globalForOpenAI.openai) {
         globalForOpenAI.openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY,
+            timeout: PROVIDER_TIMEOUT_MS,
+            maxRetries: PROVIDER_MAX_RETRIES,
         });
     }
     return globalForOpenAI.openai;
@@ -36,7 +44,7 @@ export async function getOpenAIForCompany(companyId: string): Promise<{ client: 
     if (company?.openaiApiKey) {
         try {
             const decryptedKey = decryptMaybe(company.openaiApiKey);
-            const client = new OpenAI({ apiKey: decryptedKey });
+            const client = new OpenAI({ apiKey: decryptedKey, timeout: PROVIDER_TIMEOUT_MS, maxRetries: PROVIDER_MAX_RETRIES });
             globalForOpenAI.companyClients.set(companyId, { client, cachedAt: Date.now() });
             return { client, usesOwnKey: true };
         } catch (error) {

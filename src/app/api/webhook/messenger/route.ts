@@ -8,7 +8,7 @@ import { rateLimitResponse } from '@/lib/rate-limit';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { readChannelSecret } from '@/lib/channel-config';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const MAX_MESSAGE_LENGTH = 4096;
 

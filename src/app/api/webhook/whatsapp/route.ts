@@ -11,6 +11,10 @@ import { uploadToStorage, buildMediaPath } from '@/lib/storage';
 import { dispatchWebhookEvent } from '@/lib/api-webhooks';
 import { readChannelSecret } from '@/lib/channel-config';
 
+// The AI pipeline (OCR + tool loop) runs via after() and is killed when the
+// function hits its limit — give document-heavy replies room to finish.
+export const maxDuration = 300;
+
 const MAX_MESSAGE_LENGTH = 4096;
 
 /** Verify Meta X-Hub-Signature-256 header using per-channel or global secret */

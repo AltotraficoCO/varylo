@@ -9,6 +9,7 @@ import { CALENDAR_TOOLS, executeCalendarTool } from '@/lib/calendar-tools';
 import { ECOMMERCE_TOOLS, executeEcommerceTool } from '@/lib/ecommerce-tools';
 import { validateCapturedValue, inferValidationType } from '@/lib/data-capture-utils';
 import { extractOpenFields, persistCapturedField } from '@/lib/field-capture';
+import { transcribeMedia } from '@/lib/vision-ocr';
 // CRM removed
 import { sendWebhook, buildWebhookPayload } from '@/lib/webhook-sender';
 import type { WebhookConfig } from '@/types/chatbot';
@@ -342,6 +343,35 @@ export async function handleAiAgentResponse(
             );
         }
 
+        // Transcribe inbound images/PDFs so ANY model (including text-only ones like
+        // DeepSeek) can read them, and auto-segment the data into the contact. OCR is
+        // done by a cheap vision provider behind the scenes; cached on the Message.
+        const untranscribedDocs = history.filter(
+            m => m.direction === 'INBOUND' && m.mediaUrl && !m.transcription &&
+                (m.mediaType === 'image' || (m.mimeType || '').includes('pdf') || (m.fileName || '').toLowerCase().endsWith('.pdf')),
+        );
+        if (untranscribedDocs.length) {
+            // Only the most recent docs: an old conversation can hold many, and the
+            // function has a hard time budget. A failed OCR must NOT kill the reply —
+            // the message just falls back to its "no se pudo leer" label below.
+            const docsToTranscribe = untranscribedDocs.slice(-3);
+            await Promise.all(docsToTranscribe.map(async msg => {
+                try {
+                    const { text } = await transcribeMedia(
+                        { mediaUrl: msg.mediaUrl!, mimeType: msg.mimeType, fileName: msg.fileName, mediaType: msg.mediaType },
+                        { companyId: conversation.companyId, usesOwnKey: creditResult.usesOwnKey, conversationId },
+                    );
+                    if (text.trim()) {
+                        msg.transcription = text;
+                        await prisma.message.update({ where: { id: msg.id }, data: { transcription: text } }).catch(() => {});
+                        await extractOpenFields({ text, model: aiAgent.model, companyId: conversation.companyId, conversationId, contactId: conversation.contactId }).catch(() => {});
+                    }
+                } catch (err) {
+                    console.error(`[AI Agent] OCR failed for message ${msg.id}:`, err instanceof Error ? err.message : err);
+                }
+            }));
+        }
+
         for (const msg of history) {
             const role = msg.direction === 'INBOUND' ? 'user' : 'assistant';
 
@@ -351,10 +381,12 @@ export async function handleAiAgentResponse(
             if (msg.direction === 'INBOUND' && msg.mediaUrl) {
                 const isPdfMsg = (msg.mimeType || '').includes('pdf') || (msg.fileName || '').toLowerCase().endsWith('.pdf');
                 let label: string;
-                if (msg.mediaType === 'image') {
-                    label = '[imagen recibida — usa analyze_file para leer su contenido]';
-                } else if (isPdfMsg) {
-                    label = '[PDF recibido — usa analyze_file para leer su contenido]';
+                if (msg.mediaType === 'image' || isPdfMsg) {
+                    // Auto-transcribed above, so any model (incl. DeepSeek) can read it.
+                    const transcript = (msg.transcription || '').trim();
+                    label = transcript
+                        ? `[${isPdfMsg ? 'PDF' : 'Imagen'} del cliente, transcrito] ${transcript}`
+                        : `[${isPdfMsg ? 'PDF' : 'imagen'} recibido — no se pudo leer; pide al cliente que lo reenvíe más nítido o lo escriba]`;
                 } else if (msg.mediaType === 'audio') {
                     // Voice note: feed its transcription so the agent answers what was
                     // actually said. The caption (msg.content) is just "[audio]".
@@ -419,6 +451,7 @@ export async function handleAiAgentResponse(
                     let result: string;
                     console.log(`[AI Agent] Tool called: ${toolCall.name}`, JSON.stringify(args).slice(0, 200));
 
+                    try {
                     switch (toolCall.name) {
                         case 'save_captured_data':
                             result = await handleSaveCapturedData(
@@ -485,6 +518,12 @@ export async function handleAiAgentResponse(
                                 aiAgent.calendarId,
                             );
                             break;
+                    }
+                    } catch (toolErr) {
+                        // A crashed tool must not kill the whole reply — feed the error
+                        // back so the model can recover or apologize.
+                        console.error(`[AI Agent] Tool ${toolCall.name} threw:`, toolErr instanceof Error ? toolErr.message : toolErr);
+                        result = JSON.stringify({ success: false, message: `La herramienta ${toolCall.name} falló temporalmente. Continúa la conversación sin ella o inténtalo de nuevo.` });
                     }
 
                     messages.push({
@@ -676,7 +715,7 @@ async function handleSaveDocument(
     }
 }
 
-type MediaMessage = { direction: string; mediaUrl: string | null; mediaType: string | null; mimeType: string | null; fileName: string | null; createdAt: Date };
+type MediaMessage = { direction: string; mediaUrl: string | null; mediaType: string | null; mimeType: string | null; fileName: string | null; createdAt: Date; transcription?: string | null };
 
 // Newest inbound media message, independent of the input array's order.
 function findLatestInboundMedia(messages: MediaMessage[], predicate: (m: MediaMessage) => boolean): MediaMessage | undefined {
@@ -719,6 +758,20 @@ async function handleAnalyzeFile(
 
         console.log(`[analyze_file] Found ${isPdf ? 'PDF' : 'image'} | mediaType=${lastMediaMessage.mediaType} | mimeType=${lastMediaMessage.mimeType} | url=${lastMediaMessage.mediaUrl}`);
 
+        // The document was already OCR'd (and segmented into fields) before the tool
+        // loop — reuse that transcript instead of paying a second vision round-trip.
+        const cachedTranscript = (lastMediaMessage.transcription || '').trim();
+        if (cachedTranscript) {
+            console.log('[analyze_file] Reusing cached transcription');
+            await persistCapturedField(companyId, conversationId, contactId, args.field_name, cachedTranscript);
+            return JSON.stringify({
+                success: true,
+                extractedData: cachedTranscript,
+                savedAs: args.field_name,
+                instruction: 'El documento ya fue transcrito y sus datos guardados. Confirma al cliente de forma breve y natural que recibiste su documento; NO copies el documento completo.',
+            });
+        }
+
         // Build a URL OpenAI can access: generate a short-lived Supabase signed URL
         // so OpenAI fetches the image directly without base64 overhead or MIME issues.
         let accessUrl = lastMediaMessage.mediaUrl;
@@ -739,6 +792,7 @@ async function handleAnalyzeFile(
                                 'Content-Type': 'application/json',
                             },
                             body: JSON.stringify({ expiresIn: 120 }),
+                            signal: AbortSignal.timeout(10_000),
                         },
                     );
                     console.log(`[analyze_file] Sign URL status: ${signRes.status}`);
@@ -770,7 +824,7 @@ async function handleAnalyzeFile(
             if (lastMediaMessage.mediaUrl.includes('supabase') && SUPABASE_KEY) {
                 dlHeaders['Authorization'] = `Bearer ${SUPABASE_KEY}`;
             }
-            const dlRes = await fetch(lastMediaMessage.mediaUrl, { headers: dlHeaders });
+            const dlRes = await fetch(lastMediaMessage.mediaUrl, { headers: dlHeaders, signal: AbortSignal.timeout(20_000) });
             if (dlRes.ok) {
                 imageBuffer = Buffer.from(await dlRes.arrayBuffer());
                 const ct = dlRes.headers.get('content-type')?.split(';')[0];
@@ -816,6 +870,7 @@ async function handleAnalyzeFile(
                                 }],
                                 generationConfig: { temperature: 0.1 },
                             }),
+                            signal: AbortSignal.timeout(60_000),
                         },
                     );
                     console.log(`[analyze_file] Gemini status: ${geminiRes.status}`);
@@ -1129,7 +1184,7 @@ function buildSystemPrompt(opts: SystemPromptOptions): string {
             prompt += '\n\nTienes la herramienta save_captured_data para guardar datos del cliente. Cada vez que el cliente te proporcione informacion personal o relevante (nombre, email, telefono, cedula, empresa, direccion, producto de interes, etc.), usa esta herramienta para guardarla. No le pidas al cliente confirmar el guardado, simplemente guardalo y continua la conversacion naturalmente.';
         }
         prompt += '\n\nTambién tienes la herramienta save_document para guardar archivos adjuntos que envíe el cliente (hojas de vida, documentos, fotos, etc.). Cuando el cliente envíe un archivo, usa save_document con un nombre descriptivo.';
-        prompt += '\n\nTienes la herramienta analyze_file para leer y transcribir el contenido de imágenes (JPG, PNG) Y archivos PDF (OCR). Cuando el cliente envíe una imagen o un PDF, usa analyze_file con una instrucción de TRANSCRIPCIÓN (no de "extracción"). Ejemplos de instrucciones correctas: "Transcribe todo el texto visible campo por campo", "Lee y transcribe todos los datos del documento". IMPORTANTE: cuando analyze_file devuelva success:true, comparte los datos transcritos TEXTUALMENTE con el usuario, sin parafrasear ni resumir. Si la herramienta falla, pide al usuario una foto/archivo más nítido. Para otros tipos de archivo no legibles (audio, video, etc.), usa save_document en su lugar.';
+        prompt += '\n\nTienes la herramienta analyze_file para leer y transcribir el contenido de imágenes (JPG, PNG) Y archivos PDF (OCR). IMPORTANTE: si el mensaje del cliente ya incluye la transcripción inline (empieza con "[Imagen del cliente, transcrito]" o "[PDF del cliente, transcrito]"), el documento YA fue leído y sus datos guardados: NO llames analyze_file, usa directamente ese texto y continúa la conversación. Solo usa analyze_file cuando NO haya transcripción disponible, con una instrucción de TRANSCRIPCIÓN (no de "extracción"). Ejemplos de instrucciones correctas: "Transcribe todo el texto visible campo por campo", "Lee y transcribe todos los datos del documento". IMPORTANTE: cuando analyze_file devuelva success:true, comparte los datos transcritos TEXTUALMENTE con el usuario, sin parafrasear ni resumir. Si la herramienta falla, pide al usuario una foto/archivo más nítido. Para otros tipos de archivo no legibles (audio, video, etc.), usa save_document en su lugar.';
 
         if (opts.webhookEnabled) {
             prompt += '\n\nTienes la herramienta send_to_webhook para enviar todos los datos capturados al sistema externo. IMPORTANTE: Debes llamar send_to_webhook SIEMPRE al concluir la recopilación de datos del cliente. Cuando hayas terminado de capturar toda la información necesaria (datos personales, documentos, etc.), usa send_to_webhook para enviar todo. No olvides confirmar al cliente que sus datos fueron enviados exitosamente.';

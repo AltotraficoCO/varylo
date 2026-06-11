@@ -8,7 +8,7 @@ import { findLeastBusyAgent } from '@/lib/assign-agent';
 import { rateLimitResponse } from '@/lib/rate-limit';
 import { readChannelSecret } from '@/lib/channel-config';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const MAX_MESSAGE_LENGTH = 4096;
 

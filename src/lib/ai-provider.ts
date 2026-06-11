@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
-import { getOpenAIForCompany } from '@/lib/openai';
+import { getOpenAIForCompany, PROVIDER_TIMEOUT_MS, PROVIDER_MAX_RETRIES } from '@/lib/openai';
 import { prisma } from '@/lib/prisma';
 import { decryptMaybe } from '@/lib/encryption';
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
@@ -88,7 +88,7 @@ export async function getAnthropicForCompany(companyId: string): Promise<{ clien
     if (company?.anthropicApiKey) {
         try {
             const decryptedKey = decryptMaybe(company.anthropicApiKey);
-            const client = new Anthropic({ apiKey: decryptedKey });
+            const client = new Anthropic({ apiKey: decryptedKey, timeout: PROVIDER_TIMEOUT_MS, maxRetries: PROVIDER_MAX_RETRIES });
             globalForAI.anthropicClients.set(companyId, { client, cachedAt: Date.now() });
             return { client, usesOwnKey: true };
         } catch {
@@ -97,7 +97,7 @@ export async function getAnthropicForCompany(companyId: string): Promise<{ clien
     }
 
     const globalKey = process.env.ANTHROPIC_API_KEY;
-    return { client: new Anthropic({ apiKey: globalKey }), usesOwnKey: false };
+    return { client: new Anthropic({ apiKey: globalKey, timeout: PROVIDER_TIMEOUT_MS, maxRetries: PROVIDER_MAX_RETRIES }), usesOwnKey: false };
 }
 
 export async function getGeminiKeyForCompany(companyId: string): Promise<{ key: string; usesOwnKey: boolean }> {
@@ -140,7 +140,7 @@ export async function getDeepSeekForCompany(companyId: string): Promise<{ client
     if (company?.deepseekApiKey) {
         try {
             const decryptedKey = decryptMaybe(company.deepseekApiKey);
-            const client = new OpenAI({ apiKey: decryptedKey, baseURL: DEEPSEEK_BASE_URL });
+            const client = new OpenAI({ apiKey: decryptedKey, baseURL: DEEPSEEK_BASE_URL, timeout: PROVIDER_TIMEOUT_MS, maxRetries: PROVIDER_MAX_RETRIES });
             globalForAI.deepseekClients.set(companyId, { client, cachedAt: Date.now() });
             return { client, usesOwnKey: true };
         } catch {
@@ -148,7 +148,7 @@ export async function getDeepSeekForCompany(companyId: string): Promise<{ client
         }
     }
 
-    const client = new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY, baseURL: DEEPSEEK_BASE_URL });
+    const client = new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY, baseURL: DEEPSEEK_BASE_URL, timeout: PROVIDER_TIMEOUT_MS, maxRetries: PROVIDER_MAX_RETRIES });
     return { client, usesOwnKey: false };
 }
 
@@ -301,6 +301,17 @@ function toGeminiContents(messages: NormalizedMessage[]): {
 
 // ── Unified call ─────────────────────────────────────────────────────
 
+// Models (DeepSeek especially) sometimes emit malformed JSON in tool
+// arguments; a hard throw here would silently kill the whole reply.
+function safeParseToolArgs(raw: string, toolName: string): Record<string, unknown> {
+    try {
+        return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+        console.error(`[AI Provider] Malformed tool arguments for ${toolName}: ${raw.slice(0, 200)}`);
+        return {};
+    }
+}
+
 export async function callAIProvider(params: {
     model: string;
     temperature: number;
@@ -332,7 +343,7 @@ export async function callAIProvider(params: {
             .map(tc => ({
                 id: tc.id,
                 name: (tc as FnToolCall).function.name,
-                arguments: JSON.parse((tc as FnToolCall).function.arguments) as Record<string, unknown>,
+                arguments: safeParseToolArgs((tc as FnToolCall).function.arguments, (tc as FnToolCall).function.name),
             }));
 
         return {
@@ -414,21 +425,36 @@ export async function callAIProvider(params: {
             }];
         }
 
-        const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': key,
-                },
-                body: JSON.stringify(requestBody),
-            },
-        );
+        // The Gemini REST call has no SDK retry layer; retry transient
+        // failures once so a blip doesn't silently swallow the reply.
+        let res: Response | null = null;
+        for (let attempt = 0; attempt <= PROVIDER_MAX_RETRIES; attempt++) {
+            try {
+                res = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-goog-api-key': key,
+                        },
+                        body: JSON.stringify(requestBody),
+                        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+                    },
+                );
+                if (res.ok || (res.status !== 429 && res.status < 500)) break;
+            } catch (err) {
+                if (attempt === PROVIDER_MAX_RETRIES) throw err;
+                res = null;
+            }
+            if (attempt < PROVIDER_MAX_RETRIES) {
+                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            }
+        }
 
-        if (!res.ok) {
-            const errText = await res.text().catch(() => '');
-            throw new Error(`Gemini API error ${res.status}: ${errText.slice(0, 200)}`);
+        if (!res || !res.ok) {
+            const errText = res ? await res.text().catch(() => '') : 'no response';
+            throw new Error(`Gemini API error ${res?.status ?? 'network'}: ${errText.slice(0, 200)}`);
         }
 
         const data = await res.json() as {
@@ -492,7 +518,7 @@ export async function callAIProvider(params: {
             .map(tc => ({
                 id: tc.id,
                 name: (tc as FnToolCall).function.name,
-                arguments: JSON.parse((tc as FnToolCall).function.arguments) as Record<string, unknown>,
+                arguments: safeParseToolArgs((tc as FnToolCall).function.arguments, (tc as FnToolCall).function.name),
             }));
 
         return {

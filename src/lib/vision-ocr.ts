@@ -46,6 +46,7 @@ export async function transcribeMedia(
                     method: 'POST',
                     headers: { Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ expiresIn: 120 }),
+                    signal: AbortSignal.timeout(10_000),
                 });
                 if (signRes.ok) {
                     const { signedURL } = await signRes.json() as { signedURL?: string };
@@ -66,7 +67,7 @@ export async function transcribeMedia(
     try {
         const dlHeaders: Record<string, string> = {};
         if (media.mediaUrl.includes('supabase') && SUPABASE_KEY) dlHeaders['Authorization'] = `Bearer ${SUPABASE_KEY}`;
-        const dlRes = await fetch(media.mediaUrl, { headers: dlHeaders });
+        const dlRes = await fetch(media.mediaUrl, { headers: dlHeaders, signal: AbortSignal.timeout(20_000) });
         if (dlRes.ok) {
             imageBuffer = Buffer.from(await dlRes.arrayBuffer());
             const ct = dlRes.headers.get('content-type')?.split(';')[0];
@@ -91,6 +92,7 @@ export async function transcribeMedia(
                             contents: [{ parts: [{ text: instruction }, { inline_data: { mime_type: imageMime, data: imageBuffer.toString('base64') } }] }],
                             generationConfig: { temperature: 0.1 },
                         }),
+                        signal: AbortSignal.timeout(60_000),
                     },
                 );
                 if (res.ok) {
@@ -122,13 +124,13 @@ export async function transcribeMedia(
         }
     }
 
-    // 3. gpt-4o (company OpenAI key, images only)
+    // 3. gpt-4o-mini (company OpenAI key, images only) — cheap vision fallback
     if (!text.trim() && !isPdf) {
         const { client, usesOwnKey: usesOpenAIKey } = await getOpenAIForCompany(companyId);
         if (usesOpenAIKey) {
             try {
                 const res = await client.chat.completions.create({
-                    model: 'gpt-4o',
+                    model: 'gpt-4o-mini',
                     temperature: 0.1,
                     messages: [
                         { role: 'system', content: 'You are a professional OCR service. Accurately read and transcribe all visible text from images exactly as it appears. Reproduce every character without interpreting, summarizing, or omitting anything.' },
@@ -138,13 +140,13 @@ export async function transcribeMedia(
                 const out = res.choices[0]?.message?.content || '';
                 if (out.trim() && !isRefusal(out)) {
                     text = out;
-                    model = 'gpt-4o';
+                    model = 'gpt-4o-mini';
                     if (res.usage) {
                         const fn = usesOwnKey ? logUsageOnly : deductCredits;
-                        await fn({ companyId, conversationId: opts.conversationId, model: 'gpt-4o', promptTokens: res.usage.prompt_tokens, completionTokens: res.usage.completion_tokens, totalTokens: res.usage.total_tokens });
+                        await fn({ companyId, conversationId: opts.conversationId, model: 'gpt-4o-mini', promptTokens: res.usage.prompt_tokens, completionTokens: res.usage.completion_tokens, totalTokens: res.usage.total_tokens });
                     }
                 }
-            } catch (e) { console.error('[vision-ocr] gpt-4o failed:', e instanceof Error ? e.message : e); }
+            } catch (e) { console.error('[vision-ocr] gpt-4o-mini failed:', e instanceof Error ? e.message : e); }
         }
     }
 
