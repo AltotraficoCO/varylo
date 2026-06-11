@@ -345,6 +345,10 @@ model Conversation {
 
   @@index([companyId, status])
   @@index([companyId, updatedAt])
+  // Inbound webhook resolves the open conversation by channel+contact on every message.
+  @@index([companyId, channelId, contactId, status])
+  // Followups cron scans conversations by AI agent + last inbound time.
+  @@index([handledByAiAgentId, lastInboundAt])
 }
 
 model Message {
@@ -374,6 +378,8 @@ model Message {
   @@unique([providerMessageId, companyId])
   @@index([companyId, createdAt])
   @@index([conversationId])
+  // AI agent + smart capture load the latest messages of a conversation ordered by date.
+  @@index([conversationId, createdAt])
 }
 
 model ContactLead {
