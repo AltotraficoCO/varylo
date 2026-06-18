@@ -172,6 +172,9 @@ model Company {
   googleCalendarEmail        String?
   googleCalendarConnectedAt  DateTime?
 
+  // Alegra contact id (cached) so we reuse the same contact when invoicing.
+  alegraContactId String?
+
   users              User[]
   channels           Channel[]
   contacts           Contact[]
@@ -554,6 +557,20 @@ model WompiConfig {
   updatedAt       DateTime @updatedAt
 }
 
+// Global Alegra (alegra.com) billing integration — single row, super-admin only.
+// Handles invoicing for the whole application's subscriptions.
+model AlegraConfig {
+  id        String   @id @default(cuid())
+  email     String   // Alegra account email used for Basic auth
+  token     String   // Alegra API token, encrypted
+  active    Boolean  @default(true)
+  // Cached id of the reusable Alegra item ("Suscripción Varylo") used as the
+  // line item on every subscription invoice (Alegra invoices require an item id).
+  subscriptionItemId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model PlanPricing {
   id                String   @id @default(cuid())
   landingPlanId     String   @unique
@@ -612,6 +629,11 @@ model BillingAttempt {
   errorReason        String?
   attemptNumber      Int                  @default(1)
   createdAt          DateTime             @default(now())
+
+  // Alegra invoice emitted for this (approved) attempt.
+  alegraInvoiceId     String?
+  alegraInvoiceNumber String?
+  alegraInvoiceUrl    String?
 
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }

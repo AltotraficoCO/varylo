@@ -24,6 +24,7 @@ import {
     Activity,
     Phone,
     Workflow,
+    Receipt,
 } from 'lucide-react';
 import { SidebarUnreadBadge } from './unread-badge';
 
@@ -113,6 +114,7 @@ export interface SidebarDict {
     administration: string;
     companies: string;
     billing: string;
+    alegra?: string;
     siteSettings: string;
     metrics: string;
     inbox: string;
@@ -144,6 +146,7 @@ function buildSections(role: SidebarRole, t: SidebarDict, tags?: TagData[], chan
                     label: t.administration, items: [
                         { title: t.companies, href: '/super-admin/companies', icon: Building2 },
                         { title: t.billing, href: '/super-admin/billing', icon: CreditCard },
+                        { title: t.alegra || 'Alegra', href: '/super-admin/alegra', icon: Receipt },
                         { title: t.siteSettings, href: '/super-admin/site-settings', icon: Globe },
                         { title: 'Estado del sistema', href: '/super-admin/status', icon: Activity },
                     ]
@@ -246,6 +249,7 @@ const defaultDict: SidebarDict = {
     administration: 'ADMINISTRACIÓN',
     companies: 'Empresas',
     billing: 'Planes & Facturación',
+    alegra: 'Alegra',
     siteSettings: 'Sitio Web',
     metrics: 'MÉTRICAS',
     inbox: 'Inbox',

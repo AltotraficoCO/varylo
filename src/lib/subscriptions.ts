@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { createTransaction, getTransaction } from '@/lib/wompi';
+import { emitInvoiceForPayment } from '@/lib/alegra';
 import { Plan } from '@prisma/client';
 
 const PLAN_SLUG_TO_ENUM: Record<string, Plan> = {
@@ -180,6 +181,16 @@ export async function handlePaymentSuccess(subscriptionId: string, attemptId: st
         });
     }
 
+    // Best-effort: emit the Alegra invoice for this payment. Invoicing must
+    // never break payment processing, so failures are logged and swallowed.
+    try {
+        const result = await emitInvoiceForPayment(subscriptionId, attemptId);
+        if ('invoiceId' in result) {
+            console.log(`[Alegra] Invoice ${result.invoiceId} emitted for subscription ${subscriptionId}`);
+        }
+    } catch (error) {
+        console.error(`[Alegra] Failed to emit invoice for subscription ${subscriptionId}:`, error);
+    }
 }
 
 /**
