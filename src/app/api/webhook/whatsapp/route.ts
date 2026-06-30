@@ -145,6 +145,32 @@ export async function POST(req: NextRequest) {
                 });
 
                 if (channel) {
+                    const error = status.errors?.[0] || null;
+
+                    // Persist the delivery status so a 'failed' template/message stops
+                    // showing as "sent" and the Meta error reason is no longer discarded.
+                    if (status.id) {
+                        try {
+                            await prisma.message.updateMany({
+                                where: { providerMessageId: status.id, companyId: channel.companyId },
+                                data: {
+                                    status: status.status, // sent, delivered, read, failed
+                                    errorCode: error?.code ?? null,
+                                    errorMessage: error?.title || error?.message || null,
+                                },
+                            });
+                        } catch (e) {
+                            console.error('[WhatsApp status] Failed to persist status:', e);
+                        }
+                    }
+
+                    if (status.status === 'failed') {
+                        console.error(
+                            `[WhatsApp status] FAILED message ${status.id} to ${status.recipient_id}:`,
+                            JSON.stringify(status.errors || null)
+                        );
+                    }
+
                     dispatchWebhookEvent(channel.companyId, 'message.status', {
                         providerMessageId: status.id,
                         status: status.status, // sent, delivered, read, failed

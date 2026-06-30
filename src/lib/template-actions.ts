@@ -227,7 +227,7 @@ export async function sendTemplateMessage(params: {
         };
 
         const res = await fetch(
-            `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`,
+            `https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`,
             {
                 method: 'POST',
                 headers: {

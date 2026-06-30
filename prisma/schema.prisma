@@ -363,6 +363,9 @@ model Message {
   to                String
   content           String
   providerMessageId String?
+  status            String?          // delivery status from provider: sent, delivered, read, failed
+  errorCode         Int?             // provider error code when status = failed (e.g. Meta 131049)
+  errorMessage      String?          // provider error description when status = failed
   timestamp         DateTime         @default(now())
   createdAt         DateTime         @default(now())
   senderId          String?

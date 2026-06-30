@@ -296,6 +296,7 @@ export async function sendChannelMessage({
     // If mediaUrl is already an HTTP URL (e.g., from voice-upload API), use it directly
 
     // --- Step 2: Send to external channel ---
+    let providerMessageId: string | undefined;
     if (channel.type === ChannelType.WHATSAPP) {
         // Block free-form messages when the 24-hour conversation window has expired
         if (conversation.lastInboundAt) {
@@ -385,6 +386,10 @@ export async function sendChannelMessage({
                 console.error(`[WhatsApp] Failed to send message to ${contact.phone}:`, errorMsg);
                 throw new Error(`WhatsApp API error: ${errorMsg}`);
             }
+
+            // Capture Meta's message id so delivery-status webhooks can be matched back to this message.
+            const resData = await res.json().catch(() => ({} as any));
+            providerMessageId = resData?.messages?.[0]?.id;
         } else {
             throw new Error('WhatsApp channel not configured');
         }
@@ -424,6 +429,7 @@ export async function sendChannelMessage({
             from: fromName || 'AI',
             to: contact.phone,
             content,
+            providerMessageId,
             mediaUrl: storedMediaUrl,
             mediaType,
             mimeType: mimeType?.split(';')[0], // Store clean mime without codec params
