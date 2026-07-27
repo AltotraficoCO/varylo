@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2, MessageSquare, ArrowLeft, Bot } from "lucide-react";
+import { Search, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2, MessageSquare, ArrowLeft, Bot, FileWarning } from "lucide-react";
 import Link from 'next/link';
 import { cn } from "@/lib/utils";
 import ChatInput from './chat-input';
@@ -20,6 +20,7 @@ import { CollapsibleRightSidebar } from './collapsible-right-sidebar';
 import { ConversationsRealtimeWrapper } from './conversations-realtime-wrapper';
 import { WindowTimer } from './window-timer';
 import { CapturingBadge } from './capturing-badge';
+import { DocumentReviewBadge } from './document-review-badge';
 import { ConversationList } from './conversation-list';
 import { NewConversationButton } from './new-conversation-button';
 import { ReopenBanner } from './reopen-banner';
@@ -69,7 +70,7 @@ export default async function ConversationsPage({
     // too, otherwise they show totals across all numbers.
     const channelScope = channelFilter ? { channelId: channelFilter } : {};
     // Efficiently fetch counts using Promise.all
-    const [mineCount, unassignedCount, allCount, resolvedCount, aiCount] = await Promise.all([
+    const [mineCount, unassignedCount, allCount, resolvedCount, aiCount, docsCount] = await Promise.all([
         prisma.conversation.count({
             where: { companyId: session.user.companyId, isTest: false, assignedAgents: { some: { id: userId } }, status: 'OPEN', ...channelScope }
         }),
@@ -88,6 +89,9 @@ export default async function ConversationsPage({
             }),
         !isAgent ? prisma.conversation.count({
             where: { companyId: session.user.companyId, isTest: false, handledByAiAgentId: { not: null }, status: 'OPEN', ...channelScope }
+        }) : Promise.resolve(0),
+        !isAgent ? prisma.conversation.count({
+            where: { companyId: session.user.companyId, isTest: false, documentPendingAt: { not: null }, status: 'OPEN', ...channelScope }
         }) : Promise.resolve(0)
     ]);
 
@@ -128,6 +132,8 @@ export default async function ConversationsPage({
         where.handledByAiAgentId = null;
     } else if (filter === 'ai' && !isAgent) {
         where.handledByAiAgentId = { not: null };
+    } else if (filter === 'docs' && !isAgent) {
+        where.documentPendingAt = { not: null };
     } else if (isAgent) {
         // Fallback safety: always filter by mine for agents
         where.assignedAgents = { some: { id: userId } };
@@ -321,6 +327,16 @@ export default async function ConversationsPage({
                                     {t.aiAgent || 'Agente IA'} <Badge variant="secondary" className={cn("px-1 py-0 h-4 min-w-[16px] justify-center text-[10px]", aiCount > 0 ? "bg-violet-100 text-violet-700" : "bg-muted text-muted-foreground")}>{aiCount}</Badge>
                                 </Link>
                                 <Link
+                                    href={tabHref('docs')}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 transition-colors",
+                                        filter === 'docs' ? "bg-white text-primary shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    <FileWarning className="h-3.5 w-3.5" />
+                                    {t.docsTab || 'Docs por revisar'} <Badge variant="secondary" className={cn("px-1 py-0 h-4 min-w-[16px] justify-center text-[10px]", docsCount > 0 ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground")}>{docsCount}</Badge>
+                                </Link>
+                                <Link
                                     href={tabHref('all')}
                                     className={cn(
                                         "px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 transition-colors",
@@ -422,6 +438,10 @@ export default async function ConversationsPage({
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
+                                <DocumentReviewBadge
+                                    conversationId={selectedConversation.id}
+                                    pending={!!selectedConversation.documentPendingAt}
+                                />
                                 <CapturingBadge conversationId={selectedConversation.id} />
                                 {selectedConversation.channel?.type !== ChannelType.WEB_CHAT && (
                                     <WindowTimer conversationId={selectedConversation.id} />

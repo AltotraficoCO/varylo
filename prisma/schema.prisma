@@ -325,6 +325,10 @@ model Conversation {
   // While smart capture is extracting, set to now+~15s so the UI shows the
   // "Capturando datos" indicator (polled). Auto-expires.
   smartCapturingUntil DateTime?
+  // Set when the AI agent receives a document that a human must review (only if
+  // the agent has documentAlertEnabled). Cleared when someone marks the docs as
+  // reviewed; a new inbound document re-sets it, re-raising the alert.
+  documentPendingAt DateTime?
   lastMessageAt   DateTime           @default(now())
   lastInboundAt   DateTime?
   createdAt       DateTime           @default(now())
@@ -450,6 +454,9 @@ model AiAgent {
   // When true, this agent handles inbound leads that arrive from a Click-to-WhatsApp
   // ad (Meta referral), overriding the channel's default agent for those chats.
   handlesAdLeads     Boolean   @default(false)
+  // When true, conversations handled by this agent are flagged as "document
+  // pending review" in the inbox whenever the customer sends a document.
+  documentAlertEnabled Boolean @default(false)
   // Automatic follow-ups when the customer goes silent:
   // { enabled, steps: [{ delayMinutes, text?, templateName?, templateLang? }] }
   followupJson       Json?

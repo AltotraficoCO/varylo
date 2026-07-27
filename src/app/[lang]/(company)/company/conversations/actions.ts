@@ -231,6 +231,22 @@ export async function updatePriority(conversationId: string, priority: 'LOW' | '
     revalidatePath('/[lang]/agent', 'page');
 }
 
+export async function markDocumentsReviewed(conversationId: string) {
+    const session = await auth();
+    if (!session?.user?.companyId) {
+        throw new Error("Unauthorized");
+    }
+
+    await prisma.conversation.update({
+        where: { id: conversationId, companyId: session.user.companyId },
+        data: { documentPendingAt: null }
+    });
+
+    revalidatePath('/[lang]/company/conversations', 'page');
+    revalidatePath('/[lang]/agent', 'page');
+    return { success: true };
+}
+
 export async function sendMessage(conversationId: string, content: string) {
     const session = await auth();
     if (!session?.user?.id || !session?.user?.companyId) {

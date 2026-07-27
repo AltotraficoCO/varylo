@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
     ArrowLeft, Sparkles, Loader2, Calendar, ShoppingBag, Webhook, FileText,
-    Plus, X, GripVertical, Pencil, Send, CheckCircle2, AlertCircle, Megaphone, Clock,
+    Plus, X, GripVertical, Pencil, Send, CheckCircle2, AlertCircle, Megaphone, Clock, FileWarning,
 } from 'lucide-react';
 import { updateAiAgent, testWebhook, type TestWebhookResult } from '../../actions';
 import { useDictionary } from '@/lib/i18n-context';
@@ -40,6 +40,7 @@ interface EditAgentFlowProps {
         ecommerceEnabled: boolean;
         crmEnabled: boolean;
         handlesAdLeads: boolean;
+        documentAlertEnabled: boolean;
         followupJson: { enabled?: boolean; steps?: FollowupStep[] } | null;
         webhookConfigJson: { url?: string; secret?: string } | null;
         channelIds: string[];
@@ -72,6 +73,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
     const [newFieldLabel, setNewFieldLabel] = useState('');
     const [calendarEnabled, setCalendarEnabled] = useState(agent.calendarEnabled);
     const [handlesAdLeads, setHandlesAdLeads] = useState(agent.handlesAdLeads);
+    const [documentAlertEnabled, setDocumentAlertEnabled] = useState(agent.documentAlertEnabled);
     const [followupEnabled, setFollowupEnabled] = useState(!!agent.followupJson?.enabled);
     const [followupSteps, setFollowupSteps] = useState<FollowupStep[]>(agent.followupJson?.steps || []);
     const [shopifyEnabled, setShopifyEnabled] = useState(agent.ecommerceEnabled && hasShopify);
@@ -145,6 +147,7 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                 <input type="hidden" name="ecommerceEnabled" value={(shopifyEnabled || woocommerceEnabled) ? 'on' : 'off'} />
                 <input type="hidden" name="crmEnabled" value="off" />
                 <input type="hidden" name="handlesAdLeads" value={handlesAdLeads ? 'on' : 'off'} />
+                <input type="hidden" name="documentAlertEnabled" value={documentAlertEnabled ? 'on' : 'off'} />
                 <input type="hidden" name="followupEnabled" value={followupEnabled ? 'on' : 'off'} />
                 <input type="hidden" name="followupSteps" value={JSON.stringify(followupSteps)} />
                 {webhookEnabled && webhookUrl && <input type="hidden" name="webhookUrl" value={webhookUrl} />}
@@ -341,6 +344,18 @@ export function EditAgentFlow({ lang, agent, channels, hasGoogleCalendar, hasSho
                                 </div>
                             </div>
                             <Switch checked={handlesAdLeads} onCheckedChange={setHandlesAdLeads} />
+                        </div>
+
+                        {/* Alertas de revisión de documentos */}
+                        <div className="flex items-center justify-between px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-lg bg-[#FFFBEB] flex items-center justify-center"><FileWarning className="h-4 w-4 text-[#D97706]" /></div>
+                                <div>
+                                    <p className="text-[14px] font-medium text-[#09090B]">Alertas de revisión de documentos</p>
+                                    <p className="text-[12px] text-[#71717A]">Cuando este agente recibe un documento, la conversación se marca en el inbox como pendiente de revisar hasta que alguien la marque como revisada.</p>
+                                </div>
+                            </div>
+                            <Switch checked={documentAlertEnabled} onCheckedChange={setDocumentAlertEnabled} />
                         </div>
 
                         {/* Seguimientos automáticos */}

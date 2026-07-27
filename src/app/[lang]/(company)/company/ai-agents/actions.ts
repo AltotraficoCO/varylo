@@ -84,6 +84,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
     const crmEnabled = formData.get('crmEnabled') === 'on';
     const handlesAdLeads = formData.get('handlesAdLeads') === 'on';
+    const documentAlertEnabled = formData.get('documentAlertEnabled') === 'on';
     const followupEnabled = formData.get('followupEnabled') === 'on';
     let followupSteps: unknown[] = [];
     try { const p = JSON.parse((formData.get('followupSteps') as string) || '[]'); if (Array.isArray(p)) followupSteps = p; } catch { /* ignore */ }
@@ -132,6 +133,7 @@ export async function createAiAgent(prevState: string | undefined, formData: For
                 ecommerceEnabled,
                 crmEnabled,
                 handlesAdLeads,
+                documentAlertEnabled,
                 followupJson,
                 webhookConfigJson: webhookConfigJson ?? Prisma.JsonNull,
                 channels: validChannelIds.length > 0 ? {
@@ -190,6 +192,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
     const ecommerceEnabled = formData.get('ecommerceEnabled') === 'on';
     const crmEnabled = formData.get('crmEnabled') === 'on';
     const handlesAdLeads = formData.get('handlesAdLeads') === 'on';
+    const documentAlertEnabled = formData.get('documentAlertEnabled') === 'on';
     const followupEnabled = formData.get('followupEnabled') === 'on';
     let followupSteps: unknown[] = [];
     try { const p = JSON.parse((formData.get('followupSteps') as string) || '[]'); if (Array.isArray(p)) followupSteps = p; } catch { /* ignore */ }
@@ -231,6 +234,7 @@ export async function updateAiAgent(prevState: string | undefined, formData: For
                 ecommerceEnabled,
                 crmEnabled,
                 handlesAdLeads,
+                documentAlertEnabled,
                 followupJson,
                 webhookConfigJson: webhookConfigJson ?? Prisma.JsonNull,
                 channels: {

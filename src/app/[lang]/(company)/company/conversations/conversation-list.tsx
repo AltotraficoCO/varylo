@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ContactAvatar } from '@/components/contact-avatar';
 import { Badge } from '@/components/ui/badge';
-import { Instagram, Phone, Globe, Bot } from 'lucide-react';
+import { Instagram, Phone, Globe, Bot, FileWarning } from 'lucide-react';
 import { UnreadDot } from './unread-dot';
 import { ConversationListActions } from './conversation-list-actions';
 import { useDictionary } from '@/lib/i18n-context';
@@ -18,6 +18,7 @@ interface ConversationItem {
     messages: { content: string; createdAt: string | Date }[];
     assignedAgents: { id: string; name: string | null }[];
     handledByAiAgent?: { id: string; name: string } | null;
+    documentPendingAt?: string | Date | null;
 }
 
 interface ConversationListProps {
@@ -62,6 +63,7 @@ export function ConversationList({ conversations, selectedId, filter, isAgent, t
                             href={buildHref(conv.id)}
                             className={cn(
                                 "relative group flex items-start gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors border-b border-[#F4F4F5] last:border-0",
+                                !isActive && conv.documentPendingAt && "bg-amber-50/70 hover:bg-amber-50",
                                 isActive && "bg-[#ECFDF5] hover:bg-[#ECFDF5] border-l-[3px] border-l-primary pl-[13px]"
                             )}
                         >
@@ -102,6 +104,11 @@ export function ConversationList({ conversations, selectedId, filter, isAgent, t
                                             {conv.channel.type}
                                         </Badge>
                                     ) : null}
+                                    {conv.documentPendingAt && (
+                                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-amber-300 text-amber-700 bg-amber-50 font-medium flex items-center gap-1">
+                                            <FileWarning className="h-3 w-3" /> {t.docPendingBadge || 'Doc. por revisar'}
+                                        </Badge>
+                                    )}
                                     {conv.handledByAiAgent && (
                                         <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-purple-200 text-purple-600 bg-purple-50 font-normal flex items-center gap-1">
                                             <Bot className="h-3 w-3" /> {conv.handledByAiAgent.name}

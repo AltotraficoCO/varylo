@@ -21,13 +21,14 @@ export async function GET() {
             id: true,
             lastMessageAt: true,
             lastInboundAt: true,
+            documentPendingAt: true,
         },
         orderBy: { lastMessageAt: 'desc' },
     });
 
     // Build a fingerprint from IDs + timestamps for quick comparison
     const raw = conversations
-        .map(c => `${c.id}:${c.lastMessageAt.getTime()}`)
+        .map(c => `${c.id}:${c.lastMessageAt.getTime()}:${c.documentPendingAt?.getTime() ?? 0}`)
         .join('|');
     const fingerprint = crypto.createHash('sha256').update(raw).digest('hex');
 

@@ -429,10 +429,27 @@ export async function POST(req: NextRequest) {
                     throw err;
                 }
 
+                // Document review alert: when the AI agent handling this chat has
+                // the alert enabled and the customer sends a document, flag the
+                // conversation as pending review. A new document after a review
+                // re-sets the flag, so the alert is raised again.
+                let documentPending = false;
+                if (mediaType === 'document' && conversation.handledByAiAgentId) {
+                    const agentCfg = await prisma.aiAgent.findUnique({
+                        where: { id: conversation.handledByAiAgentId },
+                        select: { documentAlertEnabled: true },
+                    });
+                    documentPending = !!agentCfg?.documentAlertEnabled;
+                }
+
                 // Update conversation timestamps
                 await prisma.conversation.update({
                     where: { id: conversation.id },
-                    data: { lastMessageAt: new Date(), lastInboundAt: new Date() }
+                    data: {
+                        lastMessageAt: new Date(),
+                        lastInboundAt: new Date(),
+                        ...(documentPending ? { documentPendingAt: new Date() } : {}),
+                    }
                 });
 
                 // Dispatch to external API webhooks (fire and forget)
