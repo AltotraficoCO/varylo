@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactAvatar } from "@/components/contact-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2, MessageSquare, ArrowLeft } from "lucide-react";
+import { Search, Settings, Users, Tag, Inbox, Instagram, Phone, Globe, CheckCircle2, MessageSquare, ArrowLeft, Bot } from "lucide-react";
 import Link from 'next/link';
 import { cn } from "@/lib/utils";
 import ChatInput from './chat-input';
@@ -69,7 +69,7 @@ export default async function ConversationsPage({
     // too, otherwise they show totals across all numbers.
     const channelScope = channelFilter ? { channelId: channelFilter } : {};
     // Efficiently fetch counts using Promise.all
-    const [mineCount, unassignedCount, allCount, resolvedCount] = await Promise.all([
+    const [mineCount, unassignedCount, allCount, resolvedCount, aiCount] = await Promise.all([
         prisma.conversation.count({
             where: { companyId: session.user.companyId, isTest: false, assignedAgents: { some: { id: userId } }, status: 'OPEN', ...channelScope }
         }),
@@ -85,7 +85,10 @@ export default async function ConversationsPage({
             })
             : prisma.conversation.count({
                 where: { companyId: session.user.companyId, isTest: false, status: 'RESOLVED', ...channelScope }
-            })
+            }),
+        !isAgent ? prisma.conversation.count({
+            where: { companyId: session.user.companyId, isTest: false, handledByAiAgentId: { not: null }, status: 'OPEN', ...channelScope }
+        }) : Promise.resolve(0)
     ]);
 
     // --- 1b. Count "unanswered" (last message is INBOUND, i.e. awaiting a reply) ---
@@ -123,6 +126,8 @@ export default async function ConversationsPage({
     } else if (filter === 'unassigned' && !isAgent) {
         where.assignedAgents = { none: {} };
         where.handledByAiAgentId = null;
+    } else if (filter === 'ai' && !isAgent) {
+        where.handledByAiAgentId = { not: null };
     } else if (isAgent) {
         // Fallback safety: always filter by mine for agents
         where.assignedAgents = { some: { id: userId } };
@@ -304,6 +309,16 @@ export default async function ConversationsPage({
                                     )}
                                 >
                                     {t.unassigned} <Badge variant="secondary" className="px-1 py-0 h-4 min-w-[16px] justify-center bg-muted text-muted-foreground text-[10px]">{unassignedCount}</Badge>
+                                </Link>
+                                <Link
+                                    href={tabHref('ai')}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-xs whitespace-nowrap flex items-center gap-1.5 transition-colors",
+                                        filter === 'ai' ? "bg-white text-primary shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    <Bot className="h-3.5 w-3.5" />
+                                    {t.aiAgent || 'Agente IA'} <Badge variant="secondary" className={cn("px-1 py-0 h-4 min-w-[16px] justify-center text-[10px]", aiCount > 0 ? "bg-violet-100 text-violet-700" : "bg-muted text-muted-foreground")}>{aiCount}</Badge>
                                 </Link>
                                 <Link
                                     href={tabHref('all')}
