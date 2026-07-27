@@ -430,11 +430,12 @@ export async function POST(req: NextRequest) {
                 }
 
                 // Document review alert: when the AI agent handling this chat has
-                // the alert enabled and the customer sends a document, flag the
+                // the alert enabled and the customer sends a document (or an image,
+                // since ID cards and receipts usually arrive as photos), flag the
                 // conversation as pending review. A new document after a review
                 // re-sets the flag, so the alert is raised again.
                 let documentPending = false;
-                if (mediaType === 'document' && conversation.handledByAiAgentId) {
+                if ((mediaType === 'document' || mediaType === 'image') && conversation.handledByAiAgentId) {
                     const agentCfg = await prisma.aiAgent.findUnique({
                         where: { id: conversation.handledByAiAgentId },
                         select: { documentAlertEnabled: true },
