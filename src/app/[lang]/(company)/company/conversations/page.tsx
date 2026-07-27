@@ -440,7 +440,7 @@ export default async function ConversationsPage({
                             <div className="flex items-center gap-3 shrink-0">
                                 <DocumentReviewBadge
                                     conversationId={selectedConversation.id}
-                                    pending={!!selectedConversation.documentPendingAt}
+                                    pendingSince={selectedConversation.documentPendingAt?.toISOString() ?? null}
                                 />
                                 <CapturingBadge conversationId={selectedConversation.id} />
                                 {selectedConversation.channel?.type !== ChannelType.WEB_CHAT && (

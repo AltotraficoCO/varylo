@@ -10,19 +10,21 @@ import { useDictionary } from '@/lib/i18n-context';
  * document (documentPendingAt set by the WhatsApp webhook). Lets the team mark
  * the documents as reviewed; a new inbound document re-raises the alert.
  */
-export function DocumentReviewBadge({ conversationId, pending }: { conversationId: string; pending: boolean }) {
+export function DocumentReviewBadge({ conversationId, pendingSince }: { conversationId: string; pendingSince: string | null }) {
     const dict = useDictionary();
     const t = dict.conversations || {};
     const [isPending, startTransition] = useTransition();
-    const [dismissed, setDismissed] = useState(false);
+    // Timestamp of the alert we already reviewed, so the badge hides instantly
+    // on click but re-appears when a NEW document sets a newer documentPendingAt.
+    const [reviewedAt, setReviewedAt] = useState<string | null>(null);
 
-    if (!pending || dismissed) return null;
+    if (!pendingSince || reviewedAt === pendingSince) return null;
 
     const handleReview = () => {
         startTransition(async () => {
             try {
                 await markDocumentsReviewed(conversationId);
-                setDismissed(true);
+                setReviewedAt(pendingSince);
             } catch { /* keep the badge so the user can retry */ }
         });
     };
