@@ -8,6 +8,7 @@ import { AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { StatusBanner } from '@/components/status-banner';
+import { DeprecationBanner } from '@/components/deprecation-banner';
 import { PresenceHeartbeat } from '@/components/presence-heartbeat';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 
@@ -127,6 +128,7 @@ export default async function CompanyLayout({
                     {impersonatingCompanyName && (
                         <ImpersonationBanner companyName={impersonatingCompanyName} lang={lang} />
                     )}
+                    <DeprecationBanner />
                     <StatusBanner />
                     <DashboardHeader
                         title={dict.dashboard.companyTitle}

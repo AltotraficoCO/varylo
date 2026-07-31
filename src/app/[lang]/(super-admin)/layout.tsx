@@ -5,6 +5,7 @@ import { DictionaryProvider } from '@/lib/i18n-context';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { StatusBanner } from '@/components/status-banner';
+import { DeprecationBanner } from '@/components/deprecation-banner';
 
 export default async function SuperAdminLayout({
     children,
@@ -32,6 +33,7 @@ export default async function SuperAdminLayout({
                     <Sidebar role="super-admin" lang={lang} dict={dict.dashboard.sidebar} />
                 </div>
                 <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+                    <DeprecationBanner />
                     <StatusBanner />
                     <DashboardHeader
                         title={dict.dashboard.superAdminTitle}
