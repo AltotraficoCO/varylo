@@ -1,55 +1,17 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { getDictionary, Locale } from '@/lib/dictionary';
-import { prisma } from '@/lib/prisma';
-import { fetchUsdToCop } from '@/lib/exchange-rate';
-import { CheckCircle2, Sparkles } from 'lucide-react';
-import { RegisterWizard } from './register-wizard';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/language-switcher';
 
 export default async function RegisterPage({
     params,
-    searchParams,
 }: {
     params: Promise<{ lang: Locale }>;
-    searchParams: Promise<{ plan?: string }>;
 }) {
     const { lang } = await params;
-    const { plan } = await searchParams;
     const dict = await getDictionary(lang);
     const d = dict.auth.register;
-
-    const validPlans = ['STARTER', 'PRO', 'SCALE'];
-    const selectedPlanSlug = plan && validPlans.includes(plan.toUpperCase()) ? plan.toUpperCase() : 'STARTER';
-
-    // Fetch ALL active PlanPricing records
-    let availablePlans: { id: string; slug: string; name: string; priceInCents: number; trialDays: number }[] = [];
-
-    try {
-        const pricings = await prisma.planPricing.findMany({
-            where: { active: true },
-            include: { landingPlan: { select: { name: true, slug: true, sortOrder: true, showTrialOnRegister: true, price: true } } },
-            orderBy: { landingPlan: { sortOrder: 'asc' } },
-        });
-
-        // If any plan uses auto TRM, fetch exchange rate server-side
-        const needsTrm = pricings.some((p) => p.useAutoTrm);
-        const trm = needsTrm ? await fetchUsdToCop() : 0;
-
-        availablePlans = pricings.map((p) => ({
-            id: p.id,
-            slug: p.landingPlan.slug,
-            name: p.landingPlan.name,
-            priceInCents: p.useAutoTrm
-                ? Math.round(p.landingPlan.price * trm * 100)
-                : p.priceInCents,
-            trialDays: p.landingPlan.showTrialOnRegister ? p.trialDays : 0,
-        }));
-    } catch {
-        // PlanPricing may not exist yet
-    }
-
-    // Max trial days across plans for left panel badge
-    const maxTrialDays = Math.max(0, ...availablePlans.map((p) => p.trialDays));
 
     const panel = d.panel;
 
@@ -76,14 +38,6 @@ export default async function RegisterPage({
                 {/* Center — plan info */}
                 <div className="relative z-10 space-y-6">
                     <h1 className="text-3xl font-bold leading-tight">{panel.headline}</h1>
-
-                    {/* Trial badge */}
-                    {maxTrialDays > 0 && (
-                        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-4 py-1.5 text-sm font-medium text-emerald-300">
-                            <Sparkles className="h-4 w-4" />
-                            {panel.trialBadge.replace('{days}', String(maxTrialDays))}
-                        </div>
-                    )}
 
                     {/* Features */}
                     <div className="space-y-3">
@@ -113,12 +67,25 @@ export default async function RegisterPage({
                         <Image src="/logo.png" alt="Varylo" width={140} height={79} priority />
                     </div>
 
-                    <RegisterWizard
-                        dict={d}
-                        lang={lang}
-                        availablePlans={availablePlans}
-                        defaultPlanSlug={selectedPlanSlug}
-                    />
+                    {/* Registro cerrado por deprecación de la herramienta */}
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-6 space-y-3">
+                        <div className="flex items-center gap-2 text-red-800">
+                            <AlertTriangle className="h-5 w-5 shrink-0" />
+                            <h2 className="text-lg font-semibold">Registro cerrado</h2>
+                        </div>
+                        <p className="text-sm text-red-800">
+                            Ya no aceptamos nuevas cuentas. Esta herramienta será deprecada el{' '}
+                            <strong>31 de agosto de 2026</strong>; los usuarios actuales tendrán
+                            acceso a sus chats hasta el <strong>29 de septiembre de 2026</strong>.
+                        </p>
+                        <p className="text-sm text-red-800">
+                            Si ya tienes una cuenta, puedes{' '}
+                            <Link href={`/${lang}/login`} className="font-medium underline">
+                                iniciar sesión aquí
+                            </Link>
+                            .
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
