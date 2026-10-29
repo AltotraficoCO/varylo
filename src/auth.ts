@@ -22,6 +22,7 @@ export const { auth, signIn, signOut, handlers, unstable_update } = NextAuth({
         ...authConfig.callbacks,
         async jwt(params) {
             const token = await authConfig.callbacks.jwt(params);
+            if (!token) return null;
             if (params.trigger !== 'update') return token;
             return applySessionUpdate(token, params.session, {
                 findUser: (id) => prisma.user.findUnique({

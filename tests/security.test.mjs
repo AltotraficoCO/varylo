@@ -136,3 +136,8 @@ test('server Auth.js callback wires database authorization into update only', as
     await config.callbacks.jwt({ token: { ...token } });
     assert.equal(reads, 1);
 });
+
+
+test('sign-in without an authenticated user id fails closed', async () => {
+    assert.equal(await authConfig.callbacks.jwt({ token: {}, user: { role: 'AGENT', companyId: 'own' } }), null);
+});
