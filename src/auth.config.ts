@@ -5,15 +5,14 @@ export const authConfig = {
         signIn: '/login',
     },
     callbacks: {
-        async jwt({ token, user, trigger, session }) {
+        async jwt({ token, user }) {
             if (user) {
                 token.role = user.role;
                 token.companyId = user.companyId;
                 token.id = user.id;
             }
-            if (trigger === 'update' && session) {
-                token = { ...token, ...session };
-            }
+            // Session updates are client-controlled. Never merge them into claims.
+            // Server-authorized impersonation is handled in auth.ts.
             return token;
         },
         async session({ session, token }) {
