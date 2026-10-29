@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ChannelType } from '@prisma/client';
@@ -9,7 +9,7 @@ const META_GRAPH = 'https://graph.facebook.com/v21.0';
 /**
  * GET /api/debug/whatsapp
  * Diagnostic endpoint: checks WhatsApp config, WABA subscription, phone status.
- * Also attempts to subscribe WABA to webhooks if not already.
+ * Read-only: registration and subscription belong to explicit setup actions.
  */
 export async function GET(req: NextRequest) {
     const session = await auth();
@@ -36,8 +36,6 @@ export async function GET(req: NextRequest) {
         phoneNumberId: config?.phoneNumberId || 'MISSING',
         wabaId: config?.wabaId || 'MISSING',
         hasAccessToken: !!config?.accessToken,
-        // Masked: enough to tell tokens apart, never the usable value.
-        tokenPreview: accessToken ? accessToken.substring(0, 6) + '…' + accessToken.slice(-4) : 'MISSING',
     };
 
     if (!accessToken) {
@@ -90,23 +88,6 @@ export async function GET(req: NextRequest) {
         } catch (e: any) {
             results.phoneDetailError = e.message;
         }
-
-        // Check 1.6: Try to register the phone (idempotent if already registered)
-        try {
-            const regRes = await fetch(`${META_GRAPH}/${config.phoneNumberId}/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messaging_product: 'whatsapp',
-                    pin: '123456',
-                    access_token: accessToken,
-                }),
-            });
-            const regData = await regRes.json();
-            results.registerAttempt = regData;
-        } catch (e: any) {
-            results.registerError = e.message;
-        }
     }
 
     // Check 2: Get WABA info
@@ -126,19 +107,6 @@ export async function GET(req: NextRequest) {
             results.webhookSubscription = subData;
         } catch (e: any) {
             results.webhookSubError = e.message;
-        }
-
-        // Check 4: Try to subscribe
-        try {
-            const subscribeRes = await fetch(`${META_GRAPH}/${config.wabaId}/subscribed_apps`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ access_token: accessToken }),
-            });
-            const subscribeData = await subscribeRes.json();
-            results.subscribeAttempt = subscribeData;
-        } catch (e: any) {
-            results.subscribeError = e.message;
         }
     }
 

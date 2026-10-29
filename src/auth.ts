@@ -6,6 +6,7 @@ import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { Role } from '@prisma/client';
+import { applySessionUpdate } from './lib/session-update';
 
 async function verifyPassword(plain: string, hashed: string | null) {
     if (!hashed) return false;
@@ -19,6 +20,20 @@ export const { auth, signIn, signOut, handlers, unstable_update } = NextAuth({
     session: { strategy: 'jwt' },
     callbacks: {
         ...authConfig.callbacks,
+        async jwt(params) {
+            const token = await authConfig.callbacks.jwt(params);
+            if (!token) return null;
+            if (params.trigger !== 'update') return token;
+            return applySessionUpdate(token, params.session, {
+                findUser: (id) => prisma.user.findUnique({
+                    where: { id },
+                    select: { id: true, role: true, companyId: true },
+                }),
+                companyExists: async (id) => !!await prisma.company.findUnique({
+                    where: { id }, select: { id: true },
+                }),
+            });
+        },
     },
     providers: [
         Credentials({
